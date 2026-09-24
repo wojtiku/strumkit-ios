@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		0100F3AC35A36130215DB765 /* TunerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EBBE085E6A0AEA296635DC7 /* TunerView.swift */; };
-		089C85D239B25CA1934B3F5E /* PitchHistoryGraphView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0D78890F9FAE4B3898E027D /* PitchHistoryGraphView.swift */; };
 		0ABE7971D67B6B6E051781D5 /* TuningTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A41901C0DBFCC7468EA0D492 /* TuningTests.swift */; };
 		0FEE411C8114698ABF7B1CAD /* TunerTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 346448E9449E7C1E9948B6E4 /* TunerTypes.swift */; };
 		121C02413A7863626F04FC9D /* TrackerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09567FB37CE8D5799FE61DDF /* TrackerTests.swift */; };
@@ -93,7 +92,6 @@
 		C28EE502C08CF315B4AFC869 /* Resampler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Resampler.swift; sourceTree = "<group>"; };
 		CB2976033828B4418762AF99 /* TunerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunerViewModel.swift; sourceTree = "<group>"; };
 		CEFF6986B5F14C11BC7D26CB /* uke_e.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = uke_e.wav; sourceTree = "<group>"; };
-		D0D78890F9FAE4B3898E027D /* PitchHistoryGraphView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PitchHistoryGraphView.swift; sourceTree = "<group>"; };
 		D2829779E0C8247F29DFFBE1 /* PreferencesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesTests.swift; sourceTree = "<group>"; };
 		DD6F073A1EB3B45BA8035311 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		F28D21483C340F02EFD7E8DA /* TunerTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunerTheme.swift; sourceTree = "<group>"; };
@@ -121,7 +119,6 @@
 				FEC3D98337F199653D9B61EE /* HardwareModeBarView.swift */,
 				2E7BE48FE2F485FB47182300 /* HardwareReadoutView.swift */,
 				66521444C5F5630330979977 /* HardwareStringGridView.swift */,
-				D0D78890F9FAE4B3898E027D /* PitchHistoryGraphView.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -355,7 +352,6 @@
 				79DF4A92A3660F6F78C79F3C /* HardwareStringGridView.swift in Sources */,
 				F89C309F5A1A904620D88B11 /* MusicalNote.swift in Sources */,
 				2CE06A3FBC69A4F047675C3B /* PitchDetector.swift in Sources */,
-				089C85D239B25CA1934B3F5E /* PitchHistoryGraphView.swift in Sources */,
 				9B2F6D96BDA41DC794FBE6CF /* PitchTracker.swift in Sources */,
 				72D1D15BA9A9ADBB33E7ACFF /* Resampler.swift in Sources */,
 				8700629172EDA70BBD10FA95 /* SettingsView.swift in Sources */,

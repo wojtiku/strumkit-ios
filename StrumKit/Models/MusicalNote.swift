@@ -28,7 +28,6 @@ public enum TunerConstants {
     public static let detectorMaxHz: Double = 1100.0
 
     public static let maxDetuningCents: Double = 200.0
-    public static let historyDurationSeconds: Double = 7.0
 }
 
 /// Utility functions for MIDI note numbers, frequencies, and cents.

@@ -4,7 +4,6 @@ import SwiftUI
 public struct TunerView: View {
     @State private var viewModel = TunerViewModel()
     @State private var isShowingSettings = false
-    @State private var isHistoryExpanded = false
 
     public init() {}
 
@@ -25,70 +24,39 @@ public struct TunerView: View {
                 TunerTheme.background
                     .ignoresSafeArea()
 
-                ScrollView {
-                    VStack(spacing: 16) {
-                        // 1. Header (Instrument switch & Tuning preset)
-                        headerControls
+                VStack(spacing: 12) {
+                    // 1. Header (Instrument switch & Tuning preset)
+                    headerControls
 
-                        // 2. Hardware Display (Gauge, Readout, Guidance, Start/Stop)
-                        hardwareDisplaySection
+                    // 2. Hardware Display (Gauge, Readout, Guidance, Start/Stop)
+                    hardwareDisplaySection
 
-                        // 3. Mode Bar (Auto, Guided, Chromatic & Precision toggle)
-                        HardwareModeBarView(
-                            mode: viewModel.config.mode,
-                            precision: viewModel.config.precision,
-                            onSelectMode: { viewModel.setMode($0) },
-                            onTogglePrecision: { viewModel.togglePrecision() }
-                        )
+                    // 3. Mode Bar (Auto, Guided, Chromatic & Precision toggle)
+                    HardwareModeBarView(
+                        mode: viewModel.config.mode,
+                        precision: viewModel.config.precision,
+                        onSelectMode: { viewModel.setMode($0) },
+                        onTogglePrecision: { viewModel.togglePrecision() }
+                    )
 
-                        // 4. Reference Strings Section
-                        HardwareStringGridView(
-                            targets: viewModel.targets,
-                            selectedIndex: viewModel.config.mode == .guided ? viewModel.guidedTargetIndex : (viewModel.config.mode == .manual ? viewModel.config.selectedString : viewModel.currentReading?.targetIndex),
-                            mode: viewModel.config.mode,
-                            guidedProgress: viewModel.guidedProgress,
-                            activeToneIndex: viewModel.activeToneStringIndex,
-                            onToggleLock: { viewModel.toggleStringLock(index: $0) },
-                            onUnlock: { viewModel.unlockString() },
-                            onPlayTone: { viewModel.playReferenceTone(index: $0) },
-                            onResetGuided: { viewModel.resetGuidedSession() }
-                        )
-
-                        // 5. Expandable Pitch History Strip
-                        DisclosureGroup(isExpanded: $isHistoryExpanded) {
-                            PitchHistoryGraphView(history: viewModel.history)
-                                .padding(.top, 6)
-                        } label: {
-                            Label("Pitch History (7s)", systemImage: "waveform.path.ecg")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.horizontal, 20)
-                        .padding(.vertical, 8)
-                        .background(TunerTheme.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .padding(.horizontal, 16)
-
-                        // 6. Privacy Footer
-                        Text("Audio stays on your device. No recordings, uploads, or account needed.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(TunerTheme.gaugeTickMinor)
-                            .multilineTextAlignment(.center)
-                            .padding(.top, 4)
-                            .padding(.bottom, 16)
-                    }
-                    .padding(.vertical, 8)
+                    // 4. Reference Strings Section
+                    HardwareStringGridView(
+                        targets: viewModel.targets,
+                        selectedIndex: viewModel.config.mode == .guided ? viewModel.guidedTargetIndex : (viewModel.config.mode == .manual ? viewModel.config.selectedString : viewModel.currentReading?.targetIndex),
+                        mode: viewModel.config.mode,
+                        guidedProgress: viewModel.guidedProgress,
+                        activeToneIndex: viewModel.activeToneStringIndex,
+                        onToggleLock: { viewModel.toggleStringLock(index: $0) },
+                        onUnlock: { viewModel.unlockString() },
+                        onPlayTone: { viewModel.playReferenceTone(index: $0) },
+                        onResetGuided: { viewModel.resetGuidedSession() }
+                    )
                 }
+                .padding(.vertical, 6)
             }
             .navigationTitle("Tuner")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Text("One string. A clear reading.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         isShowingSettings = true
@@ -246,14 +214,14 @@ public struct TunerView: View {
                         .font(.headline.weight(.bold))
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
+                .padding(.vertical, 12)
                 .background(viewModel.engineStatus == .listening ? TunerTheme.surfaceElevated : TunerTheme.inTune)
                 .foregroundStyle(viewModel.engineStatus == .listening ? Color.white : Color.black)
                 .clipShape(RoundedRectangle(cornerRadius: 14))
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 20)
-            .padding(.bottom, 12)
+            .padding(.bottom, 10)
 
             // Error Message (if permission denied or audio interrupted)
             if let errorMsg = viewModel.engineStatus.guidanceError {

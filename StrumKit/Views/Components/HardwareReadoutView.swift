@@ -78,17 +78,18 @@ public struct HardwareReadoutView: View {
             // Hero Note Display with Superscript Octave
             HStack(alignment: .top, spacing: 2) {
                 Text(noteParts.name)
-                    .font(.system(size: 72, weight: .heavy, design: .rounded))
+                    .font(.system(size: 64, weight: .heavy, design: .rounded))
                     .foregroundStyle(reading != nil ? statusColor : TunerTheme.neutral)
+                    .minimumScaleFactor(0.7)
 
                 if !noteParts.octave.isEmpty {
                     Text(noteParts.octave)
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .font(.system(size: 26, weight: .bold, design: .rounded))
                         .foregroundStyle(reading != nil ? statusColor.opacity(0.85) : TunerTheme.neutral)
-                        .offset(y: 8)
+                        .offset(y: 6)
                 }
             }
-            .frame(height: 80)
+            .frame(height: 70)
 
             // Cents Readout
             Text(formattedCents)

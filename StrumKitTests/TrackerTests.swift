@@ -70,31 +70,4 @@ struct TrackerTests {
         #expect(tracker.guidedProgress[0] == true)
         #expect(tracker.guidedTargetIndex == 1)
     }
-
-    @Test("History prunes points older than 7 seconds")
-    func testHistoryPruning() {
-        let tracker = PitchTracker()
-        let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .chromatic)
-        let targets = Presets.guitar[0].midi.enumerated().map { index, midi in
-            StringTarget(note: PitchMath.midiNoteName(midi), midi: midi, frequency: PitchMath.midiFrequency(midi), number: 6 - index)
-        }
-
-        let sampleResult = PitchResult(
-            frequency: 440.0,
-            closestNote: MusicalNote(midiNoteNumber: 69),
-            centsDeviation: 0.0,
-            confidence: 0.9,
-            amplitudeRMS: 0.05,
-            isSignalPresent: true
-        )
-
-        _ = tracker.process(pitchResult: sampleResult, at: 1.0, config: config, targets: targets)
-        _ = tracker.process(pitchResult: sampleResult, at: 5.0, config: config, targets: targets)
-        _ = tracker.process(pitchResult: sampleResult, at: 10.0, config: config, targets: targets)
-
-        // At t = 10.0s, point at t = 1.0s is 9 seconds old (> 7s), so it should be pruned
-        #expect(!tracker.history.contains(where: { $0.at == 1.0 }))
-        #expect(tracker.history.contains(where: { $0.at == 5.0 }))
-        #expect(tracker.history.contains(where: { $0.at == 10.0 }))
-    }
 }

@@ -59,15 +59,15 @@ public struct HardwareGaugeView: View {
                 .padding(.bottom, 2)
             }
         }
-        .frame(height: 140)
+        .frame(height: 120)
     }
 }
 
 private struct GaugeBackgroundView: View {
     var body: some View {
         GeometryReader { geo in
-            let center = CGPoint(x: geo.size.width / 2, y: geo.size.height + 10)
-            let radius = geo.size.width * 0.42
+            let radius = min(geo.size.width * 0.40, geo.size.height - 8)
+            let center = CGPoint(x: geo.size.width / 2, y: geo.size.height + 4)
 
             // Arc track
             Path { path in
@@ -89,7 +89,7 @@ private struct GaugeBackgroundView: View {
                     let isCenter = (i == 10)
                     let isMajor = (i % 5 == 0)
 
-                    let tickLength: CGFloat = isCenter ? 14 : (isMajor ? 10 : 6)
+                    let tickLength: CGFloat = isCenter ? 12 : (isMajor ? 8 : 5)
 
                     let outer = CGPoint(
                         x: center.x + CGFloat(cos(radians)) * (radius + tickLength),
@@ -112,8 +112,8 @@ private struct GaugeBackgroundView: View {
 private struct InTuneCenterArc: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        let center = CGPoint(x: rect.midX, y: rect.height + 10)
-        let radius = rect.width * 0.42
+        let radius = min(rect.width * 0.40, rect.height - 8)
+        let center = CGPoint(x: rect.midX, y: rect.height + 4)
 
         // Center zone: +/- 7.5 degrees (approx +/- 5 cents)
         path.addArc(
@@ -133,8 +133,9 @@ private struct NeedlePointerView: View {
 
     var body: some View {
         GeometryReader { geo in
-            let center = CGPoint(x: geo.size.width / 2, y: geo.size.height + 10)
-            let needleLength = geo.size.width * 0.40
+            let radius = min(geo.size.width * 0.40, geo.size.height - 8)
+            let center = CGPoint(x: geo.size.width / 2, y: geo.size.height + 4)
+            let needleLength = radius * 0.95
 
             Path { path in
                 path.move(to: center)
@@ -150,7 +151,7 @@ private struct NeedlePointerView: View {
             )
             .rotationEffect(
                 .degrees(angle),
-                anchor: .init(x: 0.5, y: (geo.size.height + 10) / geo.size.height)
+                anchor: .init(x: 0.5, y: (geo.size.height + 4) / geo.size.height)
             )
         }
     }

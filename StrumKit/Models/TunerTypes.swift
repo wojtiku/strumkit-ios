@@ -144,21 +144,6 @@ public struct TunerReading: Sendable, Equatable {
     }
 }
 
-public struct HistoryPoint: Identifiable, Sendable, Equatable {
-    public var id: TimeInterval { at }
-    public let at: TimeInterval
-    public let cents: Double
-    public let targetIndex: Int
-    public let gapBefore: Bool
-
-    public init(at: TimeInterval, cents: Double, targetIndex: Int, gapBefore: Bool = false) {
-        self.at = at
-        self.cents = cents
-        self.targetIndex = targetIndex
-        self.gapBefore = gapBefore
-    }
-}
-
 public struct ToneMemory: Sendable, Equatable {
     public let note: String
     public let frequency: Double

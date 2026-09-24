@@ -13,10 +13,9 @@ public final class TunerViewModel {
     public var feedbackState: SignalFeedbackState = .inactive
     public var diagnostics: TunerDiagnostics = TunerDiagnostics()
 
-    // Guided Mode & History
+    // Guided Mode
     public var guidedProgress: [Bool] = []
     public var guidedTargetIndex: Int = 0
-    public var history: [HistoryPoint] = []
 
     // Tone synthesis
     public var activeToneStringIndex: Int? = nil
@@ -159,7 +158,6 @@ public final class TunerViewModel {
             self.feedbackState = self.tracker.feedbackState
             self.guidedProgress = self.tracker.guidedProgress
             self.guidedTargetIndex = self.tracker.guidedTargetIndex
-            self.history = self.tracker.history
 
             if let reading {
                 self.lastTone = ToneMemory(

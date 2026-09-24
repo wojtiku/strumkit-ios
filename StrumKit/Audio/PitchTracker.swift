@@ -1,7 +1,7 @@
 import Foundation
 
 /// Manages pitch stability, target string matching, guided-mode progression,
-/// display cents smoothing, multi-reading acquisition, and rolling 7-second history points.
+/// display cents smoothing, and multi-reading acquisition.
 /// Faithful native port of chorder/src/audio/tuner/tracker.ts.
 public final class PitchTracker: @unchecked Sendable {
     // Tuning thresholds (cents)
@@ -18,8 +18,6 @@ public final class PitchTracker: @unchecked Sendable {
     // Guided mode requirements
     public static let guidedHoldDuration: TimeInterval = 1.0 // 1 full second in tune
     public static let guidedCompletionPeriodicity: Double = 0.85
-    public static let maxHistoryDuration: TimeInterval = 7.0
-    public static let maxHistoryPoints: Int = 350
 
     // State
     private var lastReadingTime: TimeInterval = 0
@@ -34,7 +32,6 @@ public final class PitchTracker: @unchecked Sendable {
 
     public private(set) var guidedProgress: [Bool] = []
     public private(set) var guidedTargetIndex: Int = 0
-    public private(set) var history: [HistoryPoint] = []
     public private(set) var feedbackState: SignalFeedbackState = .inactive
     public private(set) var continuityPrior: (frequency: Double, at: TimeInterval)? = nil
 
@@ -44,7 +41,6 @@ public final class PitchTracker: @unchecked Sendable {
     public func reset(targetCount: Int) {
         guidedProgress = Array(repeating: false, count: targetCount)
         guidedTargetIndex = 0
-        history.removeAll()
         displayCentsEma = 0.0
         lastInTuneState = false
         guidedHoldStartTime = nil
@@ -189,17 +185,6 @@ public final class PitchTracker: @unchecked Sendable {
             } else {
                 guidedHoldStartTime = nil
             }
-        }
-
-        // 7. Update Rolling History
-        let isNewSegment = (previousTargetIndex != targetIndex) || (now - lastReadingTime > 0.08)
-        let point = HistoryPoint(at: now, cents: displayCentsEma, targetIndex: targetIndex, gapBefore: isNewSegment)
-        history.append(point)
-
-        let cutoff = now - Self.maxHistoryDuration
-        history.removeAll { $0.at < cutoff }
-        if history.count > Self.maxHistoryPoints {
-            history.removeFirst(history.count - Self.maxHistoryPoints)
         }
 
         lastReadingTime = now
