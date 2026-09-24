@@ -1,7 +1,8 @@
 import Foundation
 
 /// Manages pitch stability, target string matching, guided-mode progression,
-/// display cents smoothing, and rolling 7-second history points.
+/// display cents smoothing, multi-reading acquisition, and rolling 7-second history points.
+/// Faithful native port of chorder/src/audio/tuner/tracker.ts.
 public final class PitchTracker: @unchecked Sendable {
     // Tuning thresholds (cents)
     public static let standardEnterTuneCents: Double = 5.0
@@ -9,8 +10,14 @@ public final class PitchTracker: @unchecked Sendable {
     public static let precisionEnterTuneCents: Double = 2.0
     public static let precisionExitTuneCents: Double = 3.0
 
+    // Acquisition & Stability
+    public static let acquireReadings: Int = 3
+    public static let onsetAcquireReadings: Int = 2
+    public static let onsetRmsMultiplier: Double = 3.0
+
     // Guided mode requirements
     public static let guidedHoldDuration: TimeInterval = 1.0 // 1 full second in tune
+    public static let guidedCompletionPeriodicity: Double = 0.85
     public static let maxHistoryDuration: TimeInterval = 7.0
     public static let maxHistoryPoints: Int = 350
 
@@ -21,10 +28,15 @@ public final class PitchTracker: @unchecked Sendable {
     private var guidedHoldStartTime: TimeInterval? = nil
     private var previousTargetIndex: Int = -1
 
+    private var candidateIndex: Int? = nil
+    private var candidateCount: Int = 0
+    private var lastRms: Double = 0.0
+
     public private(set) var guidedProgress: [Bool] = []
     public private(set) var guidedTargetIndex: Int = 0
     public private(set) var history: [HistoryPoint] = []
     public private(set) var feedbackState: SignalFeedbackState = .inactive
+    public private(set) var continuityPrior: (frequency: Double, at: TimeInterval)? = nil
 
     public init() {}
 
@@ -37,6 +49,10 @@ public final class PitchTracker: @unchecked Sendable {
         lastInTuneState = false
         guidedHoldStartTime = nil
         previousTargetIndex = -1
+        candidateIndex = nil
+        candidateCount = 0
+        lastRms = 0.0
+        continuityPrior = nil
         feedbackState = .inactive
     }
 
@@ -56,7 +72,6 @@ public final class PitchTracker: @unchecked Sendable {
     ) -> TunerReading? {
         guard !targets.isEmpty else { return nil }
 
-        // Ensure guidedProgress array matches target count
         if guidedProgress.count != targets.count {
             guidedProgress = Array(repeating: false, count: targets.count)
             guidedTargetIndex = 0
@@ -69,6 +84,9 @@ public final class PitchTracker: @unchecked Sendable {
         }
 
         let frequency = pitchResult.frequency
+        let currentRms = pitchResult.amplitudeRMS
+        let isOnset = (lastRms > 0) && (currentRms >= lastRms * Self.onsetRmsMultiplier)
+        lastRms = currentRms
 
         // 2. Determine target string according to mode
         let targetIndex: Int
@@ -97,13 +115,12 @@ public final class PitchTracker: @unchecked Sendable {
             }
 
         case .auto:
-            // Match closest string within MAX_DETUNING_CENTS
+            // Match closest string within MAX_DETUNING_CENTS with 20¢ hysteresis
             var closestIdx = 0
             var minCentsDist = Double.greatestFiniteMagnitude
 
             for (idx, candidate) in targets.enumerated() {
                 let dist = abs(PitchMath.centsBetween(measured: frequency, reference: candidate.frequency))
-                // Apply 20 cents hysteresis for previous target
                 let hysteresis = (idx == previousTargetIndex) ? 20.0 : 0.0
                 if (dist - hysteresis) < minCentsDist {
                     minCentsDist = dist - hysteresis
@@ -116,10 +133,23 @@ public final class PitchTracker: @unchecked Sendable {
                 targetIndex = closestIdx
                 target = targets[closestIdx]
             } else {
-                // Outside open string acceptance window
                 handleAmbiguousSignal(at: now)
                 return nil
             }
+        }
+
+        // Multi-reading target confirmation (ACQUIRE_READINGS = 3, or 2 on onset)
+        let neededReadings = isOnset ? Self.onsetAcquireReadings : Self.acquireReadings
+        if candidateIndex == targetIndex {
+            candidateCount += 1
+        } else {
+            candidateIndex = targetIndex
+            candidateCount = 1
+        }
+
+        guard candidateCount >= neededReadings || config.mode == .chromatic || config.mode == .manual else {
+            feedbackState = .checking
+            return nil
         }
 
         // 3. Calculate cents deviation
@@ -142,12 +172,11 @@ public final class PitchTracker: @unchecked Sendable {
         }
         lastInTuneState = inTune
 
-        // 6. Guided Mode Progress Advancement
+        // 6. Guided Mode Progress Advancement (1-second hold requirement)
         if config.mode == .guided && targetIndex == guidedTargetIndex {
-            if inTune && pitchResult.confidence >= 0.75 {
+            if inTune && pitchResult.confidence >= Self.guidedCompletionPeriodicity {
                 if let startTime = guidedHoldStartTime {
                     if (now - startTime) >= Self.guidedHoldDuration {
-                        // String tuned successfully!
                         guidedProgress[targetIndex] = true
                         if guidedTargetIndex + 1 < targets.count {
                             guidedTargetIndex += 1
@@ -163,11 +192,10 @@ public final class PitchTracker: @unchecked Sendable {
         }
 
         // 7. Update Rolling History
-        let isNewSegment = (previousTargetIndex != targetIndex) || (now - lastReadingTime > 0.3)
+        let isNewSegment = (previousTargetIndex != targetIndex) || (now - lastReadingTime > 0.08)
         let point = HistoryPoint(at: now, cents: displayCentsEma, targetIndex: targetIndex, gapBefore: isNewSegment)
         history.append(point)
 
-        // Prune points older than 7 seconds
         let cutoff = now - Self.maxHistoryDuration
         history.removeAll { $0.at < cutoff }
         if history.count > Self.maxHistoryPoints {
@@ -176,6 +204,7 @@ public final class PitchTracker: @unchecked Sendable {
 
         lastReadingTime = now
         previousTargetIndex = targetIndex
+        continuityPrior = (frequency: frequency, at: now)
         feedbackState = .tracking
 
         let noteDisplay = PitchMath.midiNoteName(target.midi)
@@ -195,6 +224,9 @@ public final class PitchTracker: @unchecked Sendable {
 
     private func handleLostSignal(at now: TimeInterval) {
         guidedHoldStartTime = nil
+        candidateCount = 0
+        candidateIndex = nil
+        continuityPrior = nil
         if now - lastReadingTime > 0.4 {
             feedbackState = .ready
         }

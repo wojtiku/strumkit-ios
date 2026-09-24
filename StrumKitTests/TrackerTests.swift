@@ -23,7 +23,11 @@ struct TrackerTests {
             isSignalPresent: true
         )
 
-        let reading = tracker.process(pitchResult: resultE2, at: 1.0, config: config, targets: targets)
+        // Feed 3 consecutive observations (40ms total) to confirm target acquisition
+        _ = tracker.process(pitchResult: resultE2, at: 0.00, config: config, targets: targets)
+        _ = tracker.process(pitchResult: resultE2, at: 0.02, config: config, targets: targets)
+        let reading = tracker.process(pitchResult: resultE2, at: 0.04, config: config, targets: targets)
+
         #expect(reading != nil)
         #expect(reading?.target.number == 6)
         #expect(reading?.target.note == "E2")
@@ -52,18 +56,17 @@ struct TrackerTests {
             isSignalPresent: true
         )
 
-        // At t = 0.0s: hold begins
-        _ = tracker.process(pitchResult: inTuneResult, at: 10.0, config: config, targets: targets)
+        // Stream 20ms hops for 0.5 seconds: hold in progress, not yet completed
+        for t in stride(from: 10.0, through: 10.5, by: 0.02) {
+            _ = tracker.process(pitchResult: inTuneResult, at: t, config: config, targets: targets)
+        }
         #expect(tracker.guidedProgress[0] == false)
         #expect(tracker.guidedTargetIndex == 0)
 
-        // At t = 0.5s: still holding
-        _ = tracker.process(pitchResult: inTuneResult, at: 10.5, config: config, targets: targets)
-        #expect(tracker.guidedProgress[0] == false)
-        #expect(tracker.guidedTargetIndex == 0)
-
-        // At t = 1.1s: 1.1s > 1.0s hold requirement -> String 6 checked and advances to String 5!
-        _ = tracker.process(pitchResult: inTuneResult, at: 11.1, config: config, targets: targets)
+        // Stream up to 1.15 seconds (> 1.0s continuous hold required)
+        for t in stride(from: 10.52, through: 11.15, by: 0.02) {
+            _ = tracker.process(pitchResult: inTuneResult, at: t, config: config, targets: targets)
+        }
         #expect(tracker.guidedProgress[0] == true)
         #expect(tracker.guidedTargetIndex == 1)
     }

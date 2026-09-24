@@ -120,13 +120,18 @@ public final class TunerViewModel {
             guard let self else { return }
             let currentConfig = self.config
             let currentTargets = self.targets
+            let prior = self.tracker.continuityPrior
+            let now = Date().timeIntervalSinceReferenceDate
 
             let pitchResult = await Task.detached(priority: .high) {
                 detector.detectPitch(
                     in: buffer,
                     noiseGateRMS: 0.008,
                     yinThreshold: 0.15,
-                    referenceA4: currentConfig.a4
+                    referenceA4: currentConfig.a4,
+                    priorFrequency: prior?.frequency,
+                    priorAt: prior?.at,
+                    now: now
                 )
             }.value
 
@@ -134,7 +139,6 @@ public final class TunerViewModel {
             self.diagnostics.analysisMs = elapsedMs
             self.diagnostics.level = pitchResult.amplitudeRMS
 
-            let now = Date().timeIntervalSinceReferenceDate
             let reading = self.tracker.process(
                 pitchResult: pitchResult,
                 at: now,
