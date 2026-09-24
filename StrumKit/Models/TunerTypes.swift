@@ -1,6 +1,6 @@
 import Foundation
 
-public enum TunerMode: String, CaseIterable, Identifiable, Sendable {
+public enum TunerMode: String, CaseIterable, Identifiable, Sendable, Codable {
     case auto = "auto"
     case guided = "guided"
     case chromatic = "chromatic"
@@ -179,7 +179,7 @@ public struct ToneMemory: Sendable, Equatable {
     }
 }
 
-public struct TunerConfig: Sendable, Equatable {
+public struct TunerConfig: Sendable, Equatable, Codable {
     public var instrument: InstrumentCategory
     public var tuningId: String
     public var customMidi: [Int]

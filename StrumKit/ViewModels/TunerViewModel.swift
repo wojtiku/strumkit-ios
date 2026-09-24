@@ -5,7 +5,8 @@ import Observation
 @Observable
 public final class TunerViewModel {
     // MARK: - Configuration & Engine State
-    public var config: TunerConfig = TunerConfig()
+    public var config: TunerConfig
+    public var preferences: TunerPreferences
     public var engineStatus: EngineStatus = .paused
     public var currentReading: TunerReading? = nil
     public var lastTone: ToneMemory? = nil
@@ -25,20 +26,28 @@ public final class TunerViewModel {
     private let pitchDetector: PitchDetector
     private let stringSynth: AcousticStringSynthesizer
     private let tracker: PitchTracker
+    private let preferencesStore: TunerPreferencesStore
 
     public init(
         captureService: AudioCaptureService = AudioCaptureService(),
         pitchDetector: PitchDetector = PitchDetector(),
         stringSynth: AcousticStringSynthesizer = AcousticStringSynthesizer(),
-        tracker: PitchTracker = PitchTracker()
+        tracker: PitchTracker = PitchTracker(),
+        preferencesStore: TunerPreferencesStore = TunerPreferencesStore()
     ) {
         self.captureService = captureService
         self.pitchDetector = pitchDetector
         self.stringSynth = stringSynth
         self.tracker = tracker
+        self.preferencesStore = preferencesStore
 
-        // Initialize guided progress for default guitar strings
-        self.guidedProgress = Array(repeating: false, count: 6)
+        let loaded = preferencesStore.load()
+        self.preferences = loaded
+        let initialConfig = loaded.activeConfig()
+        self.config = initialConfig
+
+        // Initialize guided progress for active instrument string count
+        self.guidedProgress = Array(repeating: false, count: initialConfig.customMidi.count)
     }
 
     // MARK: - String Targets
@@ -166,31 +175,69 @@ public final class TunerViewModel {
     // MARK: - Instrument & Preset Selection
     public func setInstrument(_ instrument: InstrumentCategory) {
         guard instrument != config.instrument else { return }
-        config.instrument = instrument
+        preferences.selectedInstrument = instrument
+
+        let tuningId = instrument == .guitar ? preferences.guitarTuningId : preferences.ukuleleTuningId
         let available = Presets.presets(for: instrument)
-        config.tuningId = available.first?.id ?? "standard"
-        config.customMidi = available.first?.midi ?? (instrument == .guitar ? [40, 45, 50, 55, 59, 64] : [67, 60, 64, 69])
+
+        config.instrument = instrument
+        if tuningId == "custom" {
+            let customMidi = instrument == .guitar ? preferences.guitarCustomMidi : preferences.ukuleleCustomMidi
+            let expectedCount = instrument == .guitar ? 6 : 4
+            let valid = customMidi.count == expectedCount && customMidi.allSatisfy {
+                $0 >= TunerConstants.customMidiMin && $0 <= TunerConstants.customMidiMax
+            }
+            config.tuningId = "custom"
+            config.customMidi = valid ? customMidi : (instrument == .guitar ? TunerPreferences.defaultGuitarMidi : TunerPreferences.defaultUkuleleMidi)
+        } else {
+            let preset = available.first(where: { $0.id == tuningId }) ?? available.first ?? Presets.guitar[0]
+            config.tuningId = preset.id
+            config.customMidi = preset.midi
+        }
+
         config.selectedString = 0
-        config.mode = .auto
+        if config.mode == .manual {
+            config.mode = .auto
+        }
         tracker.reset(targetCount: targets.count)
         self.guidedProgress = tracker.guidedProgress
         self.guidedTargetIndex = tracker.guidedTargetIndex
         stopReferenceTone()
+        savePreferences()
     }
 
     public func setTuningPreset(id: String) {
         config.tuningId = id
+        if config.instrument == .guitar {
+            preferences.guitarTuningId = id
+        } else {
+            preferences.ukuleleTuningId = id
+        }
+
         if id != "custom" {
             let available = Presets.presets(for: config.instrument)
             if let match = available.first(where: { $0.id == id }) {
                 config.customMidi = match.midi
             }
+        } else {
+            let stored = config.instrument == .guitar ? preferences.guitarCustomMidi : preferences.ukuleleCustomMidi
+            let expectedCount = config.instrument == .guitar ? 6 : 4
+            let valid = stored.count == expectedCount && stored.allSatisfy {
+                $0 >= TunerConstants.customMidiMin && $0 <= TunerConstants.customMidiMax
+            }
+            if valid {
+                config.customMidi = stored
+            }
         }
         config.selectedString = 0
+        if config.mode == .manual {
+            config.mode = .auto
+        }
         tracker.reset(targetCount: targets.count)
         self.guidedProgress = tracker.guidedProgress
         self.guidedTargetIndex = tracker.guidedTargetIndex
         stopReferenceTone()
+        savePreferences()
     }
 
     // MARK: - Mode Controls
@@ -201,10 +248,17 @@ public final class TunerViewModel {
         } else {
             config.guided = false
         }
+        if mode != .manual {
+            preferences.mode = mode
+            preferences.guided = config.guided
+            savePreferences()
+        }
     }
 
     public func togglePrecision() {
         config.precision.toggle()
+        preferences.precision = config.precision
+        savePreferences()
     }
 
     public func toggleStringLock(index: Int) {
@@ -220,6 +274,8 @@ public final class TunerViewModel {
 
     public func unlockString() {
         config.mode = .auto
+        preferences.mode = .auto
+        savePreferences()
     }
 
     public func resetGuidedSession() {
@@ -253,13 +309,28 @@ public final class TunerViewModel {
 
     // MARK: - Calibration & Custom Tuning
     public func updateA4(_ newA4: Double) {
-        config.a4 = max(TunerConstants.minCalibrationHz, min(TunerConstants.maxCalibrationHz, newA4))
+        let clamped = max(TunerConstants.minCalibrationHz, min(TunerConstants.maxCalibrationHz, newA4))
+        config.a4 = clamped
+        preferences.a4 = clamped
+        savePreferences()
     }
 
     public func updateCustomMidi(stringIndex: Int, midi: Int) {
         guard stringIndex < config.customMidi.count else { return }
         config.customMidi[stringIndex] = midi
         config.tuningId = "custom"
+        if config.instrument == .guitar {
+            preferences.guitarTuningId = "custom"
+            preferences.guitarCustomMidi = config.customMidi
+        } else {
+            preferences.ukuleleTuningId = "custom"
+            preferences.ukuleleCustomMidi = config.customMidi
+        }
         tracker.reset(targetCount: targets.count)
+        savePreferences()
+    }
+
+    private func savePreferences() {
+        preferencesStore.save(preferences)
     }
 }

@@ -1,7 +1,7 @@
 import Foundation
 
 /// Supported instruments matching chorder specification.
-public enum InstrumentCategory: String, CaseIterable, Identifiable, Sendable {
+public enum InstrumentCategory: String, CaseIterable, Identifiable, Sendable, Codable {
     case guitar = "guitar"
     case ukulele = "ukulele"
 
