@@ -101,9 +101,11 @@ public final class AcousticStringSynthesizer: @unchecked Sendable {
             self.activeStringIndex = stringIndex
             self.playerNode.stop()
             self.playerNode.scheduleBuffer(buffer, at: nil, options: []) { [weak self] in
-                self?.queue.async {
-                    if self?.activeStringIndex == stringIndex {
-                        self?.activeStringIndex = nil
+                guard let self else { return }
+                self.queue.async { [weak self] in
+                    guard let self else { return }
+                    if self.activeStringIndex == stringIndex {
+                        self.activeStringIndex = nil
                     }
                 }
             }
