@@ -24,8 +24,8 @@ public enum TunerConstants {
     public static let customMidiMin: Int = 33 // A1
     public static let customMidiMax: Int = 83 // B5
 
-    public static let detectorMinHz: Double = 60.0
-    public static let detectorMaxHz: Double = 1200.0
+    public static let detectorMinHz: Double = 50.0
+    public static let detectorMaxHz: Double = 1100.0
 
     public static let maxDetuningCents: Double = 200.0
     public static let historyDurationSeconds: Double = 7.0

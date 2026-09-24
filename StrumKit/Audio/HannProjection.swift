@@ -61,4 +61,15 @@ public enum HannProjection {
         let res = project(samples: samples, frequency: frequency, sampleRate: sampleRate, offset: offset)
         return res.real * res.real + res.imaginary * res.imaginary
     }
+
+    /// Phase refinement uses the negative-imaginary DFT convention; its power is raw.
+    public static func phaseAndPower(
+        samples: [Float],
+        frequency: Double,
+        sampleRate: Double,
+        offset: Double = 0.0
+    ) -> (phase: Double, power: Double) {
+        let res = project(samples: samples, frequency: frequency, sampleRate: sampleRate, offset: offset)
+        return (phase: atan2(-res.imaginary, res.real), power: res.real * res.real + res.imaginary * res.imaginary)
+    }
 }
