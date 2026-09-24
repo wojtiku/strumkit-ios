@@ -44,7 +44,7 @@ public final class PitchDetector: Sendable {
         guard rms >= noiseGateRMS else {
             return PitchResult(
                 frequency: 0,
-                closestNote: MusicalNote(noteName: .a, octave: 4, referenceA4: referenceA4),
+                closestNote: MusicalNote(midiNoteNumber: 69, referenceA4: referenceA4),
                 centsDeviation: 0,
                 confidence: 0,
                 amplitudeRMS: Double(rms),
@@ -122,7 +122,7 @@ public final class PitchDetector: Sendable {
             if minVal > 0.40 {
                 return PitchResult(
                     frequency: 0,
-                    closestNote: MusicalNote(noteName: .a, octave: 4, referenceA4: referenceA4),
+                    closestNote: MusicalNote(midiNoteNumber: 69, referenceA4: referenceA4),
                     centsDeviation: 0,
                     confidence: 0,
                     amplitudeRMS: Double(rms),

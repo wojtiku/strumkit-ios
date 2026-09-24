@@ -2,59 +2,44 @@ import Testing
 import Foundation
 @testable import StrumKit
 
-@Suite("Instrument & Tuning Preset Tests")
+@Suite("Presets and Tunings Tests")
 struct TuningTests {
 
-    @Test("Guitar standard tuning identifies correct strings")
-    func testGuitarStandardStrings() {
-        let guitar = Instrument.guitarInstrument()
-        let standard = guitar.defaultTuning
+    @Test("Guitar has 10 official presets matching chorder")
+    func testGuitarPresets() {
+        let presets = Presets.guitar
+        #expect(presets.count == 10)
 
-        #expect(standard.strings.count == 6)
+        let standard = presets.first(where: { $0.id == "standard" })
+        #expect(standard?.midi == [40, 45, 50, 55, 59, 64])
 
-        // String 6 (E2 ~82.41 Hz)
-        let lowEResult = standard.closestString(to: 83.0)
-        #expect(lowEResult != nil)
-        #expect(lowEResult?.string.stringNumber == 6)
-        #expect(lowEResult?.string.note.displayName == "E2")
+        let dropD = presets.first(where: { $0.id == "drop-d" })
+        #expect(dropD?.midi == [38, 45, 50, 55, 59, 64])
 
-        // String 1 (E4 ~329.63 Hz)
-        let highEResult = standard.closestString(to: 328.0)
-        #expect(highEResult != nil)
-        #expect(highEResult?.string.stringNumber == 1)
-        #expect(highEResult?.string.note.displayName == "E4")
+        let dadgad = presets.first(where: { $0.id == "dadgad" })
+        #expect(dadgad?.midi == [38, 45, 50, 55, 57, 62])
     }
 
-    @Test("Ukulele standard re-entrant tuning identifies correct strings")
-    func testUkuleleStandardStrings() {
-        let uke = Instrument.ukuleleInstrument()
-        let standard = uke.defaultTuning
+    @Test("Ukulele has 4 official presets matching chorder")
+    func testUkulelePresets() {
+        let presets = Presets.ukulele
+        #expect(presets.count == 4)
 
-        #expect(standard.strings.count == 4)
+        let highG = presets.first(where: { $0.id == "high-g" })
+        #expect(highG?.midi == [67, 60, 64, 69])
 
-        // String 3 (C4 ~261.63 Hz) - lowest pitch on re-entrant soprano uke
-        let cResult = standard.closestString(to: 260.0)
-        #expect(cResult != nil)
-        #expect(cResult?.string.stringNumber == 3)
-        #expect(cResult?.string.note.displayName == "C4")
+        let lowG = presets.first(where: { $0.id == "low-g" })
+        #expect(lowG?.midi == [55, 60, 64, 69])
 
-        // String 1 (A4 ~440.00 Hz) - highest pitch
-        let aResult = standard.closestString(to: 442.0)
-        #expect(aResult != nil)
-        #expect(aResult?.string.stringNumber == 1)
-        #expect(aResult?.string.note.displayName == "A4")
+        let baritone = presets.first(where: { $0.id == "baritone" })
+        #expect(baritone?.midi == [50, 55, 59, 64])
     }
 
-    @Test("Drop D tuning drops 6th string to D2")
-    func testDropDTuning() {
-        let guitar = Instrument.guitarInstrument()
-        guard let dropD = guitar.tunings.first(where: { $0.id == "guitar-drop-d" }) else {
-            Issue.record("Drop D tuning not found")
-            return
-        }
-
-        let string6 = dropD.strings.first(where: { $0.stringNumber == 6 })
-        #expect(string6?.note.displayName == "D2")
-        #expect(abs((string6?.note.frequency ?? 0) - 73.42) < 0.05)
+    @Test("Custom note range spans A1 (33) to B5 (83)")
+    func testCustomNotesRange() {
+        let notes = Presets.customNotes
+        #expect(notes.first == 33)
+        #expect(notes.last == 83)
+        #expect(notes.count == 51)
     }
 }

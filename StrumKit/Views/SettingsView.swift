@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Settings sheet for reference frequency calibration, noise gate, and tolerance tuning.
+/// Settings sheet for reference pitch calibration, custom tunings, and audio diagnostics matching chorder.
 public struct SettingsView: View {
     @Bindable var viewModel: TunerViewModel
     @Environment(\.dismiss) private var dismiss
@@ -14,110 +14,119 @@ public struct SettingsView: View {
             Form {
                 // Section 1: Reference Pitch Calibration (A4)
                 Section {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 10) {
                         HStack {
-                            Text("Concert Pitch A4")
+                            Text("Reference pitch (A4)")
                                 .font(.body.weight(.medium))
                             Spacer()
-                            Text("\(String(format: "%.1f", viewModel.configuration.referenceA4)) Hz")
+                            Text("\(String(format: "%.0f", viewModel.config.a4)) Hz")
                                 .font(.system(.body, design: .monospaced, weight: .bold))
                                 .foregroundStyle(TunerTheme.inTune)
                         }
 
-                        Slider(
-                            value: Binding(
-                                get: { viewModel.configuration.referenceA4 },
-                                set: { viewModel.updateReferenceA4($0) }
-                            ),
-                            in: 430.0...450.0,
-                            step: 0.5
-                        )
-                        .tint(TunerTheme.inTune)
-
-                        HStack(spacing: 12) {
-                            Button("432.0 Hz (Verdi)") {
-                                viewModel.updateReferenceA4(432.0)
+                        HStack(spacing: 16) {
+                            Button {
+                                viewModel.updateA4(viewModel.config.a4 - 1)
+                            } label: {
+                                Image(systemName: "minus.circle.fill")
+                                    .font(.title2)
                             }
-                            .buttonStyle(.bordered)
-                            .font(.caption)
+                            .disabled(viewModel.config.a4 <= TunerConstants.minCalibrationHz)
 
-                            Button("440.0 Hz (Standard)") {
-                                viewModel.updateReferenceA4(440.0)
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(TunerTheme.surfaceElevated)
-                            .font(.caption)
+                            Slider(
+                                value: Binding(
+                                    get: { viewModel.config.a4 },
+                                    set: { viewModel.updateA4($0) }
+                                ),
+                                in: TunerConstants.minCalibrationHz...TunerConstants.maxCalibrationHz,
+                                step: 1.0
+                            )
+                            .tint(TunerTheme.inTune)
 
-                            Button("442.0 Hz (Orchestral)") {
-                                viewModel.updateReferenceA4(442.0)
+                            Button {
+                                viewModel.updateA4(viewModel.config.a4 + 1)
+                            } label: {
+                                Image(systemName: "plus.circle.fill")
+                                    .font(.title2)
                             }
-                            .buttonStyle(.bordered)
-                            .font(.caption)
+                            .disabled(viewModel.config.a4 >= TunerConstants.maxCalibrationHz)
+                        }
+
+                        HStack(spacing: 10) {
+                            PresetA4Button(title: "415 Hz (Baroque)", hz: 415) { viewModel.updateA4(415) }
+                            PresetA4Button(title: "432 Hz (Verdi)", hz: 432) { viewModel.updateA4(432) }
+                            PresetA4Button(title: "440 Hz (Standard)", hz: 440) { viewModel.updateA4(440) }
+                            PresetA4Button(title: "442 Hz", hz: 442) { viewModel.updateA4(442) }
                         }
                     }
                     .padding(.vertical, 4)
                 } header: {
-                    Text("Pitch Calibration")
+                    Text("Calibration")
                 } footer: {
-                    Text("Standard concert pitch is 440 Hz. 432 Hz is popular for acoustic and meditation music.")
+                    Text("Calibration affects every target and reference tone. Conventional instrument range is 415 to 466 Hz.")
                 }
 
-                // Section 2: Tuning Precision
-                Section {
-                    Picker("In-Tune Tolerance", selection: $viewModel.configuration.inTuneToleranceCents) {
-                        Text("±1.5 cents (Pro / Studio)").tag(1.5)
-                        Text("±3.0 cents (Standard)").tag(3.0)
-                        Text("±5.0 cents (Relaxed)").tag(5.0)
+                // Section 2: Custom Tuning String Config (if custom selected)
+                if viewModel.config.tuningId == "custom" {
+                    Section("Custom Open-String Notes") {
+                        ForEach(Array(viewModel.targets.enumerated()), id: \.offset) { index, target in
+                            Picker("String \(target.number)", selection: Binding(
+                                get: { viewModel.config.customMidi[index] },
+                                set: { viewModel.updateCustomMidi(stringIndex: index, midi: $0) }
+                            )) {
+                                ForEach(Presets.customNotes, id: \.self) { midi in
+                                    Text("\(PitchMath.midiNoteName(midi)) (\(String(format: "%.1f", PitchMath.midiFrequency(midi, a4: viewModel.config.a4))) Hz)")
+                                        .tag(midi)
+                                }
+                            }
+                        }
                     }
-
-                    Toggle("Auto-Detect Strings", isOn: $viewModel.configuration.autoDetectString)
-                } header: {
-                    Text("Accuracy & Behavior")
                 }
 
-                // Section 3: Audio DSP & Noise Gate
-                Section {
-                    VStack(alignment: .leading, spacing: 8) {
+                // Section 3: Audio Diagnostics
+                Section("Microphone & Diagnostics") {
+                    VStack(alignment: .leading, spacing: 6) {
                         HStack {
-                            Text("Noise Gate (Sensitivity)")
+                            Text("Input Level")
+                                .font(.caption)
                             Spacer()
-                            Text(String(format: "%.3f", viewModel.configuration.noiseGateRMS))
+                            Text("\(Int(min(100, viewModel.diagnostics.level * 1000)))%")
                                 .font(.caption.monospaced())
                                 .foregroundStyle(.secondary)
                         }
 
-                        Slider(
-                            value: $viewModel.configuration.noiseGateRMS,
-                            in: 0.005...0.040,
-                            step: 0.002
-                        )
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Capsule()
+                                    .fill(TunerTheme.surfaceElevated)
+                                Capsule()
+                                    .fill(TunerTheme.inTune)
+                                    .frame(width: max(4, geo.size.width * CGFloat(min(1.0, viewModel.diagnostics.level * 10.0))))
+                            }
+                        }
+                        .frame(height: 6)
                     }
-                } header: {
-                    Text("Microphone Filtering")
-                } footer: {
-                    Text("Increase threshold in noisy rehearsal spaces to prevent ambient room noise from triggering the tuner.")
+                    .padding(.vertical, 4)
+
+                    LabeledContent("Capture Engine", value: "AVAudioEngine (.measurement)")
+                    LabeledContent("Sample Rate", value: "\(Int(viewModel.diagnostics.sampleRate)) Hz")
+                    LabeledContent("Analysis Latency", value: String(format: "%.1f ms", viewModel.diagnostics.analysisMs))
+                    LabeledContent("Status", value: viewModel.engineStatus.displayTitle)
                 }
 
-                // Section 4: Pro Tuning Tips
-                Section("Tuner Pro Tips") {
-                    TipRow(
-                        icon: "arrow.up.circle.fill",
-                        title: "Always Tune Up",
-                        description: "If your string is sharp, drop it below pitch first, then tune up to lock string tension around the tuning peg."
-                    )
-                    TipRow(
-                        icon: "speaker.wave.2.fill",
-                        title: "Tune by Ear",
-                        description: "Tap the speaker icon on any string peg to play pure reference sine wave tones."
-                    )
-                    TipRow(
-                        icon: "hand.raised.fill",
-                        title: "Mute Unplayed Strings",
-                        description: "Rest your palm across unplayed strings so sympathetic vibrations don't confuse pitch detection."
-                    )
+                // Section 4: Privacy Notice
+                Section {
+                    HStack(spacing: 10) {
+                        Image(systemName: "lock.shield.fill")
+                            .foregroundStyle(TunerTheme.inTune)
+                            .font(.title3)
+                        Text("Audio stays entirely on your device. No recordings, uploads, or cloud accounts needed.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
-            .navigationTitle("Tuner Settings")
+            .navigationTitle("Tuning Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -130,26 +139,20 @@ public struct SettingsView: View {
     }
 }
 
-private struct TipRow: View {
-    let icon: String
+private struct PresetA4Button: View {
     let title: String
-    let description: String
+    let hz: Double
+    let onTap: () -> Void
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: icon)
-                .foregroundStyle(TunerTheme.inTune)
-                .font(.title3)
-                .frame(width: 24)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                Text(description)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+        Button(action: onTap) {
+            Text(title)
+                .font(.system(size: 10, weight: .semibold))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(TunerTheme.surfaceElevated)
+                .clipShape(Capsule())
         }
-        .padding(.vertical, 2)
+        .buttonStyle(.plain)
     }
 }
