@@ -154,14 +154,23 @@ public enum AudioTestHelpers {
         public let confidence: Double
         public let rejection: String? // "gate", "clipping", "noPeriodicity", "ambiguity", "targetMismatch", "acquiring"
         public let reading: TunerReading?
+        /// Which display state produced this frame: "none", "fresh", "held" or
+        /// "recovered". Derived from the reading rather than stored on it, so the
+        /// public `TunerReading` API is not widened for a test concern.
+        public let displayState: String
 
+        /// - Parameter displayState: normally left `nil`, which derives the state
+        ///   from `reading` and so cannot drift from it. A hand-built frame passes
+        ///   an explicit state to exercise states a real reading cannot represent,
+        ///   such as a transition trace with no readings behind it.
         public init(
             captureEndSeconds: Double,
             rawFrequency: Double,
             rawRMS: Double,
             confidence: Double,
             rejection: String?,
-            reading: TunerReading?
+            reading: TunerReading?,
+            displayState: String? = nil
         ) {
             self.captureEndSeconds = captureEndSeconds
             self.rawFrequency = rawFrequency
@@ -169,6 +178,7 @@ public enum AudioTestHelpers {
             self.confidence = confidence
             self.rejection = rejection
             self.reading = reading
+            self.displayState = displayState ?? AudioTestHelpers.displayState(for: reading)
         }
     }
 
@@ -206,6 +216,32 @@ public enum AudioTestHelpers {
         case .ambiguous: return "ambiguity"
         default: return "targetMismatch"
         }
+    }
+
+    /// The display state a reading represents: one of "none", "fresh", "held" or
+    /// "recovered".
+    ///
+    /// "recovered" wins over "held" because a recovered reading is the more
+    /// specific fact about the frame, and the display treats it as its own state.
+    public static func displayState(for reading: TunerReading?) -> String {
+        guard let reading else { return "none" }
+        if reading.recovered { return "recovered" }
+        return reading.freshness == .fresh ? "fresh" : "held"
+    }
+
+    /// Number of times the display state changed, ignoring consecutive repeats.
+    ///
+    /// This is the primary gate for goal G1: a note that is read continuously
+    /// should acquire once and then hold, not oscillate between fresh, held and
+    /// recovered while it decays.
+    public static func countDisplayTransitions(_ frames: [ReplayFrame]) -> Int {
+        var transitions = 0
+        var previous: String?
+        for frame in frames {
+            if frame.displayState != previous { transitions += 1 }
+            previous = frame.displayState
+        }
+        return max(0, transitions - 1)   // the first frame is acquisition, not a transition
     }
 
     /// Computes fresh coverage duration in seconds over an evaluation interval.
@@ -297,7 +333,8 @@ public enum AudioTestHelpers {
                 rawRMS: snapshot.pitchResult.amplitudeRMS,
                 confidence: snapshot.pitchResult.confidence,
                 rejection: rejection,
-                reading: snapshot.reading
+                reading: snapshot.reading,
+                displayState: displayState(for: snapshot.reading)
             ))
         }
 

@@ -117,3 +117,33 @@ struct CoverageMatrixSignalModelTests {
         }
     }
 }
+
+@Suite("Display state transitions")
+struct DisplayTransitionTests {
+
+    @Test("transitions counts state changes and ignores repeats")
+    func countsOnlyChanges() {
+        func frame(_ s: String) -> AudioTestHelpers.ReplayFrame {
+            AudioTestHelpers.ReplayFrame(
+                captureEndSeconds: 0, rawFrequency: 110, rawRMS: 0.1,
+                confidence: 1, rejection: nil, reading: nil, displayState: s)
+        }
+        let frames = [frame("none"), frame("none"), frame("fresh"), frame("fresh"),
+                      frame("recovered"), frame("recovered"), frame("held"), frame("fresh")]
+        #expect(AudioTestHelpers.countDisplayTransitions(frames) == 4,
+                "none->fresh, fresh->recovered, recovered->held, held->fresh = 4")
+    }
+
+    @Test("a clean sustained pluck produces a trace and its transition count is recorded")
+    func cleanPluckIsStable() {
+        let c = CoverageMatrix.baseCase(truthHz: 110, seed: CoverageMatrix.SEED_A)
+        let config = CoverageMatrix.matrix(seed: CoverageMatrix.SEED_A)
+            .first { $0.noteHz == 110 }!.config
+        let (frames, _) = AudioTestHelpers.replayTrace(
+            samples: CoverageMatrix.signal(c), sampleRate: 44100, config: config)
+        #expect(!frames.isEmpty, "the trace must contain frames")
+        #expect(frames[0].displayState == "none" || frames[0].displayState == "fresh",
+                "the first frame is acquisition, not a transition; got \(frames[0].displayState)")
+        print("BASELINE-TRANSITIONS [\(c.name)] = \(AudioTestHelpers.countDisplayTransitions(frames))")
+    }
+}
