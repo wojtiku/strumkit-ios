@@ -44,6 +44,10 @@
 		F1EB20448D31D6ABB6A84302 /* TunerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB2976033828B4418762AF99 /* TunerViewModel.swift */; };
 		F89C309F5A1A904620D88B11 /* MusicalNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = 769FB77EAB1862378B76568D /* MusicalNote.swift */; };
 		FA27A30E87988885631B2BE9 /* CorrelationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 938C2B2CB7513BACB9289BD6 /* CorrelationTests.swift */; };
+		88038FADA30B41B2AE3D1EA5 /* quiet_a.wav in Resources */ = {isa = PBXBuildFile; fileRef = 05421286D9C9468183EFCE40 /* quiet_a.wav */; };
+		E9D4ECD5D59E4FEEBFE2562D /* quiet_c.wav in Resources */ = {isa = PBXBuildFile; fileRef = 545E525E50074F6585C4F528 /* quiet_c.wav */; };
+		143665291EF745FE87AD1C0D /* quiet_e.wav in Resources */ = {isa = PBXBuildFile; fileRef = C6ADA41EAEEA4FD49198081A /* quiet_e.wav */; };
+		88706B0270DB4A08A9822831 /* quiet_g.wav in Resources */ = {isa = PBXBuildFile; fileRef = 5642761E88904B858C834BED /* quiet_g.wav */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -97,6 +101,10 @@
 		F28D21483C340F02EFD7E8DA /* TunerTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunerTheme.swift; sourceTree = "<group>"; };
 		F58ECD875441BEB0C580378D /* guitar-chord.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "guitar-chord.wav"; sourceTree = "<group>"; };
 		FEC3D98337F199653D9B61EE /* HardwareModeBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareModeBarView.swift; sourceTree = "<group>"; };
+		05421286D9C9468183EFCE40 /* quiet_a.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = quiet_a.wav; sourceTree = "<group>"; };
+		545E525E50074F6585C4F528 /* quiet_c.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = quiet_c.wav; sourceTree = "<group>"; };
+		C6ADA41EAEEA4FD49198081A /* quiet_e.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = quiet_e.wav; sourceTree = "<group>"; };
+		5642761E88904B858C834BED /* quiet_g.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = quiet_g.wav; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -173,6 +181,10 @@
 				3F13C2F69F7B46F9DF1F3B12 /* uke_c.wav */,
 				CEFF6986B5F14C11BC7D26CB /* uke_e.wav */,
 				64635E6B8E3E352EFFC08806 /* uke_g.wav */,
+				05421286D9C9468183EFCE40 /* quiet_a.wav */,
+				545E525E50074F6585C4F528 /* quiet_c.wav */,
+				C6ADA41EAEEA4FD49198081A /* quiet_e.wav */,
+				5642761E88904B858C834BED /* quiet_g.wav */,
 			);
 			path = Fixtures;
 			sourceTree = "<group>";
@@ -331,6 +343,10 @@
 				6F7D7218306C864C6F161FC0 /* uke_c.wav in Resources */,
 				34F5E1FD942B9BE74A11C49C /* uke_e.wav in Resources */,
 				3F5F1BBA6A50BE2D1DD7C3D8 /* uke_g.wav in Resources */,
+				88038FADA30B41B2AE3D1EA5 /* quiet_a.wav in Resources */,
+				E9D4ECD5D59E4FEEBFE2562D /* quiet_c.wav in Resources */,
+				143665291EF745FE87AD1C0D /* quiet_e.wav in Resources */,
+				88706B0270DB4A08A9822831 /* quiet_g.wav in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

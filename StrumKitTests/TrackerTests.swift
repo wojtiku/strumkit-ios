@@ -70,4 +70,60 @@ struct TrackerTests {
         #expect(tracker.guidedProgress[0] == true)
         #expect(tracker.guidedTargetIndex == 1)
     }
+
+    @Test("Tracker sustains detection across momentary drops and expires cleanly after hold duration")
+    func testSustainHoldAndPriorRetention() {
+        let tracker = PitchTracker()
+        let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .auto)
+        let targets = Presets.guitar[0].midi.enumerated().map { index, midi in
+            StringTarget(note: PitchMath.midiNoteName(midi), midi: midi, frequency: PitchMath.midiFrequency(midi), number: 6 - index)
+        }
+
+        let resultE2 = PitchResult(
+            frequency: 82.41,
+            closestNote: MusicalNote(midiNoteNumber: 40),
+            centsDeviation: 0.0,
+            confidence: 0.9,
+            amplitudeRMS: 0.03,
+            isSignalPresent: true
+        )
+
+        // 1. Initial 3 frames to acquire String 6 (E2)
+        _ = tracker.process(pitchResult: resultE2, at: 1.00, config: config, targets: targets)
+        _ = tracker.process(pitchResult: resultE2, at: 1.02, config: config, targets: targets)
+        let freshReading = tracker.process(pitchResult: resultE2, at: 1.04, config: config, targets: targets)
+
+        #expect(freshReading != nil)
+        #expect(freshReading?.freshness == .fresh)
+        #expect(freshReading?.note == "E2")
+        #expect(tracker.continuityPrior != nil)
+
+        // 2. Momentary silent/unvoiced frame (phase dip or quiet decay) at 1.10s (60ms later)
+        let emptyResult = PitchResult(
+            frequency: 0,
+            closestNote: MusicalNote(midiNoteNumber: 69),
+            centsDeviation: 0,
+            confidence: 0,
+            amplitudeRMS: 0.0003,
+            isSignalPresent: false
+        )
+        let heldReading = tracker.process(pitchResult: emptyResult, at: 1.10, config: config, targets: targets)
+
+        #expect(heldReading != nil)
+        #expect(heldReading?.freshness == .held)
+        #expect(heldReading?.note == "E2")
+        #expect(tracker.continuityPrior != nil, "Continuity prior should be retained during sustain hold")
+
+        // 3. A single continuing frame at 1.14s immediately refreshes without needing 3 new confirmations
+        let refreshedReading = tracker.process(pitchResult: resultE2, at: 1.14, config: config, targets: targets)
+        #expect(refreshedReading != nil)
+        #expect(refreshedReading?.freshness == .fresh)
+        #expect(refreshedReading?.note == "E2")
+
+        // 4. Extended silence past readingHoldDuration (e.g. at 2.10s, > 0.85s later) expires cleanly
+        let expiredReading = tracker.process(pitchResult: emptyResult, at: 2.10, config: config, targets: targets)
+        #expect(expiredReading == nil)
+        #expect(tracker.continuityPrior == nil, "Continuity prior should be cleared after expiry")
+        #expect(tracker.feedbackState == .ready)
+    }
 }

@@ -80,4 +80,69 @@ struct PitchDetectionTests {
         #expect(!result.isSignalPresent)
         #expect(result.frequency == 0)
     }
+
+    @Test("Detects whisper-quiet guitar Low E (82.41 Hz) with amplitude 0.0005 (-66 dBFS)")
+    func testQuietGuitarLowEPitch() {
+        let detector = PitchDetector(sampleRate: 44100.0, bufferSize: 4410)
+        let buffer = generateSineWave(frequency: 82.41, count: 4410, amplitude: 0.0005)
+        let result = detector.detectPitch(in: buffer, noiseGateRMS: 0.0001)
+
+        #expect(result.isSignalPresent)
+        #expect(result.confidence > 0.80)
+        #expect(abs(result.frequency - 82.41) < 0.6)
+        #expect(result.closestNote.displayName == "E2")
+    }
+
+    @Test("Detects whisper-quiet Concert A4 (440.0 Hz) with amplitude 0.0005 (-66 dBFS)")
+    func testQuietConcertAPitch() {
+        let detector = PitchDetector(sampleRate: 44100.0, bufferSize: 4410)
+        let buffer = generateSineWave(frequency: 440.0, count: 4410, amplitude: 0.0005)
+        let result = detector.detectPitch(in: buffer, noiseGateRMS: 0.0001)
+
+        #expect(result.isSignalPresent)
+        #expect(result.confidence > 0.85)
+        #expect(abs(result.frequency - 440.0) < 0.4)
+        #expect(result.closestNote.displayName == "A4")
+    }
+
+    @Test("AudioRingBuffer accumulates chunks and preserves trailing sample sequence")
+    func testAudioRingBufferAccumulation() {
+        let required = AudioCaptureService.requiredInputSamples(for: 44100.0)
+        #expect(required == 4328)
+
+        let ring = AudioRingBuffer(capacity: 8192)
+        #expect(ring.availableCount == 0)
+        #expect(ring.readTrailing(count: required) == nil)
+
+        // Write 5 chunks of 1000 samples (total 5000)
+        for chunkIndex in 0..<5 {
+            let chunk = [Float](repeating: Float(chunkIndex + 1), count: 1000)
+            ring.write(chunk)
+        }
+
+        #expect(ring.availableCount == 5000)
+        let trailing = ring.readTrailing(count: required)
+        #expect(trailing != nil)
+        #expect(trailing?.count == required)
+        // Last sample should be from chunk 5 (value 5.0)
+        #expect(trailing?.last == 5.0)
+    }
+
+    @Test("PitchTracker adapts ambient floor and adjusts sustain thresholds")
+    func testPitchTrackerAdaptiveAmbientFloor() {
+        let tracker = PitchTracker()
+        #expect(tracker.ambientFloor == PitchTracker.initialAmbientFloor)
+
+        // Acquisition thresholds
+        let acqGate = tracker.recommendedNoiseGate(isSustaining: false)
+        let acqYin = tracker.recommendedYinThreshold(isSustaining: false)
+        #expect(acqYin == 0.15)
+        #expect(acqGate >= 0.00015)
+
+        // Sustain thresholds
+        let susGate = tracker.recommendedNoiseGate(isSustaining: true)
+        let susYin = tracker.recommendedYinThreshold(isSustaining: true)
+        #expect(susYin == 0.25)
+        #expect(susGate < acqGate) // Sustain threshold is more permissive to retain decays
+    }
 }

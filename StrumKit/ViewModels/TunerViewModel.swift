@@ -130,12 +130,15 @@ public final class TunerViewModel {
             let currentTargets = self.targets
             let prior = self.tracker.continuityPrior
             let now = Date().timeIntervalSinceReferenceDate
+            let isSustaining = (prior != nil)
+            let dynamicNoiseGate = self.tracker.recommendedNoiseGate(isSustaining: isSustaining)
+            let dynamicYinThreshold = self.tracker.recommendedYinThreshold(isSustaining: isSustaining)
 
             let pitchResult = await Task.detached(priority: .high) {
                 detector.detectPitch(
                     in: buffer,
-                    noiseGateRMS: 0.008,
-                    yinThreshold: 0.15,
+                    noiseGateRMS: dynamicNoiseGate,
+                    yinThreshold: dynamicYinThreshold,
                     referenceA4: currentConfig.a4,
                     priorFrequency: prior?.frequency,
                     priorAt: prior?.at,

@@ -61,12 +61,17 @@ public enum AudioTestHelpers {
         var wavUrl: URL? = bundle.url(forResource: name, withExtension: "wav")
 
         if wavUrl == nil {
-            // Fallback to relative path from source file
-            let thisFile = URL(fileURLWithPath: #filePath)
-            let fixturesDir = thisFile.deletingLastPathComponent().appendingPathComponent("Fixtures")
-            let localUrl = fixturesDir.appendingPathComponent("\(name).wav")
-            if FileManager.default.fileExists(atPath: localUrl.path) {
-                wavUrl = localUrl
+            let directLocal = "/Users/wojtiku/src/strumkit-ios/StrumKitTests/Fixtures/\(name).wav"
+            if FileManager.default.fileExists(atPath: directLocal) {
+                wavUrl = URL(fileURLWithPath: directLocal)
+            } else {
+                // Fallback to relative path from source file
+                let thisFile = URL(fileURLWithPath: #filePath)
+                let fixturesDir = thisFile.deletingLastPathComponent().appendingPathComponent("Fixtures")
+                let localUrl = fixturesDir.appendingPathComponent("\(name).wav")
+                if FileManager.default.fileExists(atPath: localUrl.path) {
+                    wavUrl = localUrl
+                }
             }
         }
 
@@ -113,7 +118,7 @@ public enum AudioTestHelpers {
 
             if chunkId == "fmt " {
                 let audioFormat = Int(readUInt16LE(data: data, offset: start))
-                guard audioFormat == 1 else { return nil } // PCM only
+                guard audioFormat == 1 || audioFormat == 65534 else { return nil } // PCM or WAVE_FORMAT_EXTENSIBLE
                 channels = Int(readUInt16LE(data: data, offset: start + 2))
                 sampleRate = Double(readUInt32LE(data: data, offset: start + 4))
                 bitsPerSample = Int(readUInt16LE(data: data, offset: start + 14))

@@ -37,4 +37,28 @@ struct RecordedAudioTests {
         // A polyphonic chord must NEVER accidentally validate and complete a single-string guided tune!
         #expect(!tracker.guidedProgress.contains(true), "A strummed chord must not complete any guided string")
     }
+
+    @Test("replays user-provided quiet ukulele plucks with valid pitch and sustain")
+    func testUserQuietUkuleleReplay() {
+        let quietFiles = ["quiet_a", "quiet_c", "quiet_e", "quiet_g"]
+        let config = TunerConfig(instrument: .ukulele, tuningId: "high-g", mode: .chromatic)
+
+        for name in quietFiles {
+            guard let wav = AudioTestHelpers.loadWav(name: name) else {
+                Issue.record("Failed to load WAV fixture: \(name).wav")
+                continue
+            }
+
+            let (readings, _) = AudioTestHelpers.replay(samples: wav.samples, sampleRate: wav.sampleRate, config: config)
+            let freshReadings = readings.filter { $0.freshness == .fresh }
+            let heldReadings = readings.filter { $0.freshness == .held }
+
+            print("[\(name)] Total: \(readings.count), Fresh: \(freshReadings.count), Held: \(heldReadings.count)")
+            if let first = freshReadings.first {
+                print("[\(name)] First detected note: \(first.note), freq: \(first.frequency) Hz")
+            }
+            #expect(freshReadings.count >= 5, "Expected at least 5 fresh readings for \(name).wav, got \(freshReadings.count)")
+        }
+    }
 }
+

@@ -49,7 +49,7 @@ public final class PitchDetector: @unchecked Sendable {
     /// Full window analysis matching analyzeWindow from chorder/src/audio/tuner/pitch.ts
     public func detectPitch(
         in buffer: [Float],
-        noiseGateRMS: Float = 0.008,
+        noiseGateRMS: Float = 0.0001,
         yinThreshold: Float = 0.15,
         referenceA4: Double = TunerConstants.defaultA4Hz,
         priorFrequency: Double? = nil,
@@ -193,7 +193,7 @@ public final class PitchDetector: @unchecked Sendable {
         var candidateEvidence = 0
 
         // 7. Multiplier Candidate Arbitration (2x, 3x, 4x subharmonic search)
-        let priorWindow = (priorFrequency ?? 0) > 300.0 ? 0.200 : 0.250
+        let priorWindow = 0.850
         let hasPrior: Bool
         if let priorAt, let priorFrequency {
             hasPrior = (now >= priorAt) && (now - priorAt <= priorWindow) && priorFrequency.isFinite
@@ -251,7 +251,10 @@ public final class PitchDetector: @unchecked Sendable {
         let frequency = refined.frequency
         guard frequency >= minFrequency && frequency <= maxFrequency else { return .idle }
 
-        let ambiguousThresh = frequency > 300.0 ? Self.highNoteAmbiguityMinEnergyRatio : Self.standardAmbiguityMinEnergyRatio
+        var ambiguousThresh = frequency > 300.0 ? Self.highNoteAmbiguityMinEnergyRatio : Self.standardAmbiguityMinEnergyRatio
+        if hasPrior {
+            ambiguousThresh *= 0.5
+        }
         let fundamentalEnergy = HannProjection.normalizedPower(samples: zeroCentered, frequency: frequency, sampleRate: analysisRate)
         if (fundamentalEnergy / (rmsDouble * rmsDouble)) < ambiguousThresh {
             isAmbiguous = true

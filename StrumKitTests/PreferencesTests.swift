@@ -175,10 +175,20 @@ struct PreferencesTests {
     func testAcousticStringSynthesizerPluck() async {
         let synth = AcousticStringSynthesizer()
         synth.playString(frequency: 82.41, stringIndex: 0, instrument: .guitar)
-        try? await Task.sleep(nanoseconds: 100_000_000)
-        #expect(synth.activeStringIndex == 0)
+        var active = synth.activeStringIndex
+        for _ in 0..<20 {
+            if active == 0 { break }
+            try? await Task.sleep(nanoseconds: 50_000_000)
+            active = synth.activeStringIndex
+        }
+        #expect(active == 0)
         synth.stop()
-        try? await Task.sleep(nanoseconds: 50_000_000)
-        #expect(synth.activeStringIndex == nil)
+        var stopped = synth.activeStringIndex
+        for _ in 0..<20 {
+            if stopped == nil { break }
+            try? await Task.sleep(nanoseconds: 25_000_000)
+            stopped = synth.activeStringIndex
+        }
+        #expect(stopped == nil)
     }
 }

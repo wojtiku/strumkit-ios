@@ -8,8 +8,18 @@ public final class AudioCaptureService: @unchecked Sendable {
     private let queue = DispatchQueue(label: "com.strumkit.audiocapture", qos: .userInteractive)
 
     public private(set) var sampleRate: Double = 44100.0
+    private var ringBuffer: AudioRingBuffer? = nil
 
     public init() {}
+
+    /// Calculates required trailing sample count for the polyphase sinc resampler.
+    public static func requiredInputSamples(for sampleRate: Double) -> Int {
+        if sampleRate <= Resampler.analysisRate {
+            return Resampler.windowSize
+        }
+        let ratio = sampleRate / Resampler.analysisRate
+        return Int(ceil(Double(2 * Resampler.resamplerRadius + 1) + Double(Resampler.windowSize - 1) * ratio))
+    }
 
     /// Checks current microphone recording authorization status.
     public func checkPermissionStatus() -> AudioPermissionStatus {
@@ -65,6 +75,25 @@ public final class AudioCaptureService: @unchecked Sendable {
                     options: [.defaultToSpeaker, .allowBluetoothHFP, .mixWithOthers]
                 )
                 try session.setPreferredIOBufferDuration(Double(bufferSize) / 44100.0)
+
+                // 1. Hardware Microphone Directionality: Cardioid pattern rejects off-axis room noise
+                if let inputs = session.availableInputs,
+                   let builtInMic = inputs.first(where: { $0.portType == .builtInMic }) {
+                    if let dataSources = builtInMic.dataSources {
+                        for source in dataSources {
+                            if let supportedPatterns = source.supportedPolarPatterns,
+                               supportedPatterns.contains(.cardioid) {
+                                try? source.setPreferredPolarPattern(.cardioid)
+                            }
+                        }
+                    }
+                }
+
+                // 2. Hardware Input Gain (if supported on active interface/headset)
+                if session.isInputGainSettable {
+                    try? session.setInputGain(1.0)
+                }
+
                 try session.setActive(true, options: .notifyOthersOnDeactivation)
             } catch {
                 print("[StrumKit] AVAudioSession setup warning: \(error.localizedDescription)")
@@ -80,6 +109,9 @@ public final class AudioCaptureService: @unchecked Sendable {
             }
 
             self.sampleRate = inputFormat.sampleRate > 0 ? inputFormat.sampleRate : 44100.0
+            let neededSamples = Self.requiredInputSamples(for: self.sampleRate)
+            let ring = AudioRingBuffer(capacity: max(16384, neededSamples * 2))
+            self.ringBuffer = ring
 
             inputNode.removeTap(onBus: 0)
             inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: inputFormat) { buffer, _ in
@@ -91,7 +123,13 @@ public final class AudioCaptureService: @unchecked Sendable {
                 let channelPointer = channelData[0]
                 let samples = Array(UnsafeBufferPointer(start: channelPointer, count: frameLength))
 
-                onBufferReceived(samples, inputFormat.sampleRate)
+                ring.write(samples)
+                if let window = ring.readTrailing(count: neededSamples) {
+                    onBufferReceived(window, inputFormat.sampleRate)
+                } else if ring.availableCount >= 512 {
+                    let partial = ring.readTrailing(count: ring.availableCount) ?? samples
+                    onBufferReceived(partial, inputFormat.sampleRate)
+                }
             }
 
             do {
@@ -110,6 +148,8 @@ public final class AudioCaptureService: @unchecked Sendable {
             guard self.isRunningInternal else { return }
             self.engine.inputNode.removeTap(onBus: 0)
             self.engine.stop()
+            self.ringBuffer?.reset()
+            self.ringBuffer = nil
             self.isRunningInternal = false
 
             #if os(iOS)
@@ -124,5 +164,56 @@ public final class AudioCaptureService: @unchecked Sendable {
 
     public var isCapturing: Bool {
         queue.sync { isRunningInternal }
+    }
+}
+
+/// Rolling audio ring buffer that maintains trailing audio samples for windowed analysis.
+public final class AudioRingBuffer: @unchecked Sendable {
+    private var buffer: [Float]
+    private var head = 0
+    private var count = 0
+    private let capacity: Int
+    private let lock = NSLock()
+
+    public init(capacity: Int = 16384) {
+        self.capacity = capacity
+        self.buffer = [Float](repeating: 0.0, count: capacity)
+    }
+
+    public var availableCount: Int {
+        lock.lock()
+        defer { lock.unlock() }
+        return count
+    }
+
+    public func write(_ samples: [Float]) {
+        lock.lock()
+        defer { lock.unlock() }
+        for s in samples {
+            buffer[head] = s
+            head = (head + 1) % capacity
+            if count < capacity { count += 1 }
+        }
+    }
+
+    public func readTrailing(count requested: Int) -> [Float]? {
+        lock.lock()
+        defer { lock.unlock() }
+        guard count >= requested else { return nil }
+        var result = [Float](repeating: 0.0, count: requested)
+        var readIdx = (head - requested + capacity) % capacity
+        for i in 0..<requested {
+            result[i] = buffer[readIdx]
+            readIdx = (readIdx + 1) % capacity
+        }
+        return result
+    }
+
+    public func reset() {
+        lock.lock()
+        defer { lock.unlock() }
+        head = 0
+        count = 0
+        for i in 0..<capacity { buffer[i] = 0.0 }
     }
 }

@@ -19,6 +19,17 @@ public final class PitchTracker: @unchecked Sendable {
     public static let guidedHoldDuration: TimeInterval = 1.0 // 1 full second in tune
     public static let guidedCompletionPeriodicity: Double = 0.85
 
+    // Ambient noise floor tracking
+    public static let initialAmbientFloor: Double = 0.0002
+    public static let minAmbientFloor: Double = 0.00008
+    public static let maxAmbientFloor: Double = 0.015
+    public static let foregroundPeriodicityThreshold: Double = 0.75
+    public static let ambientCooldown: TimeInterval = 0.35
+
+    // Hold & Sustain Grace Durations
+    public static let readingHoldDuration: TimeInterval = 0.85
+    public static let priorGraceDuration: TimeInterval = 0.85
+
     // State
     private var lastReadingTime: TimeInterval = 0
     private var displayCentsEma: Double = 0.0
@@ -29,13 +40,28 @@ public final class PitchTracker: @unchecked Sendable {
     private var candidateIndex: Int? = nil
     private var candidateCount: Int = 0
     private var lastRms: Double = 0.0
+    private var lastForegroundTime: TimeInterval = 0
+    private var lastReading: TunerReading? = nil
 
+    public private(set) var ambientFloor: Double = initialAmbientFloor
     public private(set) var guidedProgress: [Bool] = []
     public private(set) var guidedTargetIndex: Int = 0
     public private(set) var feedbackState: SignalFeedbackState = .inactive
     public private(set) var continuityPrior: (frequency: Double, at: TimeInterval)? = nil
 
     public init() {}
+
+    /// Recommends the noise gate threshold based on current ambient noise floor and sustain status.
+    public func recommendedNoiseGate(isSustaining: Bool) -> Float {
+        let multiplier = isSustaining ? 1.15 : 1.4
+        let gate = max(0.00015, ambientFloor * multiplier)
+        return Float(gate)
+    }
+
+    /// Recommends the YIN threshold (0.15 for attack acquisition, 0.25 for sustaining pitch).
+    public func recommendedYinThreshold(isSustaining: Bool) -> Float {
+        return isSustaining ? 0.25 : 0.15
+    }
 
     /// Resets tracker state when configuration or instrument changes.
     public func reset(targetCount: Int) {
@@ -50,6 +76,10 @@ public final class PitchTracker: @unchecked Sendable {
         lastRms = 0.0
         continuityPrior = nil
         feedbackState = .inactive
+        ambientFloor = Self.initialAmbientFloor
+        lastForegroundTime = 0
+        lastReading = nil
+        lastReadingTime = 0
     }
 
     /// Restarts the guided tuning session while retaining settings.
@@ -73,10 +103,21 @@ public final class PitchTracker: @unchecked Sendable {
             guidedTargetIndex = 0
         }
 
+        // Update ambient noise floor during quiet / unvoiced intervals
+        let isForeground = pitchResult.isSignalPresent
+            && pitchResult.frequency >= TunerConstants.detectorMinHz
+            && pitchResult.confidence >= Self.foregroundPeriodicityThreshold
+
+        if isForeground {
+            lastForegroundTime = now
+        } else if (now - lastForegroundTime) >= Self.ambientCooldown && pitchResult.amplitudeRMS > 0 {
+            let alpha = 0.05
+            ambientFloor = max(Self.minAmbientFloor, min(Self.maxAmbientFloor, (1.0 - alpha) * ambientFloor + alpha * pitchResult.amplitudeRMS))
+        }
+
         // 1. Check signal presence
         guard pitchResult.isSignalPresent && pitchResult.frequency >= TunerConstants.detectorMinHz else {
-            handleLostSignal(at: now)
-            return nil
+            return handleLostSignal(at: now, rms: pitchResult.amplitudeRMS)
         }
 
         let frequency = pitchResult.frequency
@@ -107,7 +148,7 @@ public final class PitchTracker: @unchecked Sendable {
                 )
                 targetIndex = -1
             } else {
-                return nil
+                return handleLostSignal(at: now, rms: currentRms)
             }
 
         case .auto:
@@ -130,11 +171,12 @@ public final class PitchTracker: @unchecked Sendable {
                 target = targets[closestIdx]
             } else {
                 handleAmbiguousSignal(at: now)
-                return nil
+                return handleLostSignal(at: now, rms: currentRms)
             }
         }
 
-        // Multi-reading target confirmation (ACQUIRE_READINGS = 3, or 2 on onset)
+        // Multi-reading target confirmation (ACQUIRE_READINGS = 3, or 2 on onset, or immediate on continuing note)
+        let isContinuingTarget = (targetIndex == previousTargetIndex && continuityPrior != nil && (now - lastReadingTime) <= Self.priorGraceDuration)
         let neededReadings = isOnset ? Self.onsetAcquireReadings : Self.acquireReadings
         if candidateIndex == targetIndex {
             candidateCount += 1
@@ -143,8 +185,21 @@ public final class PitchTracker: @unchecked Sendable {
             candidateCount = 1
         }
 
-        guard candidateCount >= neededReadings || config.mode == .chromatic || config.mode == .manual else {
+        guard isContinuingTarget || candidateCount >= neededReadings || config.mode == .chromatic || config.mode == .manual else {
             feedbackState = .checking
+            if (now - lastReadingTime) <= Self.priorGraceDuration, let last = lastReading {
+                return TunerReading(
+                    at: now,
+                    frequency: last.frequency,
+                    note: last.note,
+                    target: last.target,
+                    targetIndex: last.targetIndex,
+                    cents: last.cents,
+                    displayCents: displayCentsEma,
+                    freshness: .held,
+                    inTune: false
+                )
+            }
             return nil
         }
 
@@ -194,7 +249,7 @@ public final class PitchTracker: @unchecked Sendable {
 
         let noteDisplay = PitchMath.midiNoteName(target.midi)
 
-        return TunerReading(
+        let reading = TunerReading(
             at: now,
             frequency: frequency,
             note: noteDisplay,
@@ -205,16 +260,41 @@ public final class PitchTracker: @unchecked Sendable {
             freshness: .fresh,
             inTune: inTune
         )
+        lastReading = reading
+        return reading
     }
 
-    private func handleLostSignal(at now: TimeInterval) {
+    private func handleLostSignal(at now: TimeInterval, rms: Double = 0) -> TunerReading? {
         guidedHoldStartTime = nil
         candidateCount = 0
         candidateIndex = nil
+
+        let elapsed = now - lastReadingTime
+
+        // If a reading occurred recently, keep continuity prior and return held reading
+        if elapsed <= Self.priorGraceDuration, let last = lastReading {
+            feedbackState = .tracking
+            return TunerReading(
+                at: now,
+                frequency: last.frequency,
+                note: last.note,
+                target: last.target,
+                targetIndex: last.targetIndex,
+                cents: last.cents,
+                displayCents: displayCentsEma,
+                freshness: .held,
+                inTune: false
+            )
+        }
+
         continuityPrior = nil
-        if now - lastReadingTime > 0.4 {
+        lastReading = nil
+        if rms > 0 && rms < Double(recommendedNoiseGate(isSustaining: false)) && rms > ambientFloor * 0.85 {
+            feedbackState = .quiet
+        } else if elapsed > 0.4 {
             feedbackState = .ready
         }
+        return nil
     }
 
     private func handleAmbiguousSignal(at now: TimeInterval) {
