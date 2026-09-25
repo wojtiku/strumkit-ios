@@ -79,6 +79,18 @@ public final class PitchTracker: @unchecked Sendable {
 
     /// Resets tracker state when configuration or instrument changes.
     public func reset(targetCount: Int) {
+        reset(targetCount: targetCount, preservingGuidedProgress: false)
+    }
+
+    /// Resets tracker state, optionally keeping the guided session's completed
+    /// strings.
+    ///
+    /// A mode, precision or string-lock change invalidates in-flight *readings* but
+    /// must not discard strings the player has already tuned. An instrument or
+    /// preset change does discard them, because the strings are different ones.
+    public func reset(targetCount: Int, preservingGuidedProgress: Bool) {
+        let previousProgress = guidedProgress
+        let previousTarget = guidedTargetIndex
         guidedProgress = Array(repeating: false, count: targetCount)
         guidedTargetIndex = 0
         displayCentsEma = 0.0
@@ -97,6 +109,11 @@ public final class PitchTracker: @unchecked Sendable {
         lastForegroundTime = 0
         lastReading = nil
         lastReadingTime = 0
+
+        if preservingGuidedProgress, previousProgress.count == targetCount {
+            guidedProgress = previousProgress
+            guidedTargetIndex = min(previousTarget, max(0, targetCount - 1))
+        }
     }
 
     /// Restarts the guided tuning session while retaining settings.
@@ -270,13 +287,22 @@ public final class PitchTracker: @unchecked Sendable {
         let enterThreshold = config.precision ? Self.precisionEnterTuneCents : Self.standardEnterTuneCents
         let exitThreshold = config.precision ? Self.precisionExitTuneCents : Self.standardExitTuneCents
 
+        // A spectrally recovered estimate may update the display and the prior, but
+        // must not assert that a string is in tune. Cents error on recovery is
+        // noisier than YIN's, and "you are flat" is directly actionable advice, so
+        // a wrong recovered value must never be able to tell the player to move a
+        // peg. The tracker records the true `inTune` state for later YIN frames.
+        let inTuneMayBeAsserted = !pitchResult.recovered || TunerAnalysisSession.recoveredFramesMayAssertInTune
+
         let inTune: Bool
         if lastInTuneState {
             inTune = abs(rawCents) <= exitThreshold
         } else {
             inTune = abs(rawCents) <= enterThreshold
         }
-        lastInTuneState = inTune
+        if inTuneMayBeAsserted {
+            lastInTuneState = inTune
+        }
 
         // 6. Guided Mode Progress Advancement (1-second uninterrupted fresh hold requirement)
         if config.mode == .guided && targetIndex == guidedTargetIndex {
@@ -314,7 +340,7 @@ public final class PitchTracker: @unchecked Sendable {
             cents: rawCents,
             displayCents: displayCentsEma,
             freshness: .fresh,
-            inTune: inTune,
+            inTune: inTune && inTuneMayBeAsserted,
             recovered: pitchResult.recovered
         )
         lastReading = reading

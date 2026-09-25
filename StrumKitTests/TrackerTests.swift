@@ -429,6 +429,135 @@ struct TrackerTests {
         #expect(e4Reading?.inTune == false, "Hysteresis must be reset on target change")
     }
 
+    // MARK: - Recovery Trust Boundary
+
+    @Test("A recovered estimate may not assert in tune, but a confirmed one still does")
+    func testRecoveredFramesCannotAssertInTune() {
+        let tracker = PitchTracker()
+        let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .auto)
+        let targets = Presets.guitar[0].midi.enumerated().map { index, midi in
+            StringTarget(note: PitchMath.midiNoteName(midi), midi: midi, frequency: PitchMath.midiFrequency(midi), number: 6 - index)
+        }
+
+        // Dead-on E2 confirmed by YIN must report in tune.
+        let confirmed = PitchResult(
+            frequency: 82.41,
+            closestNote: MusicalNote(midiNoteNumber: 40),
+            centsDeviation: 0.0,
+            confidence: 0.95,
+            amplitudeRMS: 0.05,
+            isSignalPresent: true
+        )
+        var confirmedReading: TunerReading?
+        for t in stride(from: 10.0, through: 10.5, by: 0.02) {
+            confirmedReading = tracker.process(pitchResult: confirmed, at: t, config: config, targets: targets)
+        }
+        #expect(confirmedReading?.inTune == true, "A YIN-confirmed in-tune frame must report inTune")
+
+        // The identical frequency arriving as a recovered estimate must not.
+        let recovered = PitchResult(
+            frequency: 82.41,
+            closestNote: MusicalNote(midiNoteNumber: 40),
+            centsDeviation: 0.0,
+            confidence: 0.20,
+            amplitudeRMS: 0.001,
+            isSignalPresent: true,
+            recovered: true
+        )
+        let recoveredReading = tracker.process(pitchResult: recovered, at: 10.52, config: config, targets: targets)
+        #expect(recoveredReading?.recovered == true)
+        #expect(recoveredReading?.inTune == false,
+                "Recovery must not assert in tune, even at zero cents error")
+
+        // Suppressing the verdict must not corrupt the hysteresis state machine.
+        let stillConfirmed = tracker.process(pitchResult: confirmed, at: 10.54, config: config, targets: targets)
+        #expect(stillConfirmed?.inTune == true,
+                "In-tune hysteresis must survive a recovered frame without resetting")
+    }
+
+    @Test("Recovered frames never complete a guided string")
+    func testRecoveredFramesCannotCompleteGuidedString() {
+        let tracker = PitchTracker()
+        let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .guided, guided: true)
+        let targets = Presets.guitar[0].midi.enumerated().map { index, midi in
+            StringTarget(note: PitchMath.midiNoteName(midi), midi: midi, frequency: PitchMath.midiFrequency(midi), number: 6 - index)
+        }
+        tracker.reset(targetCount: targets.count)
+
+        let recovered = PitchResult(
+            frequency: 82.41,
+            closestNote: MusicalNote(midiNoteNumber: 40),
+            centsDeviation: 0.0,
+            confidence: 0.30,
+            amplitudeRMS: 0.001,
+            isSignalPresent: true,
+            recovered: true
+        )
+        for t in stride(from: 10.0, through: 12.5, by: 0.02) {
+            _ = tracker.process(pitchResult: recovered, at: t, config: config, targets: targets)
+        }
+        #expect(tracker.guidedProgress[0] == false,
+                "2.5s of recovered in-tune frames must not complete a guided string")
+    }
+
+    // MARK: - Guided Progress Preservation
+
+    @Test("Judgement-only config changes preserve guided progress; instrument changes do not")
+    func testGuidedProgressPreservedOnlyForJudgementChanges() {
+        let targets = Presets.guitar[0].midi.enumerated().map { index, midi in
+            StringTarget(note: PitchMath.midiNoteName(midi), midi: midi, frequency: PitchMath.midiFrequency(midi), number: 6 - index)
+        }
+        let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .guided, guided: true)
+
+        // Build a real guided session by actually completing two strings, rather
+        // than writing state the production code path never produces.
+        let tracker = PitchTracker()
+        tracker.reset(targetCount: targets.count)
+
+        var clock: TimeInterval = 10.0
+        for stringIndex in 0..<2 {
+            let frequency = targets[stringIndex].frequency
+            let inTune = PitchResult(
+                frequency: frequency,
+                closestNote: MusicalNote(midiNoteNumber: targets[stringIndex].midi),
+                centsDeviation: 0.0,
+                confidence: 0.95,
+                amplitudeRMS: 0.05,
+                isSignalPresent: true
+            )
+            // 1.3s of continuous in-tune evidence clears the 1.0s guided hold.
+            for step in 0..<65 {
+                _ = tracker.process(pitchResult: inTune, at: clock + Double(step) * 0.02, config: config, targets: targets)
+            }
+            clock += 1.3
+        }
+
+        #expect(tracker.guidedProgress.prefix(2) == [true, true],
+                "test setup: two strings should be complete, got \(tracker.guidedProgress)")
+        #expect(tracker.guidedTargetIndex == 2)
+
+        let progressBefore = tracker.guidedProgress
+        let indexBefore = tracker.guidedTargetIndex
+
+        // A mode / precision / string-lock change must keep them.
+        tracker.reset(targetCount: targets.count, preservingGuidedProgress: true)
+        #expect(tracker.guidedProgress == progressBefore,
+                "A judgement-only config change must not discard completed strings")
+        #expect(tracker.guidedTargetIndex == indexBefore)
+
+        // An instrument or preset change must discard them: different strings.
+        tracker.reset(targetCount: targets.count, preservingGuidedProgress: false)
+        #expect(tracker.guidedProgress == [false, false, false, false, false, false],
+                "A string-set change must discard completed strings")
+        #expect(tracker.guidedTargetIndex == 0)
+
+        // A target-count mismatch is a string-set change even if preservation was
+        // asked for: progress from a six-string session cannot apply to four strings.
+        tracker.reset(targetCount: 4, preservingGuidedProgress: true)
+        #expect(tracker.guidedProgress == [false, false, false, false],
+                "Progress must not carry across a different number of strings")
+    }
+
     @Test("Candidate confirmation resets after gap greater than candidate gap limit (> 250ms)")
     func testCandidateConfirmationResetsAfterLargeGap() {
         let tracker = PitchTracker()

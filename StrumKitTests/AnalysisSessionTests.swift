@@ -216,6 +216,65 @@ struct AnalysisSessionTests {
 
     // MARK: - Task 7 Lifecycle & Device Validation Tests
 
+    @Test("Dropped and replaced frames are counted, and stale-generation frames count as dropped")
+    func testFrameAccountingCountsDrops() async throws {
+        let targets = makeTargets()
+        let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .auto)
+        let session = TunerAnalysisSession(config: config, targets: targets)
+        let samples = makeSineWave(frequency: 82.41, sampleRate: 44100.0, count: 2048)
+
+        session.analysisHook = { _, _ in
+            Thread.sleep(forTimeInterval: 0.05)
+        }
+
+        session.submitLiveAudio(window: samples, sampleRate: 44100.0, captureEndSeconds: 1.0)
+        try await Task.sleep(nanoseconds: 10_000_000)
+        session.submitLiveAudio(window: samples, sampleRate: 44100.0, captureEndSeconds: 1.04)
+        session.submitLiveAudio(window: samples, sampleRate: 44100.0, captureEndSeconds: 1.08)
+
+        #expect(session.replacedFrames >= 1)
+        #expect(session.droppedFrames >= 1,
+                "A frame replaced in the mailbox is dropped work and must be counted, not hidden")
+
+        // A frame from a superseded generation is dropped, not analysed.
+        let generation = session.generation
+        session.start(config: config, targets: targets)
+        let stale = AnalysisFrame(
+            samples: samples,
+            sampleRate: 44100.0,
+            captureEndSeconds: 2.0,
+            sequence: 99,
+            generation: generation
+        )
+        #expect(session.processFrameSync(stale) == nil)
+
+        try await Task.sleep(nanoseconds: 120_000_000)
+    }
+
+    @Test("Synchronous processing seam reports a well-defined result age")
+    func testSyncSeamResultAgeIsCoherent() {
+        let targets = makeTargets()
+        let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .auto)
+        let session = TunerAnalysisSession(config: config, targets: targets)
+        let samples = makeSineWave(frequency: 82.41, sampleRate: 44100.0, count: 2048)
+
+        // Replay frame timestamps are a media timeline starting at zero. Without an
+        // explicit reference the seam would subtract it from the host monotonic clock
+        // and report an age of millions of milliseconds.
+        let frame = AnalysisFrame(
+            samples: samples,
+            sampleRate: 44100.0,
+            captureEndSeconds: 1.0,
+            sequence: 1,
+            generation: session.generation
+        )
+        let snapshot = session.processFrameSync(frame)
+        #expect(snapshot?.diagnostics.resultAgeMs == 0.0)
+
+        let withReference = session.processFrameSync(frame, resultAgeReference: 1.05)
+        #expect(abs((withReference?.diagnostics.resultAgeMs ?? 0) - 50.0) < 1e-6)
+    }
+
     @Test("Sample-rate restart resets analysis state, increments generation, and clears prior")
     func testSampleRateRestartResetsStateAndInvalidatesStalePrior() {
         let targets = makeTargets()

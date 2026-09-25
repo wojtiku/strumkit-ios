@@ -1,6 +1,31 @@
 import Foundation
 import Accelerate
 
+/// A detected local maximum of the whitened magnitude spectrum, with parabolic
+/// sub-bin interpolation applied to its frequency and magnitude.
+struct SpectralPeak {
+    let freq: Double
+    let mag: Float
+}
+
+/// What one harmonic contributed to a candidate: the position it was expected at,
+/// the peaks found there, and its weighted score share.
+///
+/// Frequency localisation uses `peakFrequency` (unwhitened) because the
+/// per-window whitening gain displaces peak positions by several cents.
+/// `whitenedPeakFrequency` and `peakMagnitude` describe the whitened spectrum,
+/// which is what candidate ranking and score strength are based on.
+struct HarmonicEvidence: Sendable {
+    let harmonic: Int
+    let expectedFrequency: Double
+    /// Interpolated peak position in the unwhitened spectrum; `nil` if none found.
+    let peakFrequency: Double?
+    /// Interpolated peak position in the whitened spectrum; `nil` if none found.
+    let whitenedPeakFrequency: Double?
+    let peakMagnitude: Float
+    let scoreContribution: Double
+}
+
 /// A candidate pitch detected through harmonic spectral summation.
 public struct SpectralCandidate: Sendable, Equatable {
     /// Measured fundamental frequency in Hertz.
@@ -205,9 +230,15 @@ public final class SpectralPitchScorer: @unchecked Sendable {
 
     /// Scores raw audio by resampling to 16 kHz if needed and applying spectral analysis.
     public func scoreAudio(samples: [Float], sampleRate: Double) -> [SpectralCandidate] {
-        guard !samples.isEmpty else { return [] }
+        analyzeAudio(samples: samples, sampleRate: sampleRate)?.candidates ?? []
+    }
+
+    /// Diagnostic counterpart to `scoreAudio`: same input conditioning and
+    /// scoring, but also returns the per-harmonic evidence and window statistics.
+    func analyzeAudio(samples: [Float], sampleRate: Double) -> WindowAnalysis? {
+        guard !samples.isEmpty else { return nil }
         if abs(sampleRate - Self.analysisRate) < 1.0 {
-            return scoreWindow(samples)
+            return analyzeWindow(samples)
         }
         let req = AudioCaptureService.requiredInputSamples(for: sampleRate)
         let input: [Float]
@@ -222,14 +253,30 @@ public final class SpectralPitchScorer: @unchecked Sendable {
             input = samples
         }
         guard let resampled = resampler.resampleWindow(source: input, inputRate: sampleRate) else {
-            return []
+            return nil
         }
-        return scoreWindow(resampled)
+        return analyzeWindow(resampled)
     }
 
     /// Scores a 16 kHz window (nominally 1536 samples).
     public func scoreWindow(_ samples: [Float]) -> [SpectralCandidate] {
-        guard isScoringEnabled, !samples.isEmpty else { return [] }
+        analyzeWindow(samples)?.candidates ?? []
+    }
+
+    /// Full diagnostic result for one analysis window.
+    struct WindowAnalysis {
+        let candidates: [SpectralCandidate]
+        /// Parallel to `candidates`: the harmonic evidence used to build each one.
+        let evidence: [[HarmonicEvidence]]
+        let rms: Double
+        /// Number of local maxima admitted above the peak threshold.
+        let peakCount: Int
+    }
+
+    /// Scores a window and returns candidates plus the per-harmonic evidence
+    /// behind them. `scoreWindow` is the projection of this.
+    func analyzeWindow(_ samples: [Float]) -> WindowAnalysis? {
+        guard isScoringEnabled, !samples.isEmpty else { return nil }
 
         lock.lock()
         defer { lock.unlock() }
@@ -246,8 +293,9 @@ public final class SpectralPitchScorer: @unchecked Sendable {
         var rms: Float = 0.0
         vDSP_rmsqv(input, 1, &rms, vDSP_Length(Self.windowSize))
         guard Double(rms) >= PitchDetector.minAnalysisRMS else {
-            return []
+            return nil
         }
+        let rawRMS = Double(rms)
 
         // 3. Remove DC (subtract mean)
         var mean: Float = 0.0
@@ -269,7 +317,7 @@ public final class SpectralPitchScorer: @unchecked Sendable {
         // 6. Compute FFT and magnitude spectrum
         let (magnitudes, powerSpectrum) = computeTransform(padded: padded)
 
-        // 8. Whitening (if enabled)
+        // 7. Whitening (if enabled)
         let Aw: [Float]
         if isWhiteningEnabled {
             Aw = applyWhitening(magnitudes: magnitudes, powerSpectrum: powerSpectrum)
@@ -277,29 +325,21 @@ public final class SpectralPitchScorer: @unchecked Sendable {
             Aw = magnitudes
         }
 
-        // 9. Extract local spectral peaks from Aw
-        struct SpectralPeak {
-            let freq: Double
-            let mag: Float
-        }
-        var spectralPeaks = [SpectralPeak]()
-        spectralPeaks.reserveCapacity(64)
-        let minPeakMag: Float = max(1e-6, (Aw.max() ?? 0) * 0.005)
-
-        for k in 1..<(Self.halfFftSize - 1) {
-            let b = Aw[k]
-            guard b >= minPeakMag else { continue }
-            let a = Aw[k - 1]
-            let c = Aw[k + 1]
-            if b > a && b >= c {
-                let curv = a - 2.0 * b + c
-                let delta = (curv < -1e-12) ? min(0.5, max(-0.5, (a - c) / (2.0 * curv))) : 0.0
-                let peakBin = Double(k) + Double(delta)
-                let peakFreq = peakBin * Self.binResolutionHz
-                let peakMag = b - 0.25 * (a - c) * delta
-                spectralPeaks.append(SpectralPeak(freq: peakFreq, mag: max(b, peakMag)))
-            }
-        }
+        // 8. Extract local spectral peaks.
+        //
+        // Two peak lists are built, and keeping them separate is what makes the
+        // reported frequency trustworthy:
+        //
+        // - `whitenedPeaks` drives *ranking*. Whitening flattens the instrument's
+        //   spectral envelope, which is what you want when comparing how well each
+        //   candidate explains the partials.
+        // - `rawPeaks` drives *localisation*. The whitening gain is recomputed from
+        //   every window and varies steeply with frequency, so as a note decays the
+        //   gain curve moves and displaces the apparent peak position by several
+        //   cents. Reading a frequency off the whitened spectrum therefore injects
+        //   a per-frame bias of up to ~10 cents.
+        let whitenedPeaks = Self.extractPeaks(from: Aw, relativeThreshold: 0.005)
+        let rawPeaks = Self.extractPeaks(from: magnitudes, relativeThreshold: 0.002, interpolateOnLogMagnitude: true)
 
         // 10. Score candidate grid
         let numPoints = candidateGrid.count
@@ -314,7 +354,7 @@ public final class SpectralPitchScorer: @unchecked Sendable {
                 let radiusHz = max(Self.binResolutionHz, hFreq * halfCellFactor)
 
                 var bestVal: Float = 0.0
-                for peak in spectralPeaks {
+                for peak in whitenedPeaks {
                     let dist = abs(peak.freq - hFreq)
                     if dist <= radiusHz {
                         let taper = 1.0 - Float(dist / (2.0 * radiusHz))
@@ -334,9 +374,11 @@ public final class SpectralPitchScorer: @unchecked Sendable {
             scores[m] = sum
         }
 
-        // 11. Local maxima extraction & parabolic refinement
+        // 11. Local maxima extraction & frequency refinement
         var candidates = [SpectralCandidate]()
+        var allEvidence: [[HarmonicEvidence]] = []
         candidates.reserveCapacity(32)
+        allEvidence.reserveCapacity(32)
 
         for m in 1..<(numPoints - 1) {
             let b = scores[m]
@@ -345,7 +387,7 @@ public final class SpectralPitchScorer: @unchecked Sendable {
 
             if b > a && b > c {
                 let curvature = a - 2.0 * b + c
-                let refinedFreq: Double
+                let gridFreq: Double
                 let refinedScore: Double
 
                 if curvature < -1e-12 {
@@ -354,44 +396,212 @@ public final class SpectralPitchScorer: @unchecked Sendable {
                     if delta < -0.5 { delta = -0.5 }
 
                     let refinedGridIndex = Double(m) + Double(delta)
-                    refinedFreq = Self.minFrequency * pow(2.0, refinedGridIndex / (12.0 * Self.gridPointsPerSemitone))
+                    gridFreq = Self.minFrequency * pow(2.0, refinedGridIndex / (12.0 * Self.gridPointsPerSemitone))
                     refinedScore = Double(b - 0.25 * (a - c) * delta)
                 } else {
-                    refinedFreq = candidateGrid[m].f0
+                    gridFreq = candidateGrid[m].f0
                     refinedScore = Double(b)
                 }
 
-                // Collect diagnostic peak amplitudes for the candidate
-                let peaks = candidateGrid[m].queries.map { query -> Float in
-                    let hFreq = Double(query.h) * candidateGrid[m].f0
+                // Gather the per-harmonic evidence once; it drives the reported
+                // frequency and the diagnostic log alike.
+                var evidence: [HarmonicEvidence] = []
+                evidence.reserveCapacity(candidateGrid[m].queries.count)
+
+                for query in candidateGrid[m].queries {
+                    let hFreq = Double(query.h) * gridFreq
                     let radiusHz = max(Self.binResolutionHz, hFreq * halfCellFactor)
-                    var best: Float = 0.0
-                    for peak in spectralPeaks {
-                        if abs(peak.freq - hFreq) <= radiusHz {
-                            if peak.mag > best { best = peak.mag }
-                        }
+
+                    var whitenedBest: SpectralPeak?
+                    for peak in whitenedPeaks {
+                        guard abs(peak.freq - hFreq) <= radiusHz else { continue }
+                        if whitenedBest == nil || peak.mag > whitenedBest!.mag { whitenedBest = peak }
                     }
-                    return best
+
+                    // Localisation always comes from the unwhitened spectrum.
+                    var rawBest: SpectralPeak?
+                    for peak in rawPeaks {
+                        guard abs(peak.freq - hFreq) <= radiusHz else { continue }
+                        if rawBest == nil || peak.mag > rawBest!.mag { rawBest = peak }
+                    }
+
+                    evidence.append(
+                        HarmonicEvidence(
+                            harmonic: query.h,
+                            expectedFrequency: hFreq,
+                            peakFrequency: rawBest?.freq,
+                            whitenedPeakFrequency: whitenedBest?.freq,
+                            peakMagnitude: whitenedBest?.mag ?? 0,
+                            scoreContribution: Double(query.weight) * Double(whitenedBest?.mag ?? 0)
+                        )
+                    )
                 }
+
+                let refined = Self.estimateFundamental(gridFrequency: gridFreq, evidence: evidence)
 
                 candidates.append(
                     SpectralCandidate(
-                        frequency: refinedFreq,
+                        frequency: refined ?? gridFreq,
                         score: max(0.0, refinedScore),
                         rawScore: Double(b),
-                        peakHarmonics: peaks
+                        peakHarmonics: evidence.map { $0.peakMagnitude }
                     )
                 )
+                allEvidence.append(evidence)
             }
         }
 
-        candidates.sort { $0.score > $1.score }
-        return candidates
+        let paired = zip(candidates, allEvidence).sorted { $0.0.score > $1.0.score }
+        return WindowAnalysis(
+            candidates: paired.map { $0.0 },
+            evidence: paired.map { $0.1 },
+            rms: rawRMS,
+            peakCount: whitenedPeaks.count
+        )
+    }
+
+    // MARK: - Peak Extraction
+
+    /// Extracts local maxima from a half-spectrum, with parabolic sub-bin
+    /// interpolation of each peak's position.
+    ///
+    /// - Parameter relativeThreshold: peaks below `max(spectrum) * relativeThreshold`
+    ///   are discarded, which bounds the cost of the later per-harmonic searches.
+    /// - Parameter interpolateOnLogMagnitude: interpolates the position on the log
+    ///   of the magnitude. A windowed spectral main lobe is much closer to a
+    ///   Gaussian than to a parabola, so log-space interpolation is the more
+    ///   accurate choice when the peak's *position* is what matters.
+    static func extractPeaks(
+        from spectrum: [Float],
+        relativeThreshold: Float,
+        interpolateOnLogMagnitude: Bool = false
+    ) -> [SpectralPeak] {
+        var peaks: [SpectralPeak] = []
+        peaks.reserveCapacity(64)
+
+        let floorMagnitude: Float = max(1e-12, spectrum.max() ?? 0) * relativeThreshold
+
+        for k in 1..<(spectrum.count - 1) {
+            let b = spectrum[k]
+            guard b >= floorMagnitude else { continue }
+            let a = spectrum[k - 1]
+            let c = spectrum[k + 1]
+            guard b > a, b >= c else { continue }
+
+            let delta: Float
+            let interpolatedMagnitude: Float
+            if interpolateOnLogMagnitude {
+                let la: Float = log(max(a, 1e-30))
+                let lb: Float = log(max(b, 1e-30))
+                let lc: Float = log(max(c, 1e-30))
+                let curvature: Float = la - 2.0 * lb + lc
+                var logDelta: Float = 0.0
+                if curvature < -1e-12 {
+                    let raw: Float = 0.5 * (la - lc) / curvature
+                    logDelta = min(0.5, max(-0.5, raw))
+                }
+                delta = logDelta
+                let logMag: Float = lb - 0.25 * (la - lc) * logDelta
+                interpolatedMagnitude = exp(logMag)
+            } else {
+                let curvature: Float = a - 2.0 * b + c
+                var linDelta: Float = 0.0
+                if curvature < -1e-12 {
+                    let raw: Float = 0.5 * (a - c) / curvature
+                    linDelta = min(0.5, max(-0.5, raw))
+                }
+                delta = linDelta
+                interpolatedMagnitude = b - 0.25 * (a - c) * linDelta
+            }
+
+            let peakBin = Double(k) + Double(delta)
+            peaks.append(
+                SpectralPeak(
+                    freq: peakBin * binResolutionHz,
+                    mag: max(b, interpolatedMagnitude)
+                )
+            )
+        }
+
+        return peaks
+    }
+
+    // MARK: - Fundamental Frequency Estimation
+
+    /// Highest harmonic order used to estimate a fundamental.
+    ///
+    /// Real strings are slightly inharmonic (partials run sharp, increasingly so
+    /// with order), so dividing a high partial's interpolated peak by its order
+    /// increasingly overestimates the fundamental. Capping the order keeps that
+    /// bias small while still gaining the `1/h` reduction in interpolation error.
+    static let maxEstimationHarmonic: Int = 8
+
+    /// A per-harmonic estimate may not sit further than this from the grid
+    /// estimate before it is treated as a mismatched peak and discarded.
+    static let maxHarmonicDeviationCents: Double = 35.0
+
+    /// If harmonic-based estimation disagrees with the grid estimate by more than
+    /// this, the grid estimate is kept: the harmonic set was not describing one
+    /// fundamental and the grid maximum is the safer of the two.
+    static let maxFundamentalShiftCents: Double = 45.0
+
+    /// Estimates a candidate's fundamental from its interpolated harmonic peaks.
+    ///
+    /// Each harmonic `h` with a real in-window peak yields an estimate of
+    /// `peak.frequency / h`. Estimates are combined with weight
+    /// `peakMagnitude / h^2`, which:
+    ///
+    /// - divides the roughly order-independent peak-interpolation error by `h`, and
+    /// - damps the *inharmonicity* bias, since a stiff string's partials run
+    ///   increasingly sharp with order and `peak.frequency / h` therefore
+    ///   increasingly overestimates the fundamental.
+    ///
+    /// The fundamental itself carries neither penalty, so a present `h = 1` peak
+    /// dominates without discarding the higher partials that a weak fundamental
+    /// leaves as the only evidence.
+    ///
+    /// - Returns: `nil` when no usable harmonic peak was found or the set does not
+    ///   describe one fundamental, so the caller keeps the grid estimate.
+    static func estimateFundamental(
+        gridFrequency: Double,
+        evidence: [HarmonicEvidence]
+    ) -> Double? {
+        guard gridFrequency > 0 else { return nil }
+
+        var weightedSum: Double = 0.0
+        var weightTotal: Double = 0.0
+
+        for item in evidence {
+            guard item.harmonic <= maxEstimationHarmonic else { continue }
+            guard let peakFrequency = item.peakFrequency, item.peakMagnitude > 0 else { continue }
+
+            let h = Double(item.harmonic)
+            let estimate = peakFrequency / h
+            guard estimate > 0, estimate.isFinite else { continue }
+
+            // Reject peaks that do not plausibly belong to this fundamental.
+            let deviation = abs(1200.0 * log2(estimate / gridFrequency))
+            guard deviation <= maxHarmonicDeviationCents else { continue }
+
+            let weight = Double(item.peakMagnitude) / (h * h)
+            weightedSum += weight * estimate
+            weightTotal += weight
+        }
+
+        guard weightTotal > 0 else { return nil }
+
+        let estimate = weightedSum / weightTotal
+        guard estimate.isFinite, estimate > 0 else { return nil }
+
+        // Reject the whole harmonic set if it describes a different fundamental.
+        let shift = abs(1200.0 * log2(estimate / gridFrequency))
+        guard shift <= maxFundamentalShiftCents else { return nil }
+
+        return estimate
     }
 
     // MARK: - Internal Transform & Diagnostic Seams
-    internal func computeTransform(padded: [Float]) -> (magnitudes: [Float], powerSpectrum: [Float]) {
-        padded.withUnsafeBufferPointer { buffer in
+    internal func computeTransform(padded: [Float]) -> (magnitudes: [Float], powerSpectrum: [Float]) {        padded.withUnsafeBufferPointer { buffer in
             let base = buffer.baseAddress!
             for i in 0..<Self.halfFftSize {
                 realp[i] = base[2 * i]

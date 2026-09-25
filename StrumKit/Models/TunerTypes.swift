@@ -122,7 +122,7 @@ public struct TunerReading: Sendable, Equatable {
 
     public init(
         at: TimeInterval,
-        lastFreshAt: TimeInterval? = nil,
+        lastFreshAt: TimeInterval,
         frequency: Double,
         note: String,
         target: StringTarget,
@@ -134,7 +134,10 @@ public struct TunerReading: Sendable, Equatable {
         recovered: Bool = false
     ) {
         self.at = at
-        self.lastFreshAt = lastFreshAt ?? at
+        // `lastFreshAt` is deliberately required. Defaulting it to `at` would let
+        // a held reading look brand new to every consumer that drives fading and
+        // expiry from it, silently reintroducing the bug this field exists to fix.
+        self.lastFreshAt = lastFreshAt
         self.frequency = frequency
         self.note = note
         self.target = target

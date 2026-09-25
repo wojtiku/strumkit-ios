@@ -27,13 +27,13 @@ struct ReplayMetricsTests {
         let frames: [AudioTestHelpers.ReplayFrame] = [
             .init(captureEndSeconds: 0.10, rawFrequency: 0, rawRMS: 0.001, confidence: 0, rejection: "gate", reading: nil),
             .init(captureEndSeconds: 0.20, rawFrequency: 440.0, rawRMS: 0.05, confidence: 0.9, rejection: nil,
-                  reading: TunerReading(at: 0.20, frequency: 440.0, note: "A4", target: dummyTarget, targetIndex: 0, cents: 0, displayCents: 0, freshness: .fresh, inTune: true)),
+                  reading: TunerReading(at: 0.20, lastFreshAt: 0.20, frequency: 440.0, note: "A4", target: dummyTarget, targetIndex: 0, cents: 0, displayCents: 0, freshness: .fresh, inTune: true)),
             .init(captureEndSeconds: 0.30, rawFrequency: 440.0, rawRMS: 0.04, confidence: 0.9, rejection: nil,
-                  reading: TunerReading(at: 0.30, frequency: 440.0, note: "A4", target: dummyTarget, targetIndex: 0, cents: 0, displayCents: 0, freshness: .fresh, inTune: true)),
+                  reading: TunerReading(at: 0.30, lastFreshAt: 0.30, frequency: 440.0, note: "A4", target: dummyTarget, targetIndex: 0, cents: 0, displayCents: 0, freshness: .fresh, inTune: true)),
             .init(captureEndSeconds: 0.40, rawFrequency: 440.0, rawRMS: 0.01, confidence: 0.5, rejection: nil,
-                  reading: TunerReading(at: 0.40, frequency: 440.0, note: "A4", target: dummyTarget, targetIndex: 0, cents: 0, displayCents: 0, freshness: .held, inTune: false)),
+                  reading: TunerReading(at: 0.40, lastFreshAt: 0.20, frequency: 440.0, note: "A4", target: dummyTarget, targetIndex: 0, cents: 0, displayCents: 0, freshness: .held, inTune: false)),
             .init(captureEndSeconds: 0.50, rawFrequency: 55.0, rawRMS: 0.005, confidence: 0.8, rejection: nil,
-                  reading: TunerReading(at: 0.50, frequency: 55.0, note: "A1", target: dummyTarget, targetIndex: 0, cents: 0, displayCents: 0, freshness: .fresh, inTune: false))
+                  reading: TunerReading(at: 0.50, lastFreshAt: 0.50, frequency: 55.0, note: "A1", target: dummyTarget, targetIndex: 0, cents: 0, displayCents: 0, freshness: .fresh, inTune: false))
         ]
 
         let coverage = AudioTestHelpers.freshCoverageSeconds(frames: frames, reference: 440.0, intervalStart: 0.0, intervalEnd: 1.0)

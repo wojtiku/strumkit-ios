@@ -11,7 +11,8 @@ struct TunerPresentationTests {
         lastFreshAt: TimeInterval = 10.0,
         cents: Double = 0.0,
         freshness: TunerReading.Freshness = .fresh,
-        inTune: Bool = true
+        inTune: Bool = true,
+        recovered: Bool = false
     ) -> TunerReading {
         TunerReading(
             at: at,
@@ -23,7 +24,8 @@ struct TunerPresentationTests {
             cents: cents,
             displayCents: cents,
             freshness: freshness,
-            inTune: inTune
+            inTune: inTune,
+            recovered: recovered
         )
     }
 
@@ -92,6 +94,68 @@ struct TunerPresentationTests {
         // Negative elapsed (e.g. clock adjustment): clamped to 1.0
         let negativeElapsed = TunerPresentation.holdOpacity(for: held, now: 9.9)
         #expect(abs(negativeElapsed - 1.0) < 1e-4)
+    }
+
+    @Test("Guidance text for recovered readings declines to give tuning advice")
+    func testGuidanceTextRecoveredReading() {
+        let inTune = makeReading(freshness: .fresh, inTune: false, recovered: true)
+        #expect(TunerPresentation.guidanceText(for: inTune, feedback: .tracking) == "Still ringing — hold to check")
+
+        let flat = makeReading(cents: -30.0, freshness: .fresh, inTune: false, recovered: true)
+        #expect(TunerPresentation.guidanceText(for: flat, feedback: .tracking) == "Still ringing — hold to check",
+                "A 30-cent-flat recovered frame must not tell the player to turn a peg")
+
+        let sharp = makeReading(cents: 25.0, freshness: .fresh, inTune: false, recovered: true)
+        #expect(TunerPresentation.guidanceText(for: sharp, feedback: .tracking) == "Still ringing — hold to check")
+    }
+
+    @Test("Recovered opacity is dimmer than fresh and dimmer than a hold in progress")
+    func testRecoveredOpacityIsDistinct() {
+        #expect(TunerPresentation.recoveredOpacity < 1.0)
+        #expect(TunerPresentation.recoveredOpacity > TunerPresentation.minHoldOpacity,
+                "Recovered evidence should still be clearly visible")
+    }
+
+    @Test("Display hold duration tracks the tracker's hold duration")
+    func testDisplayHoldMatchesTrackerHold() {
+        #expect(TunerPresentation.displayHoldDuration == PitchTracker.readingHoldDuration,
+                "The tracker decides when a held reading stops; the view must expire it at the same moment")
+    }
+
+    @Test("TunerViewModel dims the needle for recovered evidence")
+    @MainActor
+    func testViewModelNeedleOpacityForRecoveredReading() {
+        let session = TunerAnalysisSession()
+        let vm = TunerViewModel(session: session)
+        let now = CACurrentMediaTime()
+
+        let recovered = TunerReading(
+            at: now,
+            lastFreshAt: now,
+            frequency: 440.0,
+            note: "A4",
+            target: StringTarget(note: "A4", midi: 69, frequency: 440.0, number: 1),
+            targetIndex: 0,
+            cents: -12.0,
+            displayCents: -12.0,
+            freshness: .fresh,
+            inTune: false,
+            recovered: true
+        )
+        let snap = AnalysisSnapshot(
+            reading: recovered,
+            pitchResult: PitchResult(frequency: 440.0, closestNote: MusicalNote(midiNoteNumber: 69), centsDeviation: -12, confidence: 0.2, amplitudeRMS: 0.002, isSignalPresent: true, recovered: true),
+            feedbackState: .tracking,
+            guidedProgress: [],
+            guidedTargetIndex: 0,
+            diagnostics: TunerDiagnostics(),
+            generation: session.generation,
+            sequence: 1
+        )
+
+        vm.handleSnapshot(snap)
+        #expect(vm.currentReading?.recovered == true)
+        #expect(vm.needleOpacity == TunerPresentation.recoveredOpacity)
     }
 
     @Test("TunerViewModel hold presentation retains reading across timer tick without premature expiration")

@@ -47,8 +47,25 @@ public struct HardwareReadoutView: View {
         }
     }
 
+    /// Opacity applied to evidence-derived readouts. Held readings fade with the
+    /// hold timer; spectrally recovered readings are dimmed to a fixed, still
+    /// visible level so the player can tell inferred evidence from confirmed
+    /// evidence at a glance.
+    private var evidenceOpacity: Double {
+        if reading?.freshness == .held { return holdOpacity }
+        if reading?.recovered == true { return TunerPresentation.recoveredOpacity }
+        return 1.0
+    }
+
     private var guidanceText: String {
         TunerPresentation.guidanceText(for: reading, feedback: feedback)
+    }
+
+    /// The in-tune confirmation is only ever shown for fresh, YIN-confirmed
+    /// evidence. A held reading merely remembers the last verdict, and a recovered
+    /// one is not precise enough to confirm.
+    private var showsInTuneConfirmation: Bool {
+        reading?.inTune == true && reading?.freshness == .fresh && reading?.recovered != true
     }
 
     private var formattedCents: String {
@@ -84,13 +101,13 @@ public struct HardwareReadoutView: View {
                 }
             }
             .frame(height: 70)
-            .opacity(reading?.freshness == .held ? holdOpacity : 1.0)
+            .opacity(evidenceOpacity)
 
             // Cents Readout
             Text(formattedCents)
                 .font(.system(size: 16, weight: .semibold, design: .monospaced))
                 .foregroundStyle(reading != nil ? statusColor : .secondary)
-                .opacity(reading?.freshness == .held ? holdOpacity : 1.0)
+                .opacity(evidenceOpacity)
 
             // Flat / Sharp indicator tags
             HStack {
@@ -103,18 +120,18 @@ public struct HardwareReadoutView: View {
                     .foregroundStyle(TunerTheme.sharp.opacity(reading?.cents ?? 0 > 0 ? 1.0 : 0.4))
             }
             .padding(.horizontal, 48)
-            .opacity(reading?.freshness == .held ? holdOpacity : 1.0)
+            .opacity(evidenceOpacity)
 
             // Guidance Banner
             HStack(spacing: 6) {
-                if reading?.inTune == true && reading?.freshness == .fresh {
+                if showsInTuneConfirmation {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.subheadline)
                         .foregroundStyle(TunerTheme.inTune)
                 }
                 Text(guidanceText)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(reading?.inTune == true ? TunerTheme.inTune : .primary)
+                    .foregroundStyle(showsInTuneConfirmation ? TunerTheme.inTune : .primary)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 6)
@@ -122,7 +139,7 @@ public struct HardwareReadoutView: View {
                 Capsule()
                     .fill(TunerTheme.surfaceElevated)
             )
-            .opacity(reading?.freshness == .held ? holdOpacity : 1.0)
+            .opacity(evidenceOpacity)
 
             // Frequency Comparison
             HStack(spacing: 24) {

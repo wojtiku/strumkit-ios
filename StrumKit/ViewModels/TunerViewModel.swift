@@ -15,6 +15,17 @@ public final class TunerViewModel {
     public var diagnostics: TunerDiagnostics = TunerDiagnostics()
     public private(set) var holdOpacity: Double = 1.0
 
+    /// Opacity the gauge needle should render at.
+    ///
+    /// Combines the hold fade with the dimming applied to spectrally recovered
+    /// evidence, so inferred readings never look as authoritative as confirmed ones.
+    public var needleOpacity: Double {
+        if currentReading?.recovered == true {
+            return min(holdOpacity, TunerPresentation.recoveredOpacity)
+        }
+        return holdOpacity
+    }
+
     // Hold Presentation
     private var holdPresentationTask: Task<Void, Never>? = nil
     private var activeHoldFreshAt: TimeInterval? = nil
@@ -70,8 +81,13 @@ public final class TunerViewModel {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 if began {
-                    self.engineStatus = .interrupted
+                    // Stop capture, not just analysis: leaving the tap installed means
+                    // the engine keeps delivering frames stamped with the new
+                    // generation, so the "stop" would be cosmetic and the session
+                    // would keep publishing through the interruption.
+                    self.captureService.stopCapture()
                     self.session.stop()
+                    self.engineStatus = .interrupted
                     self.feedbackState = .inactive
                 } else if shouldResume && self.listeningIntent {
                     await self.start()
@@ -139,9 +155,13 @@ public final class TunerViewModel {
             session.onSnapshotPublished = { [weak self] snapshot in
                 self?.handleSnapshot(snapshot)
             }
-            try captureService.startCapture(bufferSize: 1024) { [weak self] window, sampleRate, captureEndSeconds, callbackFrameCount in
-                guard let self else { return }
-                self.session.submitLiveAudio(
+            // Capture the session by value rather than reaching through `self` from
+            // the audio tap: the tap is real-time, and touching a MainActor-isolated
+            // object there means a weak-reference load and retain/release per
+            // callback. `TunerAnalysisSession` is `Sendable`, so this is safe.
+            let analysisSession = session
+            try captureService.startCapture(bufferSize: 1024) { window, sampleRate, captureEndSeconds, callbackFrameCount in
+                analysisSession.submitLiveAudio(
                     window: window,
                     sampleRate: sampleRate,
                     captureEndSeconds: captureEndSeconds,
@@ -303,6 +323,13 @@ public final class TunerViewModel {
         currentReading = nil
     }
 
+    /// Pulls guided state back from the session after a configuration change, so
+    /// the view does not briefly render a stale progress array.
+    private func syncGuidedStateFromSession() {
+        self.guidedProgress = session.guidedProgress
+        self.guidedTargetIndex = session.guidedTargetIndex
+    }
+
     public func setTuningPreset(id: String) {
         config.tuningId = id
         if config.instrument == .guitar {
@@ -345,7 +372,8 @@ public final class TunerViewModel {
         } else {
             config.guided = false
         }
-        session.updateConfiguration(config)
+        session.updateConfiguration(config, preservingGuidedProgress: true)
+        syncGuidedStateFromSession()
         if mode != .manual {
             preferences.mode = mode
             preferences.guided = config.guided
@@ -355,7 +383,8 @@ public final class TunerViewModel {
 
     public func togglePrecision() {
         config.precision.toggle()
-        session.updateConfiguration(config)
+        session.updateConfiguration(config, preservingGuidedProgress: true)
+        syncGuidedStateFromSession()
         preferences.precision = config.precision
         savePreferences()
     }
@@ -369,12 +398,14 @@ public final class TunerViewModel {
             let target = targets[index]
             lastTone = ToneMemory(note: target.note, frequency: target.frequency, source: .target)
         }
-        session.updateConfiguration(config)
+        session.updateConfiguration(config, preservingGuidedProgress: true)
+        syncGuidedStateFromSession()
     }
 
     public func unlockString() {
         config.mode = .auto
-        session.updateConfiguration(config)
+        session.updateConfiguration(config, preservingGuidedProgress: true)
+        syncGuidedStateFromSession()
         preferences.mode = .auto
         savePreferences()
     }

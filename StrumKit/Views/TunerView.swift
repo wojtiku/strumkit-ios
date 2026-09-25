@@ -205,7 +205,7 @@ public struct TunerView: View {
                 cents: viewModel.currentReading?.displayCents ?? 0,
                 visible: viewModel.currentReading != nil,
                 inTune: viewModel.currentReading?.inTune ?? false,
-                needleOpacity: viewModel.holdOpacity
+                needleOpacity: viewModel.needleOpacity
             )
             .padding(.horizontal, 12)
 

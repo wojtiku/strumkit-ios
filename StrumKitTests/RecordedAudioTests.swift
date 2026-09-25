@@ -101,6 +101,16 @@ struct RecordedAudioTests {
             let chromWrongFresh = chromFresh.filter { !AudioTestHelpers.isCorrectRecordedPitch($0.frequency, reference: fix.freq) }
 
             print("BASELINE [\(fix.name) CHROMATIC]: Fresh=\(chromFresh.count), CorrectFresh=\(chromCorrectFresh.count), WrongFresh=\(chromWrongFresh.count)")
+
+            // Auto mode is the primary user flow and must be clean. Chromatic mode
+            // is diagnostic: it reports whatever note it hears, with no target set
+            // to anchor it, so a decaying fundamental sliding between semitones can
+            // surface as a different note. That is a real open defect (see
+            // docs/tuner-reliability/RESULTS.md) rather than a passing condition,
+            // so it is bounded and printed here to keep it from regressing
+            // silently, but it is not asserted to zero.
+            #expect(chromWrongFresh.count <= 24,
+                    "\(fix.name): chromatic wrong-note count \(chromWrongFresh.count) exceeds the recorded bound of 24")
         }
     }
 
@@ -112,20 +122,31 @@ struct RecordedAudioTests {
             return
         }
 
-        let config = TunerConfig(instrument: .ukulele, tuningId: "high-g", mode: .auto)
-        let (frames, _) = AudioTestHelpers.replayTrace(samples: wav.samples, sampleRate: wav.sampleRate, config: config)
+        // Evaluated at the live request cadence, not a coarser one: the gate is only
+        // meaningful if it is measured the way the app actually runs.
+        for hop in [AudioTestHelpers.productionHopSamples, 2048] {
+            let config = TunerConfig(instrument: .ukulele, tuningId: "high-g", mode: .auto)
+            let (frames, _) = AudioTestHelpers.replayTrace(
+                samples: wav.samples,
+                sampleRate: wav.sampleRate,
+                config: config,
+                hopSamples: hop
+            )
 
-        let freshReadings = frames.compactMap { $0.reading }.filter { $0.freshness == .fresh }
-        let correctFresh = freshReadings.filter { AudioTestHelpers.isCorrectRecordedPitch($0.frequency, reference: 440.0) }
-        let wrongFresh = freshReadings.filter { !AudioTestHelpers.isCorrectRecordedPitch($0.frequency, reference: 440.0) }
+            let freshReadings = frames.compactMap { $0.reading }.filter { $0.freshness == .fresh }
+            let correctFresh = freshReadings.filter { AudioTestHelpers.isCorrectRecordedPitch($0.frequency, reference: 440.0) }
+            let wrongFresh = freshReadings.filter { !AudioTestHelpers.isCorrectRecordedPitch($0.frequency, reference: 440.0) }
 
-        #expect(wrongFresh.isEmpty, "Must have zero wrong fresh notes")
+            let coverage = AudioTestHelpers.freshCoverageSeconds(frames: frames, reference: 440.0, intervalStart: 0.20, intervalEnd: 1.30)
+            let lastFreshAt = correctFresh.last?.at ?? 0
 
-        let coverage = AudioTestHelpers.freshCoverageSeconds(frames: frames, reference: 440.0, intervalStart: 0.20, intervalEnd: 1.30)
-        #expect(coverage >= 0.40, "Coverage in [0.20, 1.30] must be >= 0.40s, got \(coverage)s")
+            print(String(format: "TASK5-GATE hop=%lld: coverage=%.3fs lastCorrect=%.3fs fresh=%lld wrong=%lld",
+                         hop, coverage, lastFreshAt, freshReadings.count, wrongFresh.count))
 
-        let lastFreshAt = correctFresh.last?.at ?? 0
-        #expect(lastFreshAt >= 0.90, "Must have at least one correct fresh output at or after 0.90s, got \(lastFreshAt)s")
+            #expect(wrongFresh.isEmpty, "Must have zero wrong fresh notes at hop \(hop)")
+            #expect(coverage >= 0.40, "Coverage in [0.20, 1.30] must be >= 0.40s at hop \(hop), got \(coverage)s")
+            #expect(lastFreshAt >= 0.90, "Must have a correct fresh output at or after 0.90s at hop \(hop), got \(lastFreshAt)s")
+        }
     }
 
     // MARK: - Task 5 Transition & Robustness Tests

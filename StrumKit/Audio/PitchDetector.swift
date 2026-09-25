@@ -99,7 +99,8 @@ public final class PitchDetector: @unchecked Sendable {
                 centsDeviation: 0,
                 confidence: 0,
                 amplitudeRMS: rmsDouble,
-                isSignalPresent: false
+                isSignalPresent: false,
+                isClipped: isClipping
             )
         }
 
@@ -193,7 +194,11 @@ public final class PitchDetector: @unchecked Sendable {
         var candidateEvidence = 0
 
         // 7. Multiplier Candidate Arbitration (2x, 3x, 4x subharmonic search)
-        let priorWindow = 0.850
+        //
+        // Shares the tracker's continuity grace window rather than repeating the
+        // value: a stale subharmonic prior is the same failure in both places, and
+        // two literals would drift apart the first time one was tuned.
+        let priorWindow = PitchTracker.priorGraceDuration
         let hasPrior: Bool
         if let priorAt, let priorFrequency {
             hasPrior = (now >= priorAt) && (now - priorAt <= priorWindow) && priorFrequency.isFinite

@@ -104,6 +104,9 @@ public struct PitchResult: Sendable, Equatable {
     public let amplitudeRMS: Double
     public let isSignalPresent: Bool
     public let recovered: Bool
+    /// `true` when the input exceeded the clipping threshold, which forces
+    /// abstention independently of level.
+    public let isClipped: Bool
 
     public init(
         frequency: Double,
@@ -112,7 +115,8 @@ public struct PitchResult: Sendable, Equatable {
         confidence: Double,
         amplitudeRMS: Double,
         isSignalPresent: Bool,
-        recovered: Bool = false
+        recovered: Bool = false,
+        isClipped: Bool = false
     ) {
         self.frequency = frequency
         self.closestNote = closestNote
@@ -121,6 +125,7 @@ public struct PitchResult: Sendable, Equatable {
         self.amplitudeRMS = amplitudeRMS
         self.isSignalPresent = isSignalPresent
         self.recovered = recovered
+        self.isClipped = isClipped
     }
 
     public static let idle = PitchResult(

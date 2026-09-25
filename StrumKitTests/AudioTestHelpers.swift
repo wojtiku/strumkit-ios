@@ -61,17 +61,14 @@ public enum AudioTestHelpers {
         var wavUrl: URL? = bundle.url(forResource: name, withExtension: "wav")
 
         if wavUrl == nil {
-            let directLocal = "/Users/wojtiku/src/strumkit-ios/StrumKitTests/Fixtures/\(name).wav"
-            if FileManager.default.fileExists(atPath: directLocal) {
-                wavUrl = URL(fileURLWithPath: directLocal)
-            } else {
-                // Fallback to relative path from source file
-                let thisFile = URL(fileURLWithPath: #filePath)
-                let fixturesDir = thisFile.deletingLastPathComponent().appendingPathComponent("Fixtures")
-                let localUrl = fixturesDir.appendingPathComponent("\(name).wav")
-                if FileManager.default.fileExists(atPath: localUrl.path) {
-                    wavUrl = localUrl
-                }
+            // Fall back to the source-relative fixtures directory. Derived from
+            // #filePath rather than a hardcoded home directory so the suite runs
+            // from any checkout and in CI.
+            let thisFile = URL(fileURLWithPath: #filePath)
+            let fixturesDir = thisFile.deletingLastPathComponent().appendingPathComponent("Fixtures")
+            let localUrl = fixturesDir.appendingPathComponent("\(name).wav")
+            if FileManager.default.fileExists(atPath: localUrl.path) {
+                wavUrl = localUrl
             }
         }
 
@@ -181,6 +178,36 @@ public enum AudioTestHelpers {
         return abs(1200 * log2(frequency / reference)) <= 50
     }
 
+    /// Classifies why a frame produced no usable fresh reading.
+    ///
+    /// The distinctions matter when reading a trace: YIN returning
+    /// `isSignalPresent == true` with no frequency means it heard something
+    /// periodic but refused to name a pitch (an ambiguity rejection), which is a
+    /// very different situation from the level gate or from a target mismatch.
+    public static func classifyRejection(
+        pitchResult: PitchResult,
+        noiseGate: Float,
+        reading: TunerReading?,
+        feedbackState: SignalFeedbackState
+    ) -> String? {
+        if pitchResult.isClipped { return "clipping" }
+
+        if !pitchResult.isSignalPresent {
+            return pitchResult.amplitudeRMS < Double(noiseGate) ? "gate" : "noPeriodicity"
+        }
+
+        // Signal present but no frequency: YIN's ambiguity / abstention path.
+        if pitchResult.frequency <= 0 { return "ambiguity" }
+
+        guard reading == nil else { return nil }
+
+        switch feedbackState {
+        case .checking: return "acquiring"
+        case .ambiguous: return "ambiguity"
+        default: return "targetMismatch"
+        }
+    }
+
     /// Computes fresh coverage duration in seconds over an evaluation interval.
     public static func freshCoverageSeconds(
         frames: [ReplayFrame],
@@ -203,12 +230,25 @@ public enum AudioTestHelpers {
         return coverage
     }
 
-    /// Production-equivalent replay trace with 2,048-sample hops, trailing capture window, and dynamic tracker thresholds.
+    /// Hop size, in samples, that the live capture path requests.
+    ///
+    /// `AudioCaptureService` installs its tap with this buffer size and asks the
+    /// session for a 20 ms preferred I/O duration, so production analyses audio
+    /// roughly every 1024 frames. Replay that uses 2048-sample hops measures the
+    /// pipeline at half the production update rate, which is why the default here
+    /// matches the live request.
+    ///
+    /// This is a *requested* size: the OS is free to deliver larger buffers, which
+    /// is why live diagnostics report the actual `callbackFrameCount`.
+    public static let productionHopSamples = 1024
+
+    /// Production-equivalent replay trace with trailing capture windows, dynamic
+    /// tracker thresholds, and the live request cadence.
     public static func replayTrace(
         samples: [Float],
         sampleRate: Double,
         config: TunerConfig,
-        hopSamples: Int = 2048,
+        hopSamples: Int = productionHopSamples,
         enableSpectralRecovery: Bool = true
     ) -> (frames: [ReplayFrame], tracker: PitchTracker) {
         let available = Presets.presets(for: config.instrument)
@@ -244,22 +284,12 @@ public enum AudioTestHelpers {
 
             guard let snapshot = session.processFrameSync(frame) else { continue }
 
-            var rejection: String? = nil
-            if !snapshot.pitchResult.isSignalPresent {
-                if snapshot.pitchResult.amplitudeRMS < Double(tracker.recommendedNoiseGate(isSustaining: false)) {
-                    rejection = "gate"
-                } else {
-                    rejection = "noPeriodicity"
-                }
-            } else if snapshot.reading == nil {
-                if snapshot.feedbackState == .checking {
-                    rejection = "acquiring"
-                } else if snapshot.feedbackState == .ambiguous {
-                    rejection = "ambiguity"
-                } else {
-                    rejection = "targetMismatch"
-                }
-            }
+            let rejection = AudioTestHelpers.classifyRejection(
+                pitchResult: snapshot.pitchResult,
+                noiseGate: tracker.recommendedNoiseGate(isSustaining: false),
+                reading: snapshot.reading,
+                feedbackState: snapshot.feedbackState
+            )
 
             frames.append(ReplayFrame(
                 captureEndSeconds: atSeconds,
@@ -280,7 +310,7 @@ public enum AudioTestHelpers {
         sampleRate: Double,
         config: TunerConfig
     ) -> (readings: [TunerReading], tracker: PitchTracker) {
-        let (frames, tracker) = replayTrace(samples: samples, sampleRate: sampleRate, config: config, hopSamples: 2048)
+        let (frames, tracker) = replayTrace(samples: samples, sampleRate: sampleRate, config: config)
         let readings = frames.compactMap { $0.reading }
         return (readings, tracker)
     }

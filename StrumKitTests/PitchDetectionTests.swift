@@ -112,20 +112,26 @@ struct PitchDetectionTests {
 
         let ring = AudioRingBuffer(capacity: 8192)
         #expect(ring.availableCount == 0)
-        #expect(ring.readTrailing(count: required) == nil)
+
+        var destination = [Float](repeating: 0, count: required)
+        #expect(ring.copyTrailing(count: required, into: &destination) == false,
+                "Must not report a window before enough audio is buffered")
 
         // Write 5 chunks of 1000 samples (total 5000)
         for chunkIndex in 0..<5 {
             let chunk = [Float](repeating: Float(chunkIndex + 1), count: 1000)
-            ring.write(chunk)
+            chunk.withUnsafeBufferPointer { ring.write(unsafeBufferPointer: $0.baseAddress!, count: chunk.count) }
         }
 
         #expect(ring.availableCount == 5000)
-        let trailing = ring.readTrailing(count: required)
-        #expect(trailing != nil)
-        #expect(trailing?.count == required)
+        #expect(ring.copyTrailing(count: required, into: &destination) == true)
+        #expect(destination.count == required)
         // Last sample should be from chunk 5 (value 5.0)
-        #expect(trailing?.last == 5.0)
+        #expect(destination.last == 5.0)
+        // The window must be the most recent `required` samples. 5000 written minus
+        // 4328 requested leaves 672 leading samples, so the window starts inside
+        // chunk 1 (samples 0..999, value 1.0).
+        #expect(destination[0] == 1.0)
     }
 
     @Test("PitchTracker adapts ambient floor and adjusts sustain thresholds")

@@ -168,11 +168,20 @@ public final class AudioCaptureService: @unchecked Sendable {
             let ring = AudioRingBuffer(capacity: max(16384, neededSamples * 2))
             self.ringBuffer = ring
 
+            // Scratch buffer for the tap, allocated once at setup rather than per
+            // callback. Sized for the largest window the startup partial-window path
+            // can request, so the hot path never allocates for buffering.
+            //
+            // Only the tap thread ever touches it, and the tap is serialised by the
+            // engine, so it needs no further synchronisation.
+            let windowScratchBox = ScratchBuffer(size: max(neededSamples, 16384))
+
             inputNode.removeTap(onBus: 0)
             inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: inputFormat) { buffer, when in
                 guard let channelData = buffer.floatChannelData else { return }
                 let frameLength = Int(buffer.frameLength)
-                guard frameLength > 0 else { return }
+                let scratch = windowScratchBox
+                guard frameLength > 0, frameLength <= scratch.size else { return }
 
                 // Determine capture-end timestamp using AVAudioTime.
                 // Denotes buffer trailing edge (end) on the monotonic host timeline (CACurrentMediaTime / mach_absolute_time).
@@ -184,16 +193,30 @@ public final class AudioCaptureService: @unchecked Sendable {
                     captureEndSeconds = CACurrentMediaTime()
                 }
 
-                // Read channel 0 samples
-                let channelPointer = channelData[0]
-                let samples = Array(UnsafeBufferPointer(start: channelPointer, count: frameLength))
+                // Write channel 0 straight from the engine's buffer: no intermediate
+                // array is materialised on the real-time thread.
+                ring.write(unsafeBufferPointer: channelData[0], count: frameLength)
 
-                ring.write(samples)
-                if let window = ring.readTrailing(count: neededSamples) {
-                    onBufferReceived(window, inputFormat.sampleRate, captureEndSeconds, frameLength)
-                } else if ring.availableCount >= 512 {
-                    let partial = ring.readTrailing(count: ring.availableCount) ?? samples
-                    onBufferReceived(partial, inputFormat.sampleRate, captureEndSeconds, frameLength)
+                if ring.copyTrailing(count: neededSamples, into: &scratch.samples) {
+                    onBufferReceived(
+                        Array(scratch.samples[0..<neededSamples]),
+                        inputFormat.sampleRate,
+                        captureEndSeconds,
+                        frameLength
+                    )
+                } else {
+                    // Startup only: emit a shorter window until the ring has enough
+                    // history. The detector is rebuilt for each distinct window
+                    // length until the full window becomes available.
+                    let available = min(ring.availableCount, scratch.size)
+                    if available >= 512, ring.copyTrailing(count: available, into: &scratch.samples) {
+                        onBufferReceived(
+                            Array(scratch.samples[0..<available]),
+                            inputFormat.sampleRate,
+                            captureEndSeconds,
+                            frameLength
+                        )
+                    }
                 }
             }
 
@@ -252,7 +275,26 @@ public final class AudioCaptureService: @unchecked Sendable {
     }
 }
 
+/// Mutable storage the capture tap reuses across callbacks.
+///
+/// Exists so the real-time thread can hand a freshly filled window to a `let`
+/// binding while still writing into preallocated memory.
+private final class ScratchBuffer: @unchecked Sendable {
+    let size: Int
+    var samples: [Float]
+
+    init(size: Int) {
+        self.size = size
+        self.samples = [Float](repeating: 0, count: size)
+    }
+}
+
 /// Rolling audio ring buffer that maintains trailing audio samples for windowed analysis.
+///
+/// The capture tap runs on the audio engine's real-time thread, so the hot path
+/// avoids heap allocation: samples are written straight from the engine's channel
+/// pointer, and the trailing window is read into a caller-supplied buffer under a
+/// single lock acquisition.
 public final class AudioRingBuffer: @unchecked Sendable {
     private var buffer: [Float]
     private var head = 0
@@ -271,27 +313,40 @@ public final class AudioRingBuffer: @unchecked Sendable {
         return count
     }
 
-    public func write(_ samples: [Float]) {
+    /// Appends samples read directly from the engine's channel buffer.
+    ///
+    /// Takes an unsafe pointer so the tap never materialises an intermediate
+    /// `[Float]` for its own copy.
+    public func write(unsafeBufferPointer source: UnsafePointer<Float>, count sourceCount: Int) {
+        guard sourceCount > 0 else { return }
         lock.lock()
         defer { lock.unlock() }
-        for s in samples {
-            buffer[head] = s
+        for i in 0..<sourceCount {
+            buffer[head] = source[i]
             head = (head + 1) % capacity
             if count < capacity { count += 1 }
         }
     }
 
-    public func readTrailing(count requested: Int) -> [Float]? {
+    /// Copies the trailing `requested` samples into `destination` and reports
+    /// whether enough audio was available.
+    ///
+    /// - Returns: `false` when fewer than `requested` samples are buffered, leaving
+    ///   `destination` untouched.
+    @discardableResult
+    public func copyTrailing(count requested: Int, into destination: inout [Float]) -> Bool {
+        precondition(requested <= destination.count)
         lock.lock()
         defer { lock.unlock() }
-        guard count >= requested else { return nil }
-        var result = [Float](repeating: 0.0, count: requested)
-        var readIdx = (head - requested + capacity) % capacity
-        for i in 0..<requested {
-            result[i] = buffer[readIdx]
-            readIdx = (readIdx + 1) % capacity
+        guard count >= requested else { return false }
+        destination.withUnsafeMutableBufferPointer { out in
+            var readIdx = (head - requested + capacity) % capacity
+            for i in 0..<requested {
+                out[i] = buffer[readIdx]
+                readIdx = (readIdx + 1) % capacity
+            }
         }
-        return result
+        return true
     }
 
     public func reset() {
