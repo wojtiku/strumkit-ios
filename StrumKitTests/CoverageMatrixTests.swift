@@ -142,8 +142,9 @@ struct DisplayTransitionTests {
         let (frames, _) = AudioTestHelpers.replayTrace(
             samples: CoverageMatrix.signal(c), sampleRate: 44100, config: config)
         #expect(!frames.isEmpty, "the trace must contain frames")
-        #expect(frames[0].displayState == "none" || frames[0].displayState == "fresh",
-                "the first frame is acquisition, not a transition; got \(frames[0].displayState)")
+        let first = frames.first?.displayState
+        #expect(first == "none" || first == "fresh",
+                "the first frame is acquisition, not a transition; got \(first ?? "no frames")")
         print("BASELINE-TRANSITIONS [\(c.name)] = \(AudioTestHelpers.countDisplayTransitions(frames))")
     }
 }
@@ -152,7 +153,7 @@ struct DisplayTransitionTests {
 struct DecayWithDropoutTests {
 
     @Test("injected dropout raises the transition count above the uninjected control")
-    func dropoutReproducesTheSymptom() {
+    func dropoutReproducesTheSymptom() throws {
         var counts: [Double: Int] = [:]
         for rate in CoverageMatrix.dropoutRates {
             let c = CoverageMatrix.decayWithDropout(rate: rate, seed: CoverageMatrix.SEED_A)
@@ -163,16 +164,18 @@ struct DecayWithDropoutTests {
                 yinDropoutRate: rate, dropoutSeed: CoverageMatrix.SEED_A)
             let t = AudioTestHelpers.countDisplayTransitions(frames)
             counts[rate] = t
-            print("DROPOUT-BASELINE rate=\(rate) transitions=\(t) frames=\(frames.count)")
+            print("DROPOUT-BASELINE rate=\(rate) transitions=\(t) frames=\(frames.count) states=\(AudioTestHelpers.stateHistogram(frames))")
         }
-        let control = counts[0.0]!
+        let control = try #require(counts[0.0], "dropoutRates must contain the 0.0 control")
         #expect(control <= 3, "uninjected control made \(control) transitions; expected the natural decay tail only")
-        for rate in [0.1, 0.3, 0.5] {
-            #expect(counts[rate]! > control,
-                    "rate \(rate) made \(counts[rate]!) transitions, control made \(control) — the injection is not reproducing the symptom")
+        for rate in CoverageMatrix.dropoutRates where rate > 0 {
+            let injected = try #require(counts[rate])
+            #expect(injected > control,
+                    "rate \(rate) made \(injected) transitions, control made \(control) — the injection is not reproducing the symptom")
         }
-        #expect(counts[0.3]! >= control + 5,
-                "rate 0.3 should reproduce the symptom substantially; got \(counts[0.3]!)")
+        let atThirty = try #require(counts[0.3], "dropoutRates must contain 0.3")
+        #expect(atThirty >= control + 5,
+                "rate 0.3 should reproduce the symptom substantially; got \(atThirty)")
     }
 
     @Test("dropout frame selection is deterministic per seed and differs between seeds")
@@ -190,5 +193,24 @@ struct DecayWithDropoutTests {
         #expect(a1 == a2, "same seed must drop the same frames")
         #expect(a1 != b, "seed A and seed B must drop different frames")
         #expect(a1.allSatisfy { $0 >= 0 && $0 < 40 })
+    }
+
+    @Test("the walk's drop rate tracks the requested rate, not just its determinism")
+    func dropoutRateTracksRequest() {
+        // A biased walk (e.g. `index % 3 == 0`) is deterministic per seed and
+        // differs between seeds, so the two assertions above would pass while
+        // the fixture silently measured 1/3 for every requested rate.
+        let frameCount = 400
+        for rate in CoverageMatrix.dropoutRates {
+            let counts = (0..<200).map { s in
+                Double(AudioTestHelpers.droppedFrameIndices(
+                    frameCount: frameCount, rate: rate,
+                    seed: CoverageMatrix.SEED_A &+ UInt64(s)).count)
+            }
+            let mean = counts.reduce(0, +) / Double(counts.count)
+            let requested = rate * Double(frameCount)
+            #expect(abs(mean - requested) < 0.06 * Double(frameCount),
+                    "rate \(rate): mean drop count \(mean) over 200 seeds is more than 6% of \(frameCount) away from the requested \(requested)")
+        }
     }
 }

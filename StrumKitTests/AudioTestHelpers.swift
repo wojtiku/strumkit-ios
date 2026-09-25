@@ -234,6 +234,12 @@ public enum AudioTestHelpers {
     /// This is the primary gate for goal G1: a note that is read continuously
     /// should acquire once and then hold, not oscillate between fresh, held and
     /// recovered while it decays.
+    ///
+    /// The floor is **1, not 0**. The loop counts every frame whose state differs
+    /// from the one before it, and frame 0 always differs from the empty prefix,
+    /// so what the subtraction removes is the first frame's *appearance*. Every
+    /// change after it is kept, including the `none -> fresh` acquisition step.
+    /// A trace that acquires once and then holds therefore scores exactly 1.
     public static func countDisplayTransitions(_ frames: [ReplayFrame]) -> Int {
         var transitions = 0
         var previous: String?
@@ -242,6 +248,12 @@ public enum AudioTestHelpers {
             previous = frame.displayState
         }
         return max(0, transitions - 1)   // the first frame is acquisition, not a transition
+    }
+
+    /// Counts of each display state across a trace, for attributing a transition
+    /// to a specific state change rather than to a bare count.
+    public static func stateHistogram(_ frames: [ReplayFrame]) -> [String: Int] {
+        frames.reduce(into: [:]) { $0[$1.displayState, default: 0] += 1 }
     }
 
     /// Computes fresh coverage duration in seconds over an evaluation interval.
@@ -316,8 +328,11 @@ public enum AudioTestHelpers {
     /// level a real dropout presents: audible to the level gate, aperiodic to YIN.
     ///
     /// Seeded per frame so two runs replay the same dropout at the same frames
-    /// sample for sample, and always full analysis length so `PitchDetector`'s
-    /// buffer size does not change underneath the session mid-trace.
+    /// sample for sample. Always built at the full analysis length, which is what
+    /// keeps `PitchDetector.bufferSize` stable for all but the first 4 frames:
+    /// the trailing window is still filling then, so the real branch is 1024,
+    /// 2048, 3072 or 4096 samples and an injected one is `windowLength` (4328),
+    /// which rebuilds the detector for that frame.
     private static func dropoutWindow(samples count: Int, level: Double, seed: UInt64) -> [Float] {
         let peak = Float(level * dropoutNoiseFraction)
         var lcg = seed % 2147483647
@@ -367,16 +382,28 @@ public enum AudioTestHelpers {
         let windowLength = AudioCaptureService.requiredInputSamples(for: sampleRate)
         var sequence: UInt64 = 0
 
-        // The cell's level, as realised in the audio. `signal` restores the
-        // requested peak on the finite-SNR path, and leaves the raw harmonic sum
-        // scaled by `amplitude` otherwise, so this is the case's configured
-        // `lvl-` amplitude to within the peak factor of its partials.
-        let signalPeak = Double(samples.reduce(Float(0)) { max($0, abs($1)) })
         let frameCount = samples.count >= hopSamples
             ? (samples.count - hopSamples) / hopSamples + 1
             : 0
-        let dropped = Set(droppedFrameIndices(
-            frameCount: frameCount, rate: yinDropoutRate, seed: dropoutSeed))
+
+        // The dropout block is skipped when nothing is dropped, so the default
+        // uninjected path costs exactly what it cost before this parameter
+        // existed. The peak reduction is O(n) over the whole signal and exists
+        // only to scale the injected noise. `droppedFrameIndices` is left
+        // unconditional: it is the selection's own definition and is tested
+        // directly.
+        var dropped: Set<Int> = []
+        var signalPeak: Double = 0
+        if yinDropoutRate > 0 {
+            dropped = Set(droppedFrameIndices(
+                frameCount: frameCount, rate: yinDropoutRate, seed: dropoutSeed))
+            // The cell's level, as realised in the audio. `signal` restores the
+            // requested peak on the finite-SNR path, and leaves the raw harmonic
+            // sum scaled by `amplitude` otherwise, so this is the case's
+            // configured `lvl-` amplitude to within the peak factor of its
+            // partials.
+            signalPeak = Double(samples.reduce(Float(0)) { max($0, abs($1)) })
+        }
         var frameOrdinal = 0
 
         for endSample in stride(from: hopSamples, through: samples.count, by: hopSamples) {

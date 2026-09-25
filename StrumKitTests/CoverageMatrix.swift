@@ -117,14 +117,20 @@ enum CoverageMatrix {
     static func truthHz(_ c: Case) -> Double { c.truthHz }
 
     /// One plucked string, sweeping one axis at a time over the base case.
+    ///
+    /// - Parameter name: defaults to the frequency, so a case is identifiable
+    ///   when nothing better describes it. A case that is distinguished by
+    ///   something other than its pitch — the decay-with-dropout family, whose
+    ///   cases differ only in their injection rate — passes its own.
     static func baseCase(
         truthHz: Double,
         seed: UInt64,
         h1: Double = 1.0, h2: Double = 0.30, h3: Double = 0.15, h4: Double = 0.10,
         inharmonicity: Double = 0, snrDB: Double = .infinity,
-        attackSeconds: Double = 0.006, decayTau: Double = 1.8, amplitude: Double = 0.2
+        attackSeconds: Double = 0.006, decayTau: Double = 1.8, amplitude: Double = 0.2,
+        name: String? = nil
     ) -> Case {
-        Case(name: "f\(Int(truthHz))", truthHz: truthHz, h1: h1, h2: h2, h3: h3, h4: h4,
+        Case(name: name ?? "f\(Int(truthHz))", truthHz: truthHz, h1: h1, h2: h2, h3: h3, h4: h4,
              inharmonicity: inharmonicity, attackSeconds: attackSeconds, decayTau: decayTau,
              snrDB: snrDB, amplitude: amplitude, seed: seed)
     }
@@ -132,13 +138,16 @@ enum CoverageMatrix {
     /// Spec §6's decay-with-dropout family: the fixture that reproduces the
     /// reported symptom. 4 s decay at the low E, one per injection rate.
     ///
-    /// `rate` is deliberately not part of the returned case. A dropout is a loss
-    /// of signal *per frame*, so it cannot be baked into a waveform, and the
-    /// control and the injected runs must differ in the injection and in nothing
-    /// else. The rate is therefore carried by the caller and handed to
-    /// `AudioTestHelpers.replayTrace(..., yinDropoutRate:)`.
+    /// `rate` is deliberately not an axis of the returned case. A dropout is a
+    /// loss of signal *per frame*, so it cannot be baked into a waveform, and
+    /// the control and the injected runs must differ in the injection and in
+    /// nothing else — with one bounded exception, that for the first 4 frames of
+    /// a trace the trailing window is still filling, so an injected window is
+    /// full analysis length where a real one is not. The rate is therefore
+    /// carried by the caller, recorded in `name` so two runs are tellable apart,
+    /// and handed to `AudioTestHelpers.replayTrace(..., yinDropoutRate:)`.
     static func decayWithDropout(rate: Double, seed: UInt64) -> Case {
-        baseCase(truthHz: guitarStrings[0], seed: seed, decayTau: 4.0)
+        baseCase(truthHz: guitarStrings[0], seed: seed, decayTau: 4.0, name: "dropout-\(rate)")
     }
 
     /// The four injection rates spec §6 names. `0.0` is the control.
