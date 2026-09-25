@@ -36,6 +36,50 @@ which returns the parsed JSON. `iso.mjs` wraps it in a fresh-instance factory.
 > The engine is a **process-wide singleton with no reset**, so state leaks between cases.
 > Always use `iso.mjs`'s `mk()` (one instance per test), not `harness.mjs` directly.
 
+## Cross-engine comparison (Task 4, the G2 baseline)
+
+`xeng.mjs` runs the Swift test target's coverage matrix through this oracle and emits
+`XWEB|…` / `XWEB-SUMMARY|…` lines for the same labels `StrumKitTests/CrossEngineComparisonTests.swift`
+prints as `XENG|…` / `XENG-SUMMARY|…`. `xcompare.py` diffs the two and prints the
+head-to-head table recorded in [`../RESULTS.md`](../RESULTS.md) §11.
+
+```bash
+# 1. the Swift side writes docs/tuner-reliability/webtuna/xcells.json
+xcodebuild test -project StrumKit.xcodeproj -scheme StrumKit \
+  -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath ./DerivedData \
+  -only-testing:StrumKitTests/CrossEngineComparisonTests 2>&1 \
+  | grep -E '^(XENG|XENG-SUMMARY)' > /tmp/xeng-trace.txt
+
+# 2. this side. Run from THIS directory: iso.mjs reads ./WebTuna.wasm from the cwd.
+curl -o WebTuna.wasm https://guitartuna.com/webtuna/WebTuna.wasm
+node xeng.mjs > xweb-trace.txt
+
+# 3. score
+python3 xcompare.py /tmp/xeng-trace.txt xweb-trace.txt xtruth.txt
+```
+
+`xtruth.txt` is generated from `xcells.json` and committed alongside it, so the label set
+cannot drift:
+
+```bash
+python3 -c "import json;[print(f\"{c['label']}={c['noteHz']}\") for c in json.load(open('xcells.json'))]" > xtruth.txt
+```
+
+Two guards make a drift loud instead of silent, and `xcompare.py` exits 2 on either:
+
+- **Label parity.** The two traces and the truth table must carry the *same* 40 labels. The
+  cell list is emitted from Swift rather than hand-maintained for exactly this reason.
+- **Signal parity.** Every SUMMARY line carries `sig=`, an FNV-1a of the generated audio.
+  Identical checksums mean both engines received byte-identical samples; a mismatch means
+  `CoverageMatrix.signal` and `buildSignal` have drifted and every number downstream is void.
+
+`WebTuna.wasm` and `WebTuna.dcmp` are Yousician's IP and are gitignored. `xeng-trace.txt` /
+`xweb-trace.txt` are run products and are also ignored; regenerate them to re-score.
+
+**Known limitation:** `buildSignal` synthesises only the cell's own fundamental, so the
+four `poly-` cells are single notes on both sides and the polyphony axis is **not**
+exercised. `extraStrings=N` on each SUMMARY line records this. See RESULTS.md §11.
+
 ```bash
 node suite3.mjs   # accuracy / harmonic / noise / sample-rate characterisation
 node suite4.mjs   # note gate, DC, latency, InTuneRatio vs detune, PossibleWrongStringId

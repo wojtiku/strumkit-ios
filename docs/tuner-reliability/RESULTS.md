@@ -10,7 +10,8 @@ xcodebuild test -project StrumKit.xcodeproj -scheme StrumKit \
 ```
 
 Print prefixes to grep for: `BASELINE`, `TASK5-GATE`, `RECOVERY-BIAS`, `RECOVERY-CONTRACT`,
-`RECOVERY-NOISE`, `WEAK-FUNDAMENTAL`, `ACCURACY`, `EVID`.
+`RECOVERY-NOISE`, `WEAK-FUNDAMENTAL`, `ACCURACY`, `EVID`, `DROPOUT-BASELINE`,
+`XENG` / `XENG-SUMMARY` (head-to-head emitter, §11).
 
 **Status: 90 tests in 12 suites passing.** Replay cadence is the live request cadence
 (`AudioTestHelpers.productionHopSamples` = 1024 frames, matching the capture tap's
@@ -216,3 +217,132 @@ requires a buffer pool with real ownership transfer to the worker; doing that in
 would introduce a data race between the tap overwriting a window and the worker reading it,
 which is a worse outcome than the allocation. **The tap is therefore not claimed to be
 real-time safe** — it is measurably better than before and still documented as a risk.
+
+## 11. Head-to-head against WebTuna — the G2 baseline (Phase 0, pre-change)
+
+**This is the number G2 is measured against.** It was produced before any Phase 1-3
+change landed and must not be regenerated without recording why.
+
+The same 40 cells of the coverage matrix (`CoverageMatrix.matrix(seed: SEED_A)`, spec §6)
+were pushed through both engines. StrumKit via `StrumKitTests/CrossEngineComparisonTests.swift`
+(3.0 s of audio, 1024-sample hop, 129 frames per cell); WebTuna via
+`docs/tuner-reliability/webtuna/xeng.mjs` (32 calls of 4096 samples, covering 2.97 s).
+
+`first`/`last` are the first and last moment at which the engine's **own reported
+frequency** was within ±50 cents of the cell's truth frequency, or `–` for never.
+"Own reported frequency" is deliberately not the same as what the user would see: the
+StrumKit column is `PitchDetector`'s YIN output, so it excludes the spectral-recovery
+path. The emitter also prints `firstReading`/`lastReading` (the reading the display would
+have shown, recovery included) on the same line; on this run the two are identical for
+every cell that was heard at all, so the recovery path added nothing here.
+
+| Cell | Truth Hz | SK first | SK last | SK trans | WT first | WT last | Winner |
+|---|---:|---:|---:|---:|---:|---:|---|
+| `B-0` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `B-1e-4` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `B-2e-3` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `B-5e-4` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `atk-0.6ms` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `atk-30ms` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `atk-6ms` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `h1-0.004` | 82.41 | **–** | **–** | 0 | 0.279 s | 2.972 s | **WebTuna** |
+| `h1-0.01` | 82.41 | **–** | **–** | 0 | 0.279 s | 2.972 s | **WebTuna** |
+| `h1-0.03` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `h1-0.1` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `h1-0.3` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `h1-1.0` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `lvl--24dB` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `lvl--36dB` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `lvl--48dB` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `lvl--60dB` | 82.41 | 0.046 s | 2.159 s | 2 | 0.279 s | 2.972 s | tie |
+| `lvl--6dB` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `poly-A2+E4` | 110.00 | 0.023 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `poly-E2+A2` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `poly-E2+E4` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `poly-E2+Fs2` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `snr-0` | 82.41 | 0.046 s | 1.927 s | **8** | 0.279 s | 2.972 s | tie |
+| `snr-12` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `snr-20` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `snr-6` | 82.41 | 0.070 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `snr-clean` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `str-g0` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `str-g1` | 110.00 | 0.023 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `str-g2` | 146.83 | 0.023 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `str-g3` | 196.00 | 0.023 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `str-g4` | 246.94 | 0.023 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `str-g5` | 329.63 | 0.023 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `str-u0` | 392.00 | 0.023 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `str-u1` | 261.63 | 0.023 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `str-u2` | 329.63 | 0.023 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `str-u3` | 440.00 | 0.023 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `tau-0.4s` | 82.41 | 0.046 s | 2.624 s | 2 | 0.279 s | 2.601 s | tie |
+| `tau-1.8s` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `tau-6s` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+
+**Detect rate: StrumKit 38/40, WebTuna 40/40. G2 does not hold today.** StrumKit misses
+`h1-0.01` and `h1-0.004` — fundamental at 1% and 0.4% of the second partial. This is the
+`fundamentalMinEnergyRatio = 0.004` gate of §4 above, and it is the gap Phase 1 exists to
+close (`FundamentalEnergyScale`, Task 5-6). WebTuna's only measured advantage in
+[`webtuna/yinvsalience.mjs`](webtuna/yinvsalience.mjs) was at 0 dB SNR, but here it also
+covers the two weak-fundamental cells, so the advantage is larger than that reference
+measurement suggested.
+
+**Time to first reading: StrumKit is faster on 38 of 40 cells.** Median first correct
+reading 0.046 s (StrumKit) vs 0.279 s (WebTuna). But WebTuna's 0.279 s is a **floor imposed
+by its own ABI**, not a tuning result: its first two 4096-sample calls always return
+`CanHearANote == false` (it needs three frames before it will name a note — see
+`webtuna/README.md`), so 2 × 4096 / 44100 = 0.186 s plus one call is the earliest it is
+arithmetically capable of. Read this as "WebTuna is not slower", not "StrumKit is better".
+The comparison is also not like-for-like in frame rate: StrumKit analyses every 1024 samples
+(129 frames per cell), WebTuna every 4096 (32 chunks), so StrumKit's column has ~4× the
+temporal resolution to find an early reading with.
+
+**`trans` is the G1 number, shown here because it came for free.** Only two cells flap:
+`snr-0` at 8 transitions and `lvl--60dB` at 2. Every other cell is 1 — acquire once, hold
+to the end. This is consistent with the `DROPOUT-BASELINE` numbers Task 3 recorded, and it
+says the reported flapping symptom is **not** reproduced by these synthetic cells: it needs
+the injected-dropout family, which is not a generated `Case` and so is not in this matrix.
+The `-60 dBFS` cell losing its reading at 2.159 s is the level gate adapting, not flapping.
+
+### What this table does not measure
+
+- **Polyphony.** All four `poly-` cells generate a single plucked string. `Cell.extraStrings`
+  is carried through the manifest and counted on every SUMMARY line as `extraStrings=N`, but
+  neither `CoverageMatrix.signal` nor `buildSignal` synthesises the extra strings, so
+  `poly-E2+Fs2` is a lone E2 on both sides. The head-to-head is still sound — both engines
+  received byte-identical audio, which the `sig=` checksum proves — but the `poly-` rows
+  measure single-note detection, **not** polyphony. Spec §6's "the pair that defeats
+  WebTuna" is therefore untested here. Synthesising `extraStrings` is outstanding work.
+- **The four recorded fixtures.** These are synthetic cells; §3's quiet_a/c/e/g numbers come
+  from a different path and are not comparable to this table.
+- **Anything below −60 dBFS or above 0 dB SNR.** Both are outside spec §6's axis ranges.
+
+### Reproducing this table
+
+```bash
+make project    # required: StrumKit.xcodeproj globs StrumKitTests/
+
+xcodebuild test -project StrumKit.xcodeproj -scheme StrumKit \
+  -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath ./DerivedData \
+  -only-testing:StrumKitTests/CrossEngineComparisonTests 2>&1 \
+  | grep -E '^(XENG|XENG-SUMMARY)' > /tmp/xeng-trace.txt
+
+cd docs/tuner-reliability/webtuna
+curl -o WebTuna.wasm https://guitartuna.com/webtuna/WebTuna.wasm
+node xeng.mjs > xweb-trace.txt
+python3 xcompare.py /tmp/xeng-trace.txt xweb-trace.txt xtruth.txt
+```
+
+The run above took **277 s** for the 40 cells in a Debug (`-Onone`) build. The whole test
+takes minutes; do not run a second `xcodebuild` against the same simulator concurrently —
+the second test host is SIGKILLed and it looks like a crash in the code under test.
+
+Output prefixes: `XENG` / `XENG-SUMMARY` (StrumKit) and `XWEB` / `XWEB-SUMMARY` (WebTuna).
+Summary lines carry `first` / `last` / `transitions` / `frames` / `firstReading` /
+`lastReading` / `extraStrings` / `sig`; the WebTuna side carries `first` / `last` /
+`chunks` / `extraStrings` / `sig`.
+
+`xcompare.py` refuses to score (exit 2) unless the two traces carry the same 40 labels
+**and** the per-cell FNV-1a checksums of the generated audio agree. On this run: 40/40
+labels on all three sides, 40/40 checksums identical. `WebTuna.wasm` is Yousician's IP and
+is not committed.

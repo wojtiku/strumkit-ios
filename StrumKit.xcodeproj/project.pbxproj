@@ -40,6 +40,7 @@
 		9B2F6D96BDA41DC794FBE6CF /* PitchTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A8527379BEAA2EB3D7F6BFA /* PitchTracker.swift */; };
 		9D873AC0802BE8A4F0F4CEB3 /* AudioProtocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17BF905C8AD085A917378620 /* AudioProtocols.swift */; };
 		A3D86ECC1BF966D0DE9B989E /* TuningPresets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 101C65F96B631078935C6C58 /* TuningPresets.swift */; };
+		A6A496224344A90B43FD9C21 /* CrossEngineComparisonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03AA0476868F5CC3C91C6980 /* CrossEngineComparisonTests.swift */; };
 		AA096E0CD231846AF12C5860 /* TunerPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9BB5D4634DBC2D10A645DD2 /* TunerPresentation.swift */; };
 		AC582A98A7DD7CECDAF2393B /* quiet_c.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 51F0086D6CE8B695E3E2542E /* quiet_c.m4a */; };
 		ACF7B7D88E91EE505BD09DA9 /* TunerTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = F28D21483C340F02EFD7E8DA /* TunerTheme.swift */; };
@@ -75,6 +76,7 @@
 
 /* Begin PBXFileReference section */
 		03982C2B088147A13999A31C /* CoverageMatrix.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverageMatrix.swift; sourceTree = "<group>"; };
+		03AA0476868F5CC3C91C6980 /* CrossEngineComparisonTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrossEngineComparisonTests.swift; sourceTree = "<group>"; };
 		06E20B3731281234736A8F0B /* SpectralPitchScorer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectralPitchScorer.swift; sourceTree = "<group>"; };
 		09567FB37CE8D5799FE61DDF /* TrackerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerTests.swift; sourceTree = "<group>"; };
 		101C65F96B631078935C6C58 /* TuningPresets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TuningPresets.swift; sourceTree = "<group>"; };
@@ -174,6 +176,7 @@
 				938C2B2CB7513BACB9289BD6 /* CorrelationTests.swift */,
 				03982C2B088147A13999A31C /* CoverageMatrix.swift */,
 				B14F288E8C230CDC6CEA564A /* CoverageMatrixTests.swift */,
+				03AA0476868F5CC3C91C6980 /* CrossEngineComparisonTests.swift */,
 				AECC7DF1BA2D4B95A1958BB7 /* MusicalNoteTests.swift */,
 				A80EE17CBE59AD7D1D3737DD /* PitchDetectionTests.swift */,
 				BF9B7515D46B65D7111B714A /* PitchTests.swift */,
@@ -437,6 +440,7 @@
 				FA27A30E87988885631B2BE9 /* CorrelationTests.swift in Sources */,
 				B9C228AF93B77C3166D89791 /* CoverageMatrix.swift in Sources */,
 				8727443EE3A8FBB189CEC057 /* CoverageMatrixTests.swift in Sources */,
+				A6A496224344A90B43FD9C21 /* CrossEngineComparisonTests.swift in Sources */,
 				ECF4D8EEAFF0033CA3FAF1D5 /* MusicalNoteTests.swift in Sources */,
 				C7F28B11FF86D33534E292F6 /* PitchDetectionTests.swift in Sources */,
 				B32EBE1A321A004AD6C3A3D7 /* PitchTests.swift in Sources */,
