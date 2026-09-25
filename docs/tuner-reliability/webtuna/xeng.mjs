@@ -19,7 +19,7 @@
 // which is what `sig=` on the SUMMARY lines proves — but the `poly-` rows of
 // the G2 baseline measure single-note detection, not polyphony. Recording
 // `extraStrings=N` on every row is what stops a reader assuming otherwise.
-// Spec §6 asks for real polyphony here; see task-4-report.md.
+// Spec §6 asks for real polyphony here; see ../RESULTS.md section 11.
 // -----------------------------------------------------------------------------
 
 import { mk } from "./iso.mjs";
@@ -113,7 +113,7 @@ for (const cell of cells) {
   const { run } = mk();          // fresh instance: the engine is a stateful singleton
   const audio = buildSignal(cell);
   const sig = fnv1a32(audio);
-  let firstHeard = null, lastHeard = null, call = 0, chunks = 0;
+  let firstHeard = null, lastHeard = null, chunks = 0;
 
   // Feed the whole signal. WebTuna's ABI is a fixed 4096-sample call, so at
   // 3.0 s / 44.1 kHz this is 32 calls covering 2.97 s; the 1228-sample
@@ -123,7 +123,6 @@ for (const cell of cells) {
   // "did not hear" for cells it never gave a chance.
   for (let s = 0; s + CHUNK <= audio.length; s += CHUNK) {
     const o = run(audio.subarray(s, s + CHUNK), cell.idx, RATE);
-    call++;
     chunks++;
     const t = (s + CHUNK) / RATE;
     const hz = typeof o.MeasuredPitchHz === "number" ? o.MeasuredPitchHz : 0;
@@ -139,7 +138,7 @@ for (const cell of cells) {
     console.log(`XWEB|${cell.label}|t=${t.toFixed(5)}|hz=${hz.toFixed(4)}`
       + `|cents=${hz > 0 ? (1200 * Math.log2(hz / cell.noteHz)).toFixed(3) : "nan"}`
       + `|ratio=${ratio.toFixed(3)}|str=${o.CurrentString}`
-      + `|rms=${rms.toFixed(6)}|pw=${o.PossibleWrongStringId}|calls=${call}`);
+      + `|rms=${rms.toFixed(6)}|pw=${o.PossibleWrongStringId}|calls=${chunks}`);
   }
 
   console.log(`XWEB-SUMMARY|${cell.label}|truth=${cell.noteHz}`
