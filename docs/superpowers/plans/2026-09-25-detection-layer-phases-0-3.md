@@ -680,7 +680,13 @@ not belong in `CoverageMatrix.matrix(seed:)` and is not a `Case`. It is part of 
 - **3b.3** Test. A clean pluck legitimately transitions at the end of its decay
   (`fresh → held → expired`), so the control is a *small* count, not zero, and the assertion
   is **comparative** — which also makes it robust to that natural tail:
-  - `transitions(0.0) <= 3`, and print it as the control.
+  - `transitions(0.0) <= 3`, and print it as the control. The control's observed
+    value is **1**, and that 1 is attributable: its state histogram is
+    `["none": 1, "fresh": 171]` — the single transition is the `none -> fresh`
+    acquisition, not an expiry. `countDisplayTransitions` returns `max(0, n-1)`,
+    which removes frame 0's *appearance* but keeps the `none -> fresh` change. A
+    trace that acquires at frame 0 instead would score 0, so 1 is the floor for
+    the observed acquire-at-frame-1 shape, and each subsequent flap costs +2.
   - `transitions(0.1) >= transitions(0.0)`, `transitions(0.3) >= transitions(0.0) + 5`, and
     the same for 0.5. Pre-fix a dropped frame costs roughly one transition, so a 4 s decay at
     0.3 has ~35 dropped frames and transitions in the dozens. These assertions are expected to
@@ -2152,8 +2158,25 @@ struct DecayStabilityTests {
             let (frames, _) = AudioTestHelpers.replayTrace(
                 samples: audio, sampleRate: 44100, config: cell.config)
             let t = AudioTestHelpers.countDisplayTransitions(frames)
-            print("G1 [\(tag)/\(cell.label)] transitions=\(t) of \(cells.count) cells")
+            let histogram = AudioTestHelpers.stateHistogram(frames)
+            print("G1 [\(tag)/\(cell.label)] transitions=\(t) of \(cells.count) cells "
+                  + "states=\(histogram)")
             #expect(t <= 1, "\(cell.label) made \(t) display transitions; G1 allows 1")
+            // The count alone is not a complete gate. A one-way terminal
+            // degradation - fresh acquires, then everything is `held` and never
+            // returns - also scores exactly 1, and that is squarely inside the
+            // failure family this fixture exists to detect. So require `fresh`
+            // to remain the dominant state. This is deliberately parameter-free:
+            // a bare count threshold is the exact mistake RESULTS.md §7 already
+            // documents once.
+            let nonNone = frames.filter { $0.displayState != "none" }
+            let dominant = nonNone.max(by: {
+                ($0.displayState == "fresh" ? 0 : 1) < ($1.displayState == "fresh" ? 0 : 1)
+            })
+            #expect(dominant?.displayState == "fresh",
+                    "\(cell.label) transitions=\(t) but the dominant state is "
+                    + "\(dominant?.displayState ?? "none") in \(histogram) - the note "
+                    + "degraded one-way instead of flapping, which a count alone misses")
         }
         // The dropout family is the primary G1 gate (spec §6) and lives in the
         // replay harness, not in CoverageMatrix.matrix. See Task 3b.
