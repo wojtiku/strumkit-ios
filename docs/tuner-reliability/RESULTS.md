@@ -301,10 +301,23 @@ and scores as a detect. So **WebTuna scores 40/40 including the polyphony axis**
 40/40 is not a fixture artefact the way it was before the fix:
 `CoverageMatrixTests.polyCellsArePolyphonic` now proves the second voice is in the audio,
 and the per-cell `sig=` checksums prove both engines received it. The premise in spec
-section 6 should be revisited - either the defeat requires a weighting this model does not
-produce (a second voice *louder* than the primary, or a real string rather than a bare
-sine), or the claim came from a different fixture. **This is an open question, not a
-settled finding**, and it was not something this task was chartered to resolve.
+section 6 should be revisited. **This is an open question, not a settled finding**, and it
+was not something this task was chartered to resolve. Candidate explanations, none of them
+established:
+
+- the defeat needs a second voice *louder* than the primary, or closer to it in level than
+  this fixture's parity-at-the-fundamental produces
+- the defeat needs a real string's partial structure, not a bare sine
+- the original claim came from a different fixture or a different level relationship
+- WebTuna handles this case and the spec's premise was never true
+
+**Do not read the bare sine as the easy case.** `extraVoiceWeight` is 0.7 and the poly
+cells' primary `h1` is 0.7, so the two voices are at *parity* at the fundamental — the
+second voice carries 44% of the combined energy, and the primary is louder in RMS terms
+only because it has four partials (0.783 vs 0.700). A *quieter* second voice would have
+been easier for the oracle to reject, so the shipped fixture is the harder of those two
+directions. What it does *not* model is the partial structure of a real second string, and
+that remains a plausible hole in the fixture.
 
 **Time to first reading is not a like-for-like quality comparison.** Median first correct
 reading: StrumKit 0.046 s (n=36), WebTuna 0.279 s (n=40). But **WebTuna's 0.279 s is an ABI
@@ -339,12 +352,12 @@ A 112x difference with identical output. Any future full-matrix measurement shou
 
 - **Realistic polyphony.** The second voice *is* synthesised and both engines received it
   (`polyCellsArePolyphonic` proves the audio; the `sig=` checksums prove both sides agree).
-  But it is a **bare sine at weight 0.7 with no partials of its own** — see
-  `CoverageMatrix.extraVoiceWeight`. A real second string would have its own inharmonic
-  partial structure and its own decay. So these cells measure *close-interval* interference,
-  which is the hard case, but not a realistic two-string pluck. This matters for the
-  WebTuna result above: a bare sine at 0.7 is the easiest possible second voice, and
-  WebTuna still tracked the primary.
+  But it is a **bare sine with no partials of its own**, at a level
+  (`CoverageMatrix.extraVoiceWeight` = 0.7) that is a **chosen value, not a derived one** —
+  spec §6 gives no per-voice level and no real-pluck measurement informed it. See the
+  constant's doc-comment. A real second string would have its own inharmonic partial
+  structure and its own decay. So these cells measure *close-interval* interference, which
+  is the hard case, but not a realistic two-string pluck.
 - **Which note is "correct" for a two-voice cell.** `noteHz` is the primary, and WebTuna
   tracking the primary is scored as a detect. A player tuning the *second* string would
   want F♯2 named; this table cannot say whether either engine would do that.

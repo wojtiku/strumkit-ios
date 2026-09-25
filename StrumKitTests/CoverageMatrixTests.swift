@@ -111,26 +111,46 @@ struct CoverageMatrixSignalModelTests {
 
         for cell in poly {
             #expect(!cell.extraStrings.isEmpty, "\(cell.label) declares no second string")
-            // The cell's declared second string must also be in the *signal*,
-            // not just in the metadata. This is the assertion whose absence let a
-            // head-to-head report WebTuna 40/40 on a matrix that included
-            // "E2+F#2, the pair that defeats WebTuna" while every poly- cell was
-            // a lone note. Compare against a signal built from the same case with
-            // the second voice removed: the two differ only in that voice, so
-            // energy at its fundamental is evidence rather than a coincidence of
-            // the primary's own partials.
+            // Two assertions, because they prove different things and neither
+            // implies the other.
+            //
+            // This is the assertion whose absence let a head-to-head report
+            // WebTuna 40/40 on a matrix that included "E2+F#2, the pair that
+            // defeats WebTuna" while every poly- cell was a lone note. Compare
+            // against a signal built from the same case with the second voice
+            // removed: the two differ in exactly one thing, so energy appearing
+            // at the fundamental is evidence rather than a coincidence of the
+            // primary's own partials.
             var solo = cell.case
             solo.extraFrequencies = []
             let full = CoverageMatrix.signal(cell.case, rate: 44100, seconds: 1.0)
             let primaryOnly = CoverageMatrix.signal(solo, rate: 44100, seconds: 1.0)
 
             for f in cell.extraStrings {
+                // (1) Presence: the voice is in the audio at all. A +/−4 Hz band
+                //     deliberately overlaps the primary's neighbourhood, so this
+                //     says "energy here that is not there without the voice" and
+                //     nothing about where in the band it sits.
                 let withVoice = CoverageMatrix.bandEnergy(
                     full, rate: 44100, aroundHz: f, halfWidthHz: 4)
                 let without = CoverageMatrix.bandEnergy(
                     primaryOnly, rate: 44100, aroundHz: f, halfWidthHz: 4)
                 #expect(withVoice > without * 4,
                         "\(cell.label): no energy at the second voice \(f) Hz (with voice \(withVoice), primary only \(without))")
+
+                // (2) Position: that energy is centred on f, not merely somewhere
+                //     in a 8 Hz-wide window. A 1 Hz-wide band at 1.02f costs one
+                //     more bandEnergy call and has ~27x margin, because a
+                //     coherent tone one bin away is a near-perfect null over a
+                //     1 s window. On its own this would be vacuous — with the
+                //     voice absent both bands would be equal — so it only means
+                //     something alongside (1).
+                let atVoice = CoverageMatrix.bandEnergy(
+                    full, rate: 44100, aroundHz: f, halfWidthHz: 1)
+                let offVoice = CoverageMatrix.bandEnergy(
+                    full, rate: 44100, aroundHz: f * 1.02, halfWidthHz: 1)
+                #expect(atVoice > offVoice * 4,
+                        "\(cell.label): energy near the second voice is not centred on \(f) Hz (at \(atVoice), off \(offVoice))")
             }
         }
 

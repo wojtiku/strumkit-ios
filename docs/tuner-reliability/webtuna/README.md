@@ -61,16 +61,34 @@ python3 xcompare.py /tmp/xeng-trace.txt xweb-trace.txt xtruth.txt
 ```
 
 `xtruth.txt` is generated from `xcells.json` and committed alongside it, so the label set
-cannot drift:
+cannot drift. Its header documents what it is and is not: a label set plus a
+human-readable frequency column, **not** a third independent check on `noteHz` — both
+emitters gate on the manifest's own value. It is load-bearing as the third leg of the
+label-parity check. Regenerate with (the header is part of the output, so regenerate
+rather than hand-editing):
 
 ```bash
-python3 -c "import json;[print(f\"{c['label']}={c['noteHz']}\") for c in json.load(open('xcells.json'))]" > xtruth.txt
+{ sed -n '1,/^$/p' xtruth.txt; python3 -c "import json;[print(f\"{c['label']}={c['noteHz']}\") for c in json.load(open('xcells.json'))]"; } > xtruth.txt.new && mv xtruth.txt.new xtruth.txt
 ```
 
 Two guards make a drift loud instead of silent, and `xcompare.py` exits 2 on either:
 
 - **Label parity.** The two traces and the truth table must carry the *same* 40 labels. The
   cell list is emitted from Swift rather than hand-maintained for exactly this reason.
+- **A zero-detect run.** If neither engine heard anything, the run is not a result: the
+  table still prints in full, both medians print `n/a`, and the script exits non-zero with
+  a loud block. This is the outcome G2 exists to catch, so it must never be a silent pass
+  and must never be a traceback.
+- **A missing or empty input file.** Named as its own fault, with the command that
+  produces it.
+
+`xcompare.py --self-check` exercises all of the above in a temp directory — including the
+zero-detect path that used to crash on `median([])` — and exits non-zero if any guard is
+removed:
+
+```bash
+python3 xcompare.py --self-check
+```
 - **Signal parity.** Every SUMMARY line carries `sig=`, an FNV-1a of the generated audio.
   Identical checksums mean both engines received byte-identical samples; a mismatch means
   `CoverageMatrix.signal` and `buildSignal` have drifted and every number downstream is void.

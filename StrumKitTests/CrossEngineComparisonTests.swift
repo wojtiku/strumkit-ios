@@ -96,6 +96,15 @@ struct CrossEngineComparisonTests {
 
         // --- 1. The manifest, written and verified before anything expensive ---
         //
+        // `buildSignal` runs the LCG in JS doubles, so a seed must be exactly
+        // representable there *and* survive the multiply: above 2^53/48271 the
+        // `lcg * 48271` step starts losing low bits and the two generators
+        // diverge. `sig=` would catch that loudly, but only after a five-minute
+        // Debug run; this states it at the source instead.
+        let seedCeiling = (UInt64(1) << 53) / 48271
+        #expect(cells.allSatisfy { $0.case.seed < seedCeiling },
+                "a seed exceeds the bound where JS double arithmetic stays exact for the LCG")
+
         // Every field `xeng.mjs` needs is here and nowhere else, so the JS
         // generator is a pure function of this file's output.
         let manifestURL = Xeng.repositoryRoot
@@ -170,6 +179,39 @@ struct CrossEngineComparisonTests {
                     "attackSeconds", "decayTau", "amplitude", "seed", "idx"] {
             #expect(writtenCells.first?[key] != nil,
                     "manifest is missing \(key), which buildSignal requires")
+        }
+
+        // Key *values*, not just presence. `idx` and `noteHz` are the two fields
+        // that change a verdict without changing a byte of audio, so `sig=` is
+        // blind to them by construction: a hand-edited `idx` leaves every
+        // checksum matching while silently asking WebTuna's six-string guitar to
+        // auto-match a 392 Hz ukulele note. The checksum guards the waveform;
+        // this guards the two numbers that are not in the waveform.
+        let writtenByLabel = Dictionary(
+            writtenCells.compactMap { entry -> (String, [String: Any])? in
+                (entry["label"] as? String).map { ($0, entry) }
+            }, uniquingKeysWith: { _, last in last })
+        for cell in cells {
+            guard let entry = writtenByLabel[cell.label] else { continue }   // covered above
+            let expectedIdx = cell.config.instrument == .guitar ? -1 : -2
+            let writtenIdx = (entry["idx"] as? NSNumber)?.intValue
+            #expect(writtenIdx == expectedIdx,
+                    "\(cell.label): manifest idx is \(String(describing: writtenIdx)), the matrix says \(expectedIdx) for a \(cell.config.instrument) cell")
+
+            let writtenHz = (entry["noteHz"] as? NSNumber)?.doubleValue
+            #expect(writtenHz == cell.noteHz,
+                    "\(cell.label): manifest noteHz is \(String(describing: writtenHz)), the matrix says \(cell.noteHz)")
+
+            // And `noteHz` must be a real string of this cell's own instrument,
+            // not merely equal to the matrix. Both emitters gate on this number,
+            // so a value that is not in the tuning would have both engines
+            // grading against a note that is not there.
+            let available = Presets.presets(for: cell.config.instrument)
+            guard let preset = available.first(where: { $0.id == cell.config.tuningId })
+                    ?? available.first else { continue }
+            let strings = preset.midi.map { PitchMath.midiFrequency($0, a4: cell.config.a4) }
+            #expect(strings.contains { abs($0 - cell.noteHz) < 0.001 },
+                    "\(cell.label): \(cell.noteHz) Hz is not a string of \(cell.config.tuningId) (\(strings))")
         }
 
         // --- 2. The trace ---

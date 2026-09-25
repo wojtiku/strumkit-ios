@@ -48,9 +48,26 @@ enum CoverageMatrix {
         var seed: UInt64
     }
 
-    /// Per-voice weight for `Case.extraFrequencies`. Below the primary's h1 so
-    /// the expected note stays the louder voice, matching a real two-string
-    /// pluck where the string you are tuning dominates.
+    /// Per-voice weight for `Case.extraFrequencies`.
+    ///
+    /// **A chosen value, not a derived one.** Nothing in spec §6 gives a
+    /// per-voice level, and no measurement of a real two-string pluck informed
+    /// it. `0.7` was picked to equal the `h1` that `matrix` gives every
+    /// polyphony cell, so the two voices are unambiguous to a detector and
+    /// neither is trivially dominated — the only justification it has. The
+    /// fixture's *realism* is a separate question, caveated in RESULTS.md §11.
+    /// A reviewer should treat this as a knob, not a measurement: changing it
+    /// changes what the polyphony axis tests, and the `sig=` checksums will
+    /// flag any generator that fails to follow.
+    ///
+    /// What the shipped fixture actually does, since it is easy to mis-describe:
+    /// the second voice's fundamental is at **parity** with the primary's, not
+    /// below it (both 0.7). The primary is the louder voice in RMS terms only
+    /// because it carries four partials — √(0.7²+0.3²+0.15²+0.1²) = 0.783
+    /// against 0.700, leaving the second voice 44% of the combined energy.
+    /// Parity at the fundamental is the **harder** test for a detector, not the
+    /// easier one, so this is the conservative direction for the oracle: a
+    /// quieter second voice would have been easier to reject.
     ///
     /// Mirrored by `EXTRA_VOICE_WEIGHT` in `docs/tuner-reliability/webtuna/xeng.mjs`;
     /// the two generators must agree or the per-cell `sig=` checksums diverge.
