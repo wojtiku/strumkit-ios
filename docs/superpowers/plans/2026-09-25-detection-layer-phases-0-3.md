@@ -349,11 +349,13 @@ Append to `CoverageMatrixSignalModelTests`:
                     "seed A and seed B must generate different audio, not just differ in seed")
         }
 
-        func hasAxis(_ name: String) -> Bool {
-            a.contains { $0.label.contains(name) }
-        }
-        for axis in ["h1", "snr", "B", "atk", "lvl", "tau", "poly"] {
-            #expect(hasAxis(axis), "matrix is missing the \(axis) axis")
+        // Pin the per-axis distribution, not just the total: a bare substring
+        // check on "B" is satisfied by every `lvl-` label, which ends in "dB".
+        let expected: [String: Int] = ["h1-": 6, "snr-": 5, "B-": 4, "atk-": 3,
+                                      "tau-": 3, "lvl-": 5, "str-": 10, "poly-": 4]
+        for (tag, count) in expected {
+            let actual = a.filter { $0.label.hasPrefix(tag) }.count
+            #expect(actual == count, "axis \(tag) has \(actual) cells, spec §6 says \(count)")
         }
     }
 
