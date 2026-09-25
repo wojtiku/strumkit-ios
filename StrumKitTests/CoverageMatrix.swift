@@ -129,6 +129,21 @@ enum CoverageMatrix {
              snrDB: snrDB, amplitude: amplitude, seed: seed)
     }
 
+    /// Spec §6's decay-with-dropout family: the fixture that reproduces the
+    /// reported symptom. 4 s decay at the low E, one per injection rate.
+    ///
+    /// `rate` is deliberately not part of the returned case. A dropout is a loss
+    /// of signal *per frame*, so it cannot be baked into a waveform, and the
+    /// control and the injected runs must differ in the injection and in nothing
+    /// else. The rate is therefore carried by the caller and handed to
+    /// `AudioTestHelpers.replayTrace(..., yinDropoutRate:)`.
+    static func decayWithDropout(rate: Double, seed: UInt64) -> Case {
+        baseCase(truthHz: guitarStrings[0], seed: seed, decayTau: 4.0)
+    }
+
+    /// The four injection rates spec §6 names. `0.0` is the control.
+    static let dropoutRates: [Double] = [0.0, 0.1, 0.3, 0.5]
+
     /// One scored run: a signal, the tuning it must be read against, and the
     /// frequency a correct reading must land on.
     struct Cell: Sendable {

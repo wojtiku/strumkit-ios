@@ -278,14 +278,78 @@ public enum AudioTestHelpers {
     /// is why live diagnostics report the actual `callbackFrameCount`.
     public static let productionHopSamples = 1024
 
+    /// Peak amplitude of an injected dropout window, as a fraction of the peak
+    /// level of the signal under replay.
+    ///
+    /// Chosen so the replacement clears the tracker's level gate — around 0.0003
+    /// RMS for a quiet room, since the floor starts at 0.0002 and only adapts
+    /// after 0.35 s of continuous non-foreground audio — while staying two orders
+    /// of magnitude below the note. A dropout that failed the gate would test the
+    /// wrong branch: the pipeline would report "nothing here" rather than "here,
+    /// but no pitch", and the reported symptom is about the second case.
+    ///
+    /// The fraction is relative, so a cell quiet enough that 1% of its peak falls
+    /// under the gate yields a `gate` rejection instead. That is the correct
+    /// outcome for a level the detector could not hear anyway, but it means this
+    /// constant bounds the fixture's usable `lvl-` range rather than removing it.
+    public static let dropoutNoiseFraction: Double = 0.01
+
+    /// Which frames a given dropout rate loses.
+    ///
+    /// A dropout is a per-frame loss of signal, so it is a replay-time construct:
+    /// no waveform can express it. Selection is a Park-Miller walk, the same
+    /// generator `CoverageMatrix.signal` uses, so one seed fully determines it and
+    /// seed A and seed B drop different frames.
+    public static func droppedFrameIndices(frameCount: Int, rate: Double, seed: UInt64) -> [Int] {
+        guard frameCount > 0, rate > 0 else { return [] }
+        var lcg = seed % 2147483647
+        if lcg == 0 { lcg = 1 }
+        var dropped: [Int] = []
+        for index in 0..<frameCount {
+            lcg = (lcg &* 48271) % 2147483647
+            if Double(lcg) / 2147483647.0 < rate { dropped.append(index) }
+        }
+        return dropped
+    }
+
+    /// A window of `count` samples containing noise and nothing else, at the
+    /// level a real dropout presents: audible to the level gate, aperiodic to YIN.
+    ///
+    /// Seeded per frame so two runs replay the same dropout at the same frames
+    /// sample for sample, and always full analysis length so `PitchDetector`'s
+    /// buffer size does not change underneath the session mid-trace.
+    private static func dropoutWindow(samples count: Int, level: Double, seed: UInt64) -> [Float] {
+        let peak = Float(level * dropoutNoiseFraction)
+        var lcg = seed % 2147483647
+        if lcg == 0 { lcg = 1 }
+        var out = [Float](repeating: 0, count: count)
+        for i in 0..<count {
+            lcg = (lcg &* 48271) % 2147483647
+            let uniform = Double(lcg) / 2147483647.0
+            out[i] = peak * Float(uniform * 2 - 1)
+        }
+        return out
+    }
+
     /// Production-equivalent replay trace with trailing capture windows, dynamic
     /// tracker thresholds, and the live request cadence.
+    ///
+    /// - Parameters:
+    ///   - yinDropoutRate: fraction of frames to lose the signal on, per spec §6's
+    ///     decay-with-dropout family. A dropped frame is analysed as a window of
+    ///     noise at the cell's level rather than as the real audio, which is what
+    ///     a dropped frame looks like to the detector. Defaults to `0.0`, which
+    ///     drops nothing and leaves the trace exactly as production would.
+    ///   - dropoutSeed: seed for the frame selection. The same seed always drops
+    ///     the same frames; a different seed drops a different set.
     public static func replayTrace(
         samples: [Float],
         sampleRate: Double,
         config: TunerConfig,
         hopSamples: Int = productionHopSamples,
-        enableSpectralRecovery: Bool = true
+        enableSpectralRecovery: Bool = true,
+        yinDropoutRate: Double = 0.0,
+        dropoutSeed: UInt64 = 1
     ) -> (frames: [ReplayFrame], tracker: PitchTracker) {
         let available = Presets.presets(for: config.instrument)
         let preset = available.first(where: { $0.id == config.tuningId }) ?? available[0]
@@ -303,11 +367,28 @@ public enum AudioTestHelpers {
         let windowLength = AudioCaptureService.requiredInputSamples(for: sampleRate)
         var sequence: UInt64 = 0
 
+        // The cell's level, as realised in the audio. `signal` restores the
+        // requested peak on the finite-SNR path, and leaves the raw harmonic sum
+        // scaled by `amplitude` otherwise, so this is the case's configured
+        // `lvl-` amplitude to within the peak factor of its partials.
+        let signalPeak = Double(samples.reduce(Float(0)) { max($0, abs($1)) })
+        let frameCount = samples.count >= hopSamples
+            ? (samples.count - hopSamples) / hopSamples + 1
+            : 0
+        let dropped = Set(droppedFrameIndices(
+            frameCount: frameCount, rate: yinDropoutRate, seed: dropoutSeed))
+        var frameOrdinal = 0
+
         for endSample in stride(from: hopSamples, through: samples.count, by: hopSamples) {
+            let isDropped = dropped.contains(frameOrdinal)
+            let startSample = max(0, endSample - windowLength)
+            let window = isDropped
+                ? dropoutWindow(samples: windowLength, level: signalPeak,
+                                seed: dropoutSeed &+ UInt64(frameOrdinal))
+                : Array(samples[startSample..<endSample])
+            frameOrdinal += 1
             sequence &+= 1
             let atSeconds = Double(endSample) / sampleRate
-            let startSample = max(0, endSample - windowLength)
-            let window = Array(samples[startSample..<endSample])
 
             let frame = AnalysisFrame(
                 samples: window,

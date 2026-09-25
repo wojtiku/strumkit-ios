@@ -147,3 +147,48 @@ struct DisplayTransitionTests {
         print("BASELINE-TRANSITIONS [\(c.name)] = \(AudioTestHelpers.countDisplayTransitions(frames))")
     }
 }
+
+@Suite("Decay with injected YIN dropout")
+struct DecayWithDropoutTests {
+
+    @Test("injected dropout raises the transition count above the uninjected control")
+    func dropoutReproducesTheSymptom() {
+        var counts: [Double: Int] = [:]
+        for rate in CoverageMatrix.dropoutRates {
+            let c = CoverageMatrix.decayWithDropout(rate: rate, seed: CoverageMatrix.SEED_A)
+            let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .auto)
+            let (frames, _) = AudioTestHelpers.replayTrace(
+                samples: CoverageMatrix.signal(c, rate: 44100, seconds: 4.0),
+                sampleRate: 44100, config: config,
+                yinDropoutRate: rate, dropoutSeed: CoverageMatrix.SEED_A)
+            let t = AudioTestHelpers.countDisplayTransitions(frames)
+            counts[rate] = t
+            print("DROPOUT-BASELINE rate=\(rate) transitions=\(t) frames=\(frames.count)")
+        }
+        let control = counts[0.0]!
+        #expect(control <= 3, "uninjected control made \(control) transitions; expected the natural decay tail only")
+        for rate in [0.1, 0.3, 0.5] {
+            #expect(counts[rate]! > control,
+                    "rate \(rate) made \(counts[rate]!) transitions, control made \(control) — the injection is not reproducing the symptom")
+        }
+        #expect(counts[0.3]! >= control + 5,
+                "rate 0.3 should reproduce the symptom substantially; got \(counts[0.3]!)")
+    }
+
+    @Test("dropout frame selection is deterministic per seed and differs between seeds")
+    func dropoutSelectionIsDeterministic() {
+        // Assert that the same seed drops the same frames on two runs, and that
+        // SEED_A and SEED_B do not drop the same ones. Use a small injected
+        // helper on AudioTestHelpers that returns the dropped frame indices, so
+        // this is testable without running the whole pipeline.
+        let a1 = AudioTestHelpers.droppedFrameIndices(
+            frameCount: 40, rate: 0.3, seed: CoverageMatrix.SEED_A)
+        let a2 = AudioTestHelpers.droppedFrameIndices(
+            frameCount: 40, rate: 0.3, seed: CoverageMatrix.SEED_A)
+        let b = AudioTestHelpers.droppedFrameIndices(
+            frameCount: 40, rate: 0.3, seed: CoverageMatrix.SEED_B)
+        #expect(a1 == a2, "same seed must drop the same frames")
+        #expect(a1 != b, "seed A and seed B must drop different frames")
+        #expect(a1.allSatisfy { $0 >= 0 && $0 < 40 })
+    }
+}
