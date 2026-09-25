@@ -62,22 +62,34 @@ struct CoverageMatrixSignalModelTests {
         #expect(abs(s.map { abs($0) }.max()! - 0.25) < 0.02)
     }
 
-    @Test("the matrix covers every axis in the spec and both seed sets are disjoint")
+    @Test("the matrix has exactly spec §6's per-axis distribution")
     func matrixCoverage() {
         let a = CoverageMatrix.matrix(seed: CoverageMatrix.SEED_A)
         let b = CoverageMatrix.matrix(seed: CoverageMatrix.SEED_B)
         #expect(a.count == 40, "spec §6 enumerates 40 cells across eight axes; got \(a.count)")
-        // Labels are constant axis tags and deliberately carry no seed, so the
-        // two runs are compared on the seed that reaches each case.
-        #expect(a.map(\.case.seed) != b.map(\.case.seed),
-                "seed A and seed B must be different runs, not the same cells")
 
-        func hasAxis(_ name: String) -> Bool {
-            a.contains { $0.label.contains(name) }
+        // Pin the per-axis distribution, not just the total: a bare substring
+        // check on "B" is satisfied by every `lvl-` label, which ends in "dB".
+        let expected: [String: Int] = ["h1-": 6, "snr-": 5, "B-": 4, "atk-": 3,
+                                      "tau-": 3, "lvl-": 5, "str-": 10, "poly-": 4]
+        for (tag, count) in expected {
+            let actual = a.filter { $0.label.hasPrefix(tag) }.count
+            #expect(actual == count, "axis \(tag) has \(actual) cells, spec §6 says \(count)")
         }
-        for axis in ["h1", "snr", "B", "atk", "lvl", "tau", "poly"] {
-            #expect(hasAxis(axis), "matrix is missing the \(axis) axis")
-        }
+        #expect(a.allSatisfy { !$0.label.isEmpty })
+
+        // Every cell must carry the seed it was asked for, not merely differ
+        // somewhere - an array inequality still passes if 39 of 40 ignore it.
+        #expect(a.allSatisfy { $0.case.seed == CoverageMatrix.SEED_A })
+        #expect(b.allSatisfy { $0.case.seed == CoverageMatrix.SEED_B })
+
+        // And the two runs must actually differ in audio. A finite-SNR cell is
+        // required: `signal` returns before adding noise when snrDB is infinite,
+        // so a clean cell is seed-independent by construction.
+        let noisyA = a.first { $0.case.snrDB.isFinite }!
+        let noisyB = b.first { $0.case.snrDB.isFinite }!
+        #expect(CoverageMatrix.signal(noisyA.case, rate: 44100, seconds: 0.25)
+                != CoverageMatrix.signal(noisyB.case, rate: 44100, seconds: 0.25))
     }
 
     @Test("every cell's truth frequency is a real string of its own instrument")
