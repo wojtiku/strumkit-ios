@@ -61,4 +61,47 @@ struct CoverageMatrixSignalModelTests {
         let s = CoverageMatrix.signal(c, rate: 44100, seconds: 1.0)
         #expect(abs(s.map { abs($0) }.max()! - 0.25) < 0.02)
     }
+
+    @Test("the matrix covers every axis in the spec and both seed sets are disjoint")
+    func matrixCoverage() {
+        let a = CoverageMatrix.matrix(seed: CoverageMatrix.SEED_A)
+        let b = CoverageMatrix.matrix(seed: CoverageMatrix.SEED_B)
+        #expect(a.count == 40, "spec §6 enumerates 40 cells across eight axes; got \(a.count)")
+        // Labels are constant axis tags and deliberately carry no seed, so the
+        // two runs are compared on the seed that reaches each case.
+        #expect(a.map(\.case.seed) != b.map(\.case.seed),
+                "seed A and seed B must be different runs, not the same cells")
+
+        func hasAxis(_ name: String) -> Bool {
+            a.contains { $0.label.contains(name) }
+        }
+        for axis in ["h1", "snr", "B", "atk", "lvl", "tau", "poly"] {
+            #expect(hasAxis(axis), "matrix is missing the \(axis) axis")
+        }
+    }
+
+    @Test("every cell's truth frequency is a real string of its own instrument")
+    func cellsTargetRealStrings() {
+        for cell in CoverageMatrix.matrix(seed: CoverageMatrix.SEED_A) {
+            let preset = Presets.presets(for: cell.config.instrument)
+                .first { $0.id == cell.config.tuningId }!
+            let expected = preset.midi.map { PitchMath.midiFrequency($0, a4: cell.config.a4) }
+            #expect(expected.contains { abs($0 - cell.noteHz) < 0.001 },
+                    "\(cell.label): \(cell.noteHz) Hz is not a string of \(cell.config.tuningId) (\(expected))")
+        }
+    }
+
+    @Test("the hard-coded string tables match the presets they claim to mirror")
+    func stringTablesMatchPresets() {
+        for f in CoverageMatrix.ukuleleStrings {
+            #expect(Presets.ukulele.first { $0.id == "high-g" }!.midi
+                    .contains { abs(PitchMath.midiFrequency($0, a4: 440) - f) < 0.001 },
+                    "ukulele string \(f) Hz is not in the high-g preset")
+        }
+        for f in CoverageMatrix.guitarStrings {
+            #expect(Presets.guitar.first { $0.id == "standard" }!.midi
+                    .contains { abs(PitchMath.midiFrequency($0, a4: 440) - f) < 0.001 },
+                    "guitar string \(f) Hz is not in the standard preset")
+        }
+    }
 }

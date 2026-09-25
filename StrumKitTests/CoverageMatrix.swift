@@ -1,5 +1,6 @@
 // StrumKitTests/CoverageMatrix.swift
 import Foundation
+@testable import StrumKit
 
 /// Deterministic plucked-string signal model for the detection-layer coverage matrix.
 ///
@@ -126,5 +127,105 @@ enum CoverageMatrix {
         Case(name: "f\(Int(truthHz))", truthHz: truthHz, h1: h1, h2: h2, h3: h3, h4: h4,
              inharmonicity: inharmonicity, attackSeconds: attackSeconds, decayTau: decayTau,
              snrDB: snrDB, amplitude: amplitude, seed: seed)
+    }
+
+    /// One scored run: a signal, the tuning it must be read against, and the
+    /// frequency a correct reading must land on.
+    struct Cell: Sendable {
+        let label: String
+        /// Backticked because `case` is a keyword; callers still write `cell.case`.
+        let `case`: Case
+        let config: TunerConfig
+        let noteHz: Double
+        let extraStrings: [Double]
+    }
+
+    /// Guitar standard open strings, low to high, matching Presets.guitar
+    /// `standard` = midi [40, 45, 50, 55, 59, 64].
+    static let guitarStrings: [Double] = [82.4069, 110.0, 146.8324, 195.9977, 246.9417, 329.6276]
+    /// Ukulele high-G, matching Presets.ukulele `high-g` = midi [67, 60, 64, 69].
+    static let ukuleleStrings: [Double] = [391.9954, 261.6256, 329.6276, 440.0]
+
+    private static func guitarConfig() -> TunerConfig {
+        TunerConfig(instrument: .guitar, tuningId: "standard", mode: .auto)
+    }
+    private static func ukuleleConfig() -> TunerConfig {
+        TunerConfig(instrument: .ukulele, tuningId: "high-g", mode: .auto)
+    }
+
+    /// Every cell in the matrix, sweeping one axis at a time over a base pluck
+    /// of the low E, plus a per-string sweep and a polyphony sweep. This is
+    /// exactly the axis table in spec §6, and it is 40 cells.
+    ///
+    /// Axis tags in `label` are stable and greppable: h1, snr, B, atk, lvl,
+    /// tau, poly, str.
+    ///
+    /// Spec §6's decay-with-dropout family is deliberately *not* here: it
+    /// injects per-frame YIN dropout at replay time rather than at
+    /// signal-generation time, so it cannot be a `Case`. It lives in the replay
+    /// harness, `AudioTestHelpers.replayTrace(..., yinDropoutRate:)`.
+    static func matrix(seed: UInt64) -> [Cell] {
+        var cells: [Cell] = []
+        let f0 = guitarStrings[0]
+        let g = guitarConfig()
+
+        func add(_ label: String, _ c: Case, _ config: TunerConfig,
+                 _ noteHz: Double, _ extra: [Double] = []) {
+            cells.append(Cell(label: label, case: c, config: config,
+                              noteHz: noteHz, extraStrings: extra))
+        }
+
+        // Fundamental strength: 6 levels.
+        for (tag, h1) in [("1.0", 1.0), ("0.3", 0.3), ("0.1", 0.1),
+                          ("0.03", 0.03), ("0.01", 0.01), ("0.004", 0.004)] {
+            add("h1-\(tag)", baseCase(truthHz: f0, seed: seed, h1: h1), g, f0)
+        }
+
+        // SNR: 5 levels.
+        for (tag, snr) in [("clean", Double.infinity), ("20", 20.0),
+                           ("12", 12.0), ("6", 6.0), ("0", 0.0)] {
+            add("snr-\(tag)", baseCase(truthHz: f0, seed: seed, snrDB: snr), g, f0)
+        }
+
+        // Inharmonicity: 4 levels. The axis under test.
+        for (tag, b) in [("0", 0.0), ("1e-4", 1e-4), ("5e-4", 5e-4), ("2e-3", 2e-3)] {
+            add("B-\(tag)", baseCase(truthHz: f0, seed: seed, inharmonicity: b), g, f0)
+        }
+
+        // Attack, decay, level.
+        for (tag, atk) in [("0.6ms", 0.0006), ("6ms", 0.006), ("30ms", 0.030)] {
+            add("atk-\(tag)", baseCase(truthHz: f0, seed: seed, attackSeconds: atk), g, f0)
+        }
+        for (tag, tau) in [("0.4s", 0.4), ("1.8s", 1.8), ("6s", 6.0)] {
+            add("tau-\(tag)", baseCase(truthHz: f0, seed: seed, decayTau: tau), g, f0)
+        }
+        for (tag, amp) in [("-60dB", 0.001), ("-48dB", 0.004),
+                           ("-36dB", 0.015), ("-24dB", 0.063), ("-6dB", 0.5)] {
+            add("lvl-\(tag)", baseCase(truthHz: f0, seed: seed, amplitude: amp), g, f0)
+        }
+
+        // Every guitar and ukulele string, at a realistic pluck and light B.
+        for (i, f) in guitarStrings.enumerated() {
+            add("str-g\(i)", baseCase(truthHz: f, seed: seed, inharmonicity: 1e-4), g, f)
+        }
+        for (i, f) in ukuleleStrings.enumerated() {
+            add("str-u\(i)", baseCase(truthHz: f, seed: seed, inharmonicity: 5e-4),
+                ukuleleConfig(), f)
+        }
+
+        // Polyphony. E2 + F#2 is the semitone pair that defeats WebTuna outright.
+        let poly: [(String, [Double])] = [
+            ("E2+A2", [guitarStrings[0], guitarStrings[1]]),
+            ("E2+E4", [guitarStrings[0], guitarStrings[5]]),
+            ("A2+E4", [guitarStrings[1], guitarStrings[5]]),
+            ("E2+Fs2", [guitarStrings[0], 92.4986]),
+        ]
+        for (tag, freqs) in poly {
+            add("poly-\(tag)",
+                baseCase(truthHz: freqs[0], seed: seed, h1: 0.7, h2: 0.3, h3: 0.15, h4: 0.1),
+                g, freqs[0], Array(freqs.dropFirst()))
+        }
+
+        return cells
     }
 }
