@@ -45,8 +45,10 @@ head-to-head table recorded in [`../RESULTS.md`](../RESULTS.md) §11.
 
 ```bash
 # 1. the Swift side writes docs/tuner-reliability/webtuna/xcells.json
+#    -O is worth the separate derived-data path: 2.5 s against 276 s, identical output.
 xcodebuild test -project StrumKit.xcodeproj -scheme StrumKit \
-  -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath ./DerivedData \
+  -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath ./DerivedDataO \
+  SWIFT_OPTIMIZATION_LEVEL=-O \
   -only-testing:StrumKitTests/CrossEngineComparisonTests 2>&1 \
   | grep -E '^(XENG|XENG-SUMMARY)' > /tmp/xeng-trace.txt
 
@@ -76,9 +78,14 @@ Two guards make a drift loud instead of silent, and `xcompare.py` exits 2 on eit
 `WebTuna.wasm` and `WebTuna.dcmp` are Yousician's IP and are gitignored. `xeng-trace.txt` /
 `xweb-trace.txt` are run products and are also ignored; regenerate them to re-score.
 
-**Known limitation:** `buildSignal` synthesises only the cell's own fundamental, so the
-four `poly-` cells are single notes on both sides and the polyphony axis is **not**
-exercised. `extraStrings=N` on each SUMMARY line records this. See RESULTS.md §11.
+**Polyphony is synthesised:** `xcells.json` carries `extraFrequencies` per cell and
+`buildSignal` mixes each one in as a bare sine at `EXTRA_VOICE_WEIGHT` (mirroring
+`CoverageMatrix.extraVoiceWeight`; the two must match or the `sig=` checksums diverge).
+The four `poly-` cells are genuinely two-voiced on both sides. This was broken once: the
+frequency lived only on `Cell.extraStrings` and never reached the audio, so every poly
+cell rendered as a lone note and the head-to-head reported WebTuna hearing all 40
+including "E2+F#2, the pair that defeats WebTuna". `polyCellsArePolyphonic` in
+`StrumKitTests/CoverageMatrixTests.swift` is what catches that now. See RESULTS.md §11.
 
 ```bash
 node suite3.mjs   # accuracy / harmonic / noise / sample-rate characterisation

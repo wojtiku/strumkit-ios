@@ -103,6 +103,46 @@ struct CoverageMatrixSignalModelTests {
         }
     }
 
+    @Test("a polyphony cell's audio actually contains the second voice")
+    func polyCellsArePolyphonic() {
+        let matrix = CoverageMatrix.matrix(seed: CoverageMatrix.SEED_A)
+        let poly = matrix.filter { $0.label.hasPrefix("poly-") }
+        #expect(poly.count == 4, "spec §6 has 4 polyphony cells; got \(poly.count)")
+
+        for cell in poly {
+            #expect(!cell.extraStrings.isEmpty, "\(cell.label) declares no second string")
+            // The cell's declared second string must also be in the *signal*,
+            // not just in the metadata. This is the assertion whose absence let a
+            // head-to-head report WebTuna 40/40 on a matrix that included
+            // "E2+F#2, the pair that defeats WebTuna" while every poly- cell was
+            // a lone note. Compare against a signal built from the same case with
+            // the second voice removed: the two differ only in that voice, so
+            // energy at its fundamental is evidence rather than a coincidence of
+            // the primary's own partials.
+            var solo = cell.case
+            solo.extraFrequencies = []
+            let full = CoverageMatrix.signal(cell.case, rate: 44100, seconds: 1.0)
+            let primaryOnly = CoverageMatrix.signal(solo, rate: 44100, seconds: 1.0)
+
+            for f in cell.extraStrings {
+                let withVoice = CoverageMatrix.bandEnergy(
+                    full, rate: 44100, aroundHz: f, halfWidthHz: 4)
+                let without = CoverageMatrix.bandEnergy(
+                    primaryOnly, rate: 44100, aroundHz: f, halfWidthHz: 4)
+                #expect(withVoice > without * 4,
+                        "\(cell.label): no energy at the second voice \(f) Hz (with voice \(withVoice), primary only \(without))")
+            }
+        }
+
+        // And the control: a cell with no declared second string must be
+        // unaffected by the comparison, so the assertion above is measuring the
+        // voice and not a general property of every signal.
+        for cell in matrix where !cell.label.hasPrefix("poly-") {
+            #expect(cell.case.extraFrequencies.isEmpty,
+                    "\(cell.label) is not a polyphony cell but carries extra voices \(cell.case.extraFrequencies)")
+        }
+    }
+
     @Test("the hard-coded string tables match the presets they claim to mirror")
     func stringTablesMatchPresets() {
         for f in CoverageMatrix.ukuleleStrings {

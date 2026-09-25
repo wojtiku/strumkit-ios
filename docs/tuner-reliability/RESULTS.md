@@ -229,12 +229,12 @@ were pushed through both engines. StrumKit via `StrumKitTests/CrossEngineCompari
 `docs/tuner-reliability/webtuna/xeng.mjs` (32 calls of 4096 samples, covering 2.97 s).
 
 `first`/`last` are the first and last moment at which the engine's **own reported
-frequency** was within ±50 cents of the cell's truth frequency, or `–` for never.
+frequency** was within ±50 cents of the cell's truth frequency, or `-` for never.
 "Own reported frequency" is deliberately not the same as what the user would see: the
 StrumKit column is `PitchDetector`'s YIN output, so it excludes the spectral-recovery
 path. The emitter also prints `firstReading`/`lastReading` (the reading the display would
-have shown, recovery included) on the same line; on this run the two are identical for
-every cell that was heard at all, so the recovery path added nothing here.
+have shown, recovery included) on the same line; on this run the two differ on only one
+cell (`poly-A2+E4`, 0.023 s vs 0.046 s), so the recovery path changed nothing material.
 
 | Cell | Truth Hz | SK first | SK last | SK trans | WT first | WT last | Winner |
 |---|---:|---:|---:|---:|---:|---:|---|
@@ -257,10 +257,10 @@ every cell that was heard at all, so the recovery path added nothing here.
 | `lvl--60dB` | 82.41 | 0.046 s | 2.159 s | 2 | 0.279 s | 2.972 s | tie |
 | `lvl--6dB` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
 | `poly-A2+E4` | 110.00 | 0.023 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
-| `poly-E2+A2` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `poly-E2+A2` | 82.41 | **–** | **–** | 0 | 0.279 s | 2.972 s | **WebTuna** |
 | `poly-E2+E4` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
-| `poly-E2+Fs2` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
-| `snr-0` | 82.41 | 0.046 s | 1.927 s | **8** | 0.279 s | 2.972 s | tie |
+| `poly-E2+Fs2` | 82.41 | **–** | **–** | 1 | 0.279 s | 2.972 s | **WebTuna** |
+| `snr-0` | 82.41 | 0.046 s | 1.927 s | 8 | 0.279 s | 2.972 s | tie |
 | `snr-12` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
 | `snr-20` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
 | `snr-6` | 82.41 | 0.070 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
@@ -279,40 +279,75 @@ every cell that was heard at all, so the recovery path added nothing here.
 | `tau-1.8s` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
 | `tau-6s` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
 
-**Detect rate: StrumKit 38/40, WebTuna 40/40. G2 does not hold today.** StrumKit misses
-`h1-0.01` and `h1-0.004` — fundamental at 1% and 0.4% of the second partial. This is the
-`fundamentalMinEnergyRatio = 0.004` gate of §4 above, and it is the gap Phase 1 exists to
-close (`FundamentalEnergyScale`, Task 5-6). WebTuna's only measured advantage in
-[`webtuna/yinvsalience.mjs`](webtuna/yinvsalience.mjs) was at 0 dB SNR, but here it also
-covers the two weak-fundamental cells, so the advantage is larger than that reference
-measurement suggested.
+**Detect rate: StrumKit 36/40, WebTuna 40/40. G2 does not hold today.** StrumKit misses
+four cells, in two groups:
 
-**Time to first reading: StrumKit is faster on 38 of 40 cells.** Median first correct
-reading 0.046 s (StrumKit) vs 0.279 s (WebTuna). But WebTuna's 0.279 s is a **floor imposed
-by its own ABI**, not a tuning result: its first two 4096-sample calls always return
-`CanHearANote == false` (it needs three frames before it will name a note — see
-`webtuna/README.md`), so 2 × 4096 / 44100 = 0.186 s plus one call is the earliest it is
-arithmetically capable of. Read this as "WebTuna is not slower", not "StrumKit is better".
-The comparison is also not like-for-like in frame rate: StrumKit analyses every 1024 samples
-(129 frames per cell), WebTuna every 4096 (32 chunks), so StrumKit's column has ~4× the
-temporal resolution to find an early reading with.
+- **Weak fundamental** - `h1-0.01` and `h1-0.004`, fundamental at 1% and 0.4% of the
+  second partial. This is the `fundamentalMinEnergyRatio = 0.004` gate of section 4 above,
+  and it is the gap Phase 1 exists to close (`FundamentalEnergyScale`, Tasks 5-6).
+- **Polyphony** - `poly-E2+A2` and `poly-E2+Fs2`, both genuinely two-voiced. StrumKit's
+  YIN reports a wandering ~85-90 Hz on `poly-E2+Fs2` (59-78 cents sharp of E2, never
+  inside 50 cents), which is the semitone-interference failure this axis exists to catch.
+  `poly-E2+E4` and `poly-A2+E4` - pairs more than an octave apart - are both read
+  correctly, so the failure is specific to close intervals, which is what a semitone
+  pair is.
 
-**`trans` is the G1 number, shown here because it came for free.** Only two cells flap:
-`snr-0` at 8 transitions and `lvl--60dB` at 2. Every other cell is 1 — acquire once, hold
+### WebTuna is *not* defeated by E2+F#2, contradicting spec section 6
+
+Spec section 6 calls `E2+F#2` "the pair that defeats WebTuna". Measured, it does not.
+WebTuna locks onto the primary at 82-83 Hz (-8.6 to +12.4 cents) from call 3 onward and
+never names F#2 - it tracks the louder voice, which is the correct behaviour for a tuner
+and scores as a detect. So **WebTuna scores 40/40 including the polyphony axis**, and the
+40/40 is not a fixture artefact the way it was before the fix:
+`CoverageMatrixTests.polyCellsArePolyphonic` now proves the second voice is in the audio,
+and the per-cell `sig=` checksums prove both engines received it. The premise in spec
+section 6 should be revisited - either the defeat requires a weighting this model does not
+produce (a second voice *louder* than the primary, or a real string rather than a bare
+sine), or the claim came from a different fixture. **This is an open question, not a
+settled finding**, and it was not something this task was chartered to resolve.
+
+**Time to first reading is not a like-for-like quality comparison.** Median first correct
+reading: StrumKit 0.046 s (n=36), WebTuna 0.279 s (n=40). But **WebTuna's 0.279 s is an ABI
+artefact, not a tuning result**: its first two 4096-sample calls *always* return
+`CanHearANote == false` - it needs three frames before it will name a note at all - so
+2 x 4096 / 44100 = 0.186 s plus one call is the earliest it is arithmetically capable of.
+The two columns also differ in resolution: 129 StrumKit frames against 32 WebTuna chunks
+per cell, so StrumKit has ~4x the temporal resolution to find an early reading. Read this
+as "WebTuna is not slower", which is all G2 asks.
+
+**`trans` is the G1 number, shown here because it came for free.** Two cells flap:
+`snr-0` at 8 transitions and `lvl--60dB` at 2. Every other cell is 1 - acquire once, hold
 to the end. This is consistent with the `DROPOUT-BASELINE` numbers Task 3 recorded, and it
 says the reported flapping symptom is **not** reproduced by these synthetic cells: it needs
 the injected-dropout family, which is not a generated `Case` and so is not in this matrix.
 The `-60 dBFS` cell losing its reading at 2.159 s is the level gate adapting, not flapping.
 
+### Build configuration
+
+Measured under both configurations; **the two traces are byte-identical** (5200 lines,
+`diff` clean), so the detect counts above are not build-dependent.
+
+| Configuration | Derived data | Wall clock |
+|---|---|---:|
+| Debug (`-Onone`) | `./DerivedData` | 276 s |
+| Release (`-O`) | `./DerivedDataO` | **2.5 s** |
+
+A 112x difference with identical output. Any future full-matrix measurement should use
+`-O`; the Debug path takes nearly five minutes and buys nothing.
+
 ### What this table does not measure
 
-- **Polyphony.** All four `poly-` cells generate a single plucked string. `Cell.extraStrings`
-  is carried through the manifest and counted on every SUMMARY line as `extraStrings=N`, but
-  neither `CoverageMatrix.signal` nor `buildSignal` synthesises the extra strings, so
-  `poly-E2+Fs2` is a lone E2 on both sides. The head-to-head is still sound — both engines
-  received byte-identical audio, which the `sig=` checksum proves — but the `poly-` rows
-  measure single-note detection, **not** polyphony. Spec §6's "the pair that defeats
-  WebTuna" is therefore untested here. Synthesising `extraStrings` is outstanding work.
+- **Realistic polyphony.** The second voice *is* synthesised and both engines received it
+  (`polyCellsArePolyphonic` proves the audio; the `sig=` checksums prove both sides agree).
+  But it is a **bare sine at weight 0.7 with no partials of its own** — see
+  `CoverageMatrix.extraVoiceWeight`. A real second string would have its own inharmonic
+  partial structure and its own decay. So these cells measure *close-interval* interference,
+  which is the hard case, but not a realistic two-string pluck. This matters for the
+  WebTuna result above: a bare sine at 0.7 is the easiest possible second voice, and
+  WebTuna still tracked the primary.
+- **Which note is "correct" for a two-voice cell.** `noteHz` is the primary, and WebTuna
+  tracking the primary is scored as a detect. A player tuning the *second* string would
+  want F♯2 named; this table cannot say whether either engine would do that.
 - **The four recorded fixtures.** These are synthetic cells; §3's quiet_a/c/e/g numbers come
   from a different path and are not comparable to this table.
 - **Anything below −60 dBFS or above 0 dB SNR.** Both are outside spec §6's axis ranges.
@@ -322,8 +357,10 @@ The `-60 dBFS` cell losing its reading at 2.159 s is the level gate adapting, no
 ```bash
 make project    # required: StrumKit.xcodeproj globs StrumKitTests/
 
+# -O is worth the separate derived-data path: 2.5 s against 276 s, identical output.
 xcodebuild test -project StrumKit.xcodeproj -scheme StrumKit \
-  -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath ./DerivedData \
+  -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath ./DerivedDataO \
+  SWIFT_OPTIMIZATION_LEVEL=-O \
   -only-testing:StrumKitTests/CrossEngineComparisonTests 2>&1 \
   | grep -E '^(XENG|XENG-SUMMARY)' > /tmp/xeng-trace.txt
 
@@ -333,9 +370,8 @@ node xeng.mjs > xweb-trace.txt
 python3 xcompare.py /tmp/xeng-trace.txt xweb-trace.txt xtruth.txt
 ```
 
-The run above took **277 s** for the 40 cells in a Debug (`-Onone`) build. The whole test
-takes minutes; do not run a second `xcodebuild` against the same simulator concurrently —
-the second test host is SIGKILLed and it looks like a crash in the code under test.
+Never run two `xcodebuild` invocations against the same simulator concurrently — the
+second test host is SIGKILLed and it looks like a crash in the code under test.
 
 Output prefixes: `XENG` / `XENG-SUMMARY` (StrumKit) and `XWEB` / `XWEB-SUMMARY` (WebTuna).
 Summary lines carry `first` / `last` / `transitions` / `frames` / `firstReading` /

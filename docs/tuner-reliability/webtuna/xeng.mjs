@@ -10,16 +10,13 @@
 // process cwd. `xcells.json` is read module-relative, so it does not care.
 //
 // -----------------------------------------------------------------------------
-// Known limitation: this does NOT exercise polyphony.
-//
-// `Cell.extraStrings` is carried through the manifest and counted on every
-// SUMMARY line, but `buildSignal` synthesises only the cell's own fundamental.
-// So a `poly-E2+Fs2` cell is, on both sides of this comparison, a single E2.
-// The head-to-head is still sound — both engines receive byte-identical audio,
-// which is what `sig=` on the SUMMARY lines proves — but the `poly-` rows of
-// the G2 baseline measure single-note detection, not polyphony. Recording
-// `extraStrings=N` on every row is what stops a reader assuming otherwise.
-// Spec §6 asks for real polyphony here; see ../RESULTS.md section 11.
+// Polyphony: `cell.extraFrequencies` is synthesised, so the four `poly-` cells
+// really do carry a second voice on both sides. `extraStrings` is the cell's
+// record of which strings were declared; `extraFrequencies` is what the audio
+// generator reads. They are the same list, and `polyCellsArePolyphonic` in
+// `StrumKitTests/CoverageMatrixTests.swift` is what keeps them from drifting —
+// before that test existed they diverged silently and the whole matrix rendered
+// as single notes.
 // -----------------------------------------------------------------------------
 
 import { mk } from "./iso.mjs";
@@ -28,6 +25,10 @@ import { readFileSync } from "node:fs";
 const RATE = 44100;
 const CHUNK = 4096;            // WebTuna's hard-coded input size
 const CENTS_TOLERANCE = 50;    // mirrors CrossEngineComparisonTests.centsTolerance
+// Mirrors CoverageMatrix.extraVoiceWeight. MUST match: if the two sides weight a
+// second voice differently, every poly- cell's `sig=` checksum diverges and
+// xcompare.py refuses to score.
+const EXTRA_VOICE_WEIGHT = 0.7;
 
 // WebTuna's compiled-in tuning is a six-string guitar:
 //   [329.6276, 246.9417, 195.9977, 146.8324, 110.0, 82.4069]  // idx 0 = highest
@@ -64,6 +65,12 @@ function buildSignal(cell, rate = RATE, seconds = 3.0) {
       const fn = nd * cell.truthHz * Math.sqrt(1 + cell.inharmonicity * nd * nd);
       if (fn >= rate / 2) continue;                  // Swift: `guard fn < rate/2`
       sum += w * Math.sin(2 * Math.PI * fn * t + 0.4 * k);
+    }
+    // Additional voices (spec §6's polyphony axis), rendered as plain sines at
+    // the primary's amplitude scale. Inside the same envelope, so a second voice
+    // decays with the first.
+    for (const f of cell.extraFrequencies || []) {
+      if (f < rate / 2) sum += EXTRA_VOICE_WEIGHT * Math.sin(2 * Math.PI * f * t);
     }
     const attack = Math.min(1, t / Math.max(cell.attackSeconds, 1e-6));
     const envelope = attack * Math.exp(-t / cell.decayTau);

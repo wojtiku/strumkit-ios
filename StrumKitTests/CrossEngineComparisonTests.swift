@@ -24,14 +24,13 @@ import Testing
 ///    silent, far more dangerous case where both sides still know the same 40
 ///    labels but no longer generate the same waveform.
 ///
-/// Known limitation: this does **not** exercise polyphony. `Cell.extraStrings` is
-/// carried into `xcells.json` and counted as `extraStrings=N` on every SUMMARY
-/// line, but `CoverageMatrix.signal` synthesises only the cell's own
-/// fundamental, so all four `poly-` cells are a single plucked string. The
-/// head-to-head is still sound — the `sig=` checksum proves both engines
-/// received byte-identical audio — but the `poly-` rows measure single-note
-/// detection. Spec §6's "E2+F♯2, the pair that defeats WebTuna" is untested.
-/// Synthesising `extraStrings` is outstanding work; see RESULTS.md §11.
+/// Polyphony is synthesised: `Case.extraFrequencies` reaches `xcells.json` as
+/// `extraFrequencies` and `xeng.mjs`'s `buildSignal` mixes it in, so all four
+/// `poly-` cells carry a real second voice on both sides. This was previously
+/// broken — the frequency lived only on `Cell.extraStrings`, so every poly cell
+/// rendered as a lone note and the head-to-head reported WebTuna hearing
+/// everything, including the "E2+F♯2, the pair that defeats WebTuna".
+/// `CoverageMatrixTests.polyCellsArePolyphonic` now guards it.
 /// Emitter-side constants and helpers. A namespace rather than statics on the
 /// suite, because Swift Testing's `@Test` bodies are instance methods and an
 /// unqualified static member does not resolve from inside one.
@@ -125,8 +124,14 @@ struct CrossEngineComparisonTests {
                 // ukulele cell has to be asked for in its chromatic mode
                 // (-2). -1 is "auto" within the guitar tuning.
                 "idx": cell.config.instrument == .guitar ? -1 : -2,
-                // Carried, but **not synthesised** — see the note below.
+                // The cell's record of which strings it declared.
                 "extraStrings": cell.extraStrings,
+                // What `buildSignal` actually synthesises. Same list today; both
+                // travel so neither side has to re-derive it, and a future change
+                // to the signal that did not follow through to the cell (or the
+                // reverse) shows up as a checksum mismatch rather than as a
+                // quietly single-note matrix.
+                "extraFrequencies": cell.case.extraFrequencies,
             ]
             // JSON has no infinity, so the clean case travels as a sentinel
             // string; this is exactly what `buildSignal` tests for. Written as

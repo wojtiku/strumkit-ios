@@ -35,8 +35,26 @@ enum CoverageMatrix {
         /// samples, restored after noise is added so that peak level and SNR
         /// remain independent axes.
         let amplitude: Double
+        /// Additional voices to mix in at weight `extraVoiceWeight`, rendered as
+        /// plain sines. Spec §6's polyphony cells need a second string, and a
+        /// second string's identity is carried by its fundamental — the partials
+        /// above it mostly coincide with the primary's neighbourhood and are not
+        /// what decides which note a detector names.
+        ///
+        /// Declared `var`, not `let`, because a `let` with an initial value is
+        /// excluded from the memberwise initialiser, which would make the field
+        /// unwritable from the outside and from `baseCase`.
+        var extraFrequencies: [Double] = []
         var seed: UInt64
     }
+
+    /// Per-voice weight for `Case.extraFrequencies`. Below the primary's h1 so
+    /// the expected note stays the louder voice, matching a real two-string
+    /// pluck where the string you are tuning dominates.
+    ///
+    /// Mirrored by `EXTRA_VOICE_WEIGHT` in `docs/tuner-reliability/webtuna/xeng.mjs`;
+    /// the two generators must agree or the per-cell `sig=` checksums diverge.
+    public static let extraVoiceWeight: Double = 0.7
 
     static func signal(
         _ c: Case,
@@ -56,6 +74,12 @@ enum CoverageMatrix {
                 guard fn < rate / 2 else { continue }
                 // Deterministic per-partial phase offsets; no RNG in the tone itself.
                 sum += w * sin(2 * .pi * fn * t + 0.4 * Double(n))
+            }
+            // Additional voices (spec §6's polyphony axis), rendered as plain
+            // sines at the primary's amplitude scale. Inside the same envelope,
+            // so a second voice decays with the first.
+            for f in c.extraFrequencies where f < rate / 2 {
+                sum += Self.extraVoiceWeight * sin(2 * .pi * f * t)
             }
             let attack = min(1.0, t / max(c.attackSeconds, 1e-6))
             let envelope = attack * exp(-t / c.decayTau)
@@ -112,6 +136,43 @@ enum CoverageMatrix {
         return bestHz
     }
 
+    /// Mean power in a band around a frequency, by direct DFT.
+    ///
+    /// A presence check, not a precise estimator: the window is rectangular and
+    /// the probes are 1 Hz apart, so energy from a strong neighbour leaks in.
+    /// That is why the test that uses this compares two signals that differ
+    /// *only* in the voice being looked for, rather than comparing an absolute
+    /// level against a threshold.
+    ///
+    /// Mirrors `dominantPeakHz`'s deliberate lack of Accelerate, so the model's
+    /// own tests never depend on the code under test.
+    static func bandEnergy(
+        _ samples: [Float],
+        rate: Double,
+        aroundHz: Double,
+        halfWidthHz: Double,
+        stepHz: Double = 1.0
+    ) -> Double {
+        guard !samples.isEmpty, halfWidthHz > 0, stepHz > 0 else { return 0 }
+        var power = 0.0
+        var probes = 0
+        var hz = aroundHz - halfWidthHz
+        while hz <= aroundHz + halfWidthHz {
+            let omega = 2 * .pi * hz / rate
+            var re = 0.0, im = 0.0
+            for (n, s) in samples.enumerated() {
+                let a = omega * Double(n)
+                let v = Double(s)
+                re += v * cos(a)
+                im += v * sin(a)
+            }
+            power += re * re + im * im
+            probes += 1
+            hz += stepHz
+        }
+        return probes > 0 ? power / (Double(probes) * Double(samples.count)) : 0
+    }
+
     /// Ground-truth frequency for a case, in the sense the matrix is scored
     /// against: the fundamental, whatever its amplitude.
     static func truthHz(_ c: Case) -> Double { c.truthHz }
@@ -128,11 +189,12 @@ enum CoverageMatrix {
         h1: Double = 1.0, h2: Double = 0.30, h3: Double = 0.15, h4: Double = 0.10,
         inharmonicity: Double = 0, snrDB: Double = .infinity,
         attackSeconds: Double = 0.006, decayTau: Double = 1.8, amplitude: Double = 0.2,
-        name: String? = nil
+        name: String? = nil,
+        extraFrequencies: [Double] = []
     ) -> Case {
         Case(name: name ?? "f\(Int(truthHz))", truthHz: truthHz, h1: h1, h2: h2, h3: h3, h4: h4,
              inharmonicity: inharmonicity, attackSeconds: attackSeconds, decayTau: decayTau,
-             snrDB: snrDB, amplitude: amplitude, seed: seed)
+             snrDB: snrDB, amplitude: amplitude, extraFrequencies: extraFrequencies, seed: seed)
     }
 
     /// Spec §6's decay-with-dropout family: the fixture that reproduces the
@@ -245,9 +307,17 @@ enum CoverageMatrix {
             ("E2+Fs2", [guitarStrings[0], 92.4986]),
         ]
         for (tag, freqs) in poly {
+            // The second frequency is threaded into the *signal* as well as onto
+            // the cell. Carrying it only on `Cell.extraStrings` left every
+            // polyphony cell rendering as a lone note, which made the head-to-head
+            // report WebTuna hearing all 40 including "E2+F#2, the pair that
+            // defeats WebTuna" — a result manufactured by the fixture, not the
+            // engine. `polyCellsArePolyphonic` is what catches that now.
+            let extra = Array(freqs.dropFirst())
             add("poly-\(tag)",
-                baseCase(truthHz: freqs[0], seed: seed, h1: 0.7, h2: 0.3, h3: 0.15, h4: 0.1),
-                g, freqs[0], Array(freqs.dropFirst()))
+                baseCase(truthHz: freqs[0], seed: seed, h1: 0.7, h2: 0.3, h3: 0.15, h4: 0.1,
+                         extraFrequencies: extra),
+                g, freqs[0], extra)
         }
 
         return cells
