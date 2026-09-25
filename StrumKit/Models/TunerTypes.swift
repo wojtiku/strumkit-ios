@@ -43,11 +43,11 @@ public enum EngineStatus: String, Sendable {
 
     public var guidanceError: String? {
         switch self {
-        case .denied: "Allow microphone access in iOS Settings, then start again. You can still use the reference tones."
-        case .missing: "Connect a microphone or choose another input, then start again."
-        case .busy: "Close other audio apps, then start again."
-        case .interrupted: "Return to this app and press Start tuning to reconnect your microphone."
-        case .failed: "Press Start tuning to retry."
+        case .denied: "Allow microphone access in iOS Settings to enable tuning. You can still use reference tones."
+        case .missing: "Connect a microphone or choose another input."
+        case .busy: "Close other audio apps to allow tuning."
+        case .interrupted: "Listening was interrupted. Bring the app to the foreground to reconnect."
+        case .failed: "Audio processing stopped. Return to the app to retry."
         default: nil
         }
     }

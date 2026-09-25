@@ -110,7 +110,7 @@ public struct HardwareStringGridView: View {
 
             // Reference tone hint
             if activeToneIndex != nil {
-                Text("Reference tone playing. Pluck along or press Start tuning when ready.")
+                Text("Reference tone playing. Pluck along to match pitch.")
                     .font(.caption2)
                     .foregroundStyle(TunerTheme.sharp)
                     .padding(.top, 2)

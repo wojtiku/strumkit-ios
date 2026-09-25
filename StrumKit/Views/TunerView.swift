@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Master Tuner view implementing the complete chorder native instrument tuner.
 public struct TunerView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @State private var viewModel = TunerViewModel()
     @State private var isShowingSettings = false
 
@@ -28,7 +29,7 @@ public struct TunerView: View {
                     // 1. Header (Instrument switch & Tuning preset)
                     headerControls
 
-                    // 2. Hardware Display (Gauge, Readout, Guidance, Start/Stop)
+                    // 2. Hardware Display (Gauge, Readout, Guidance)
                     hardwareDisplaySection
 
                     // 3. Mode Bar (Auto, Guided, Chromatic & Precision toggle)
@@ -71,6 +72,22 @@ public struct TunerView: View {
             }
             .task {
                 await viewModel.start()
+            }
+            .onChange(of: scenePhase) { _, newPhase in
+                switch newPhase {
+                case .active:
+                    Task {
+                        await viewModel.start()
+                    }
+                case .inactive:
+                    if viewModel.engineStatus != .requesting {
+                        viewModel.stop()
+                    }
+                case .background:
+                    viewModel.stop()
+                @unknown default:
+                    break
+                }
             }
             // Haptic trigger when crossing into tune
             .sensoryFeedback(.impact(weight: .medium), trigger: viewModel.currentReading?.inTune) { oldVal, newVal in
@@ -200,37 +217,33 @@ public struct TunerView: View {
                 selectedTarget: activeTarget,
                 mode: viewModel.config.mode
             )
-
-            // Big Start / Stop Tuning Button
-            Button {
-                Task {
-                    await viewModel.toggleListening()
-                }
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: viewModel.engineStatus == .listening ? "stop.fill" : "mic.fill")
-                        .font(.subheadline)
-                    Text(viewModel.engineStatus == .listening ? "Stop tuning" : (viewModel.engineStatus == .requesting ? "Cancel request" : "Start tuning"))
-                        .font(.headline.weight(.bold))
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(viewModel.engineStatus == .listening ? TunerTheme.surfaceElevated : TunerTheme.inTune)
-                .foregroundStyle(viewModel.engineStatus == .listening ? Color.white : Color.black)
-                .clipShape(RoundedRectangle(cornerRadius: 14))
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, 20)
-            .padding(.bottom, 10)
+            .padding(.bottom, viewModel.engineStatus.guidanceError == nil ? 14 : 2)
 
             // Error Message (if permission denied or audio interrupted)
             if let errorMsg = viewModel.engineStatus.guidanceError {
-                Text(errorMsg)
-                    .font(.caption)
-                    .foregroundStyle(TunerTheme.sharp)
-                    .multilineTextAlignment(.center)
+                if viewModel.engineStatus == .denied {
+                    Button {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    } label: {
+                        Text(errorMsg)
+                            .font(.caption)
+                            .foregroundStyle(TunerTheme.sharp)
+                            .multilineTextAlignment(.center)
+                            .underline()
+                    }
+                    .buttonStyle(.plain)
                     .padding(.horizontal, 20)
-                    .padding(.bottom, 8)
+                    .padding(.bottom, 10)
+                } else {
+                    Text(errorMsg)
+                        .font(.caption)
+                        .foregroundStyle(TunerTheme.sharp)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 10)
+                }
             }
         }
         .background(

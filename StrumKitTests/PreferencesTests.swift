@@ -170,4 +170,15 @@ struct PreferencesTests {
         #expect(reloaded.guitarTuningId == "custom")
         #expect(reloaded.guitarCustomMidi[0] == 36)
     }
+
+    @Test("AcousticStringSynthesizer can synthesize string pluck tones without channel mismatch")
+    func testAcousticStringSynthesizerPluck() async {
+        let synth = AcousticStringSynthesizer()
+        synth.playString(frequency: 82.41, stringIndex: 0, instrument: .guitar)
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        #expect(synth.activeStringIndex == 0)
+        synth.stop()
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        #expect(synth.activeStringIndex == nil)
+    }
 }

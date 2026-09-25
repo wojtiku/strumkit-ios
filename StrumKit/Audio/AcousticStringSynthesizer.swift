@@ -7,12 +7,15 @@ public final class AcousticStringSynthesizer: @unchecked Sendable {
     private let engine = AVAudioEngine()
     private let playerNode = AVAudioPlayerNode()
     private let queue = DispatchQueue(label: "com.strumkit.stringsynth")
+    private let synthFormat: AVAudioFormat
 
     public private(set) var activeStringIndex: Int? = nil
 
     public init() {
+        let format = AVAudioFormat(standardFormatWithSampleRate: 44100.0, channels: 1)!
+        self.synthFormat = format
         engine.attach(playerNode)
-        engine.connect(playerNode, to: engine.mainMixerNode, format: nil)
+        engine.connect(playerNode, to: engine.mainMixerNode, format: format)
     }
 
     /// Plays an acoustic reference string tone.
@@ -22,11 +25,13 @@ public final class AcousticStringSynthesizer: @unchecked Sendable {
 
             #if os(iOS)
             let session = AVAudioSession.sharedInstance()
-            do {
-                try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
-                try session.setActive(true)
-            } catch {
-                print("[StrumKit] Synth session error: \(error)")
+            if session.category != .playAndRecord {
+                do {
+                    try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+                    try session.setActive(true)
+                } catch {
+                    print("[StrumKit] Synth session error: \(error)")
+                }
             }
             #endif
 
@@ -34,8 +39,7 @@ public final class AcousticStringSynthesizer: @unchecked Sendable {
             let durationSeconds: Double = instrument == .guitar ? 2.8 : 2.0
             let frameCount = AVAudioFrameCount(sampleRate * durationSeconds)
 
-            guard let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1),
-                  let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount) else { return }
+            guard let buffer = AVAudioPCMBuffer(pcmFormat: self.synthFormat, frameCapacity: frameCount) else { return }
 
             buffer.frameLength = frameCount
             guard let channelData = buffer.floatChannelData?[0] else { return }
@@ -89,6 +93,12 @@ public final class AcousticStringSynthesizer: @unchecked Sendable {
                 delayIdx = (delayIdx + 1) % delayLength
             }
 
+            let playerFormat = self.playerNode.outputFormat(forBus: 0)
+            if playerFormat.channelCount != self.synthFormat.channelCount || playerFormat.sampleRate != self.synthFormat.sampleRate {
+                self.engine.disconnectNodeOutput(self.playerNode)
+                self.engine.connect(self.playerNode, to: self.engine.mainMixerNode, format: self.synthFormat)
+            }
+
             if !self.engine.isRunning {
                 do {
                     try self.engine.start()
@@ -96,6 +106,11 @@ public final class AcousticStringSynthesizer: @unchecked Sendable {
                     print("[StrumKit] Failed to start synth engine: \(error)")
                     return
                 }
+            }
+
+            guard self.playerNode.outputFormat(forBus: 0).channelCount == buffer.format.channelCount else {
+                print("[StrumKit] Player node output format channel count mismatch: \(self.playerNode.outputFormat(forBus: 0).channelCount) vs \(buffer.format.channelCount)")
+                return
             }
 
             self.activeStringIndex = stringIndex
