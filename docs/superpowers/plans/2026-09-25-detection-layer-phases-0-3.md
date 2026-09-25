@@ -678,7 +678,7 @@ not belong in `CoverageMatrix.matrix(seed:)` and is not a `Case`. It is part of 
   member is the control: it must produce zero transitions, which proves the injection itself
   is what the G1 gate is measuring.
 - **3b.3** Test. A clean pluck legitimately transitions at the end of its decay
-  (`fresh → held → expired`), so the control is a *small* count, not zero, and the assertion
+  (`fresh → held`, then off the display entirely), so the control is a *small* count, not zero, and the assertion
   is **comparative** — which also makes it robust to that natural tail:
   - `transitions(0.0) <= 3`, and print it as the control. The control's observed
     value is **1**, and that 1 is attributable: its state histogram is
@@ -2162,21 +2162,31 @@ struct DecayStabilityTests {
             print("G1 [\(tag)/\(cell.label)] transitions=\(t) of \(cells.count) cells "
                   + "states=\(histogram)")
             #expect(t <= 1, "\(cell.label) made \(t) display transitions; G1 allows 1")
-            // The count alone is not a complete gate. A one-way terminal
-            // degradation - fresh acquires, then everything is `held` and never
-            // returns - also scores exactly 1, and that is squarely inside the
-            // failure family this fixture exists to detect. So require `fresh`
-            // to remain the dominant state. This is deliberately parameter-free:
-            // a bare count threshold is the exact mistake RESULTS.md §7 already
-            // documents once.
-            let nonNone = frames.filter { $0.displayState != "none" }
-            let dominant = nonNone.max(by: {
-                ($0.displayState == "fresh" ? 0 : 1) < ($1.displayState == "fresh" ? 0 : 1)
-            })
-            #expect(dominant?.displayState == "fresh",
-                    "\(cell.label) transitions=\(t) but the dominant state is "
-                    + "\(dominant?.displayState ?? "none") in \(histogram) - the note "
-                    + "degraded one-way instead of flapping, which a count alone misses")
+            // A count alone is not a complete gate: a one-way terminal
+            // degradation - fresh acquires, then every frame is `held` and never
+            // returns - also scores exactly 1, and that is inside the failure
+            // family this fixture exists to detect.
+            //
+            // The discriminator is only available on the CLEAN control, where
+            // holding is never correct: a 4 s pluck at the low E with no injected
+            // dropout should stay `fresh` from acquisition to the end, so zero
+            // `held` and zero `recovered` frames is both necessary and sufficient.
+            // Parameter-free, which matters because a bare count threshold is the
+            // exact mistake RESULTS.md §7 already documents once.
+            //
+            // On the dropout cells the count IS the whole gate, and it is
+            // deliberately not strengthened: after the fix, holding through
+            // transient dropouts IS the intended behaviour, so any rule that
+            // penalises `held` there would fail Task 12 for working as intended.
+            // The one-way degradation is caught at the control instead. This is a
+            // partial gate by design and is recorded as such.
+            if cell.label.hasPrefix("h1-") {
+                let degraded = histogram["held", default: 0] + histogram["recovered", default: 0]
+                #expect(degraded == 0,
+                        "\(cell.label) produced \(degraded) held/recovered frames in "
+                        + "\(histogram) with no injected dropout - the note degraded "
+                        + "one-way, which a transition count alone cannot see")
+            }
         }
         // The dropout family is the primary G1 gate (spec §6) and lives in the
         // replay harness, not in CoverageMatrix.matrix. See Task 3b.
