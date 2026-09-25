@@ -677,13 +677,21 @@ not belong in `CoverageMatrix.matrix(seed:)` and is not a `Case`. It is part of 
   (`decayTau: 4.0`) at the low E, one per dropout rate in {0.0, 0.1, 0.3, 0.5}. The 0.0
   member is the control: it must produce zero transitions, which proves the injection itself
   is what the G1 gate is measuring.
-- **3b.3** Test: for `yinDropoutRate: 0.0` the control asserts **0** display transitions. For
-  0.1, 0.3, 0.5 assert the count is **finite and less than the number of dropped frames** —
-  pre-fix it is roughly one transition per dropped frame, so this is the assertion that fails
-  first and proves the fixture reproduces the reported symptom.
+- **3b.3** Test. A clean pluck legitimately transitions at the end of its decay
+  (`fresh → held → expired`), so the control is a *small* count, not zero, and the assertion
+  is **comparative** — which also makes it robust to that natural tail:
+  - `transitions(0.0) <= 3`, and print it as the control.
+  - `transitions(0.1) >= transitions(0.0)`, `transitions(0.3) >= transitions(0.0) + 5`, and
+    the same for 0.5. Pre-fix a dropped frame costs roughly one transition, so a 4 s decay at
+    0.3 has ~35 dropped frames and transitions in the dozens. These assertions are expected to
+    **pass before** the Phase 2-3 fixes — that is what makes this a reproduction rather than a
+    gate. The gate is Task 12, which asserts `transitions <= 1` on the same fixture and is
+    expected to fail until Tasks 10-12 land.
+  - Print all four counts, since the pre-fix numbers are the G1 baseline.
 
-**Gate:** the 0.0 control is 0 transitions, and the pre-fix numbers for 0.1/0.3/0.5 are recorded
-in `RESULTS.md` as the G1 baseline.
+**Gate:** the pre-fix transition counts for 0.0/0.1/0.3/0.5 are recorded in `RESULTS.md`, and
+the comparative assertions pass — i.e. the fixture demonstrably reproduces the reported
+symptom.
 
 ### Task 4: Head-to-head trace emitter against the WebTuna oracle
 
