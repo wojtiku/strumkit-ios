@@ -149,16 +149,68 @@ public enum AudioTestHelpers {
         return (samples, sampleRate)
     }
 
-    /// Replays audio in capture-time order (20ms hops) through PitchDetector and PitchTracker.
-    public static func replay(
+    /// Frame-by-frame diagnostic record for production replay simulations.
+    public struct ReplayFrame: Sendable {
+        public let captureEndSeconds: Double
+        public let rawFrequency: Double
+        public let rawRMS: Double
+        public let confidence: Double
+        public let rejection: String? // "gate", "clipping", "noPeriodicity", "ambiguity", "targetMismatch", "acquiring"
+        public let reading: TunerReading?
+
+        public init(
+            captureEndSeconds: Double,
+            rawFrequency: Double,
+            rawRMS: Double,
+            confidence: Double,
+            rejection: String?,
+            reading: TunerReading?
+        ) {
+            self.captureEndSeconds = captureEndSeconds
+            self.rawFrequency = rawFrequency
+            self.rawRMS = rawRMS
+            self.confidence = confidence
+            self.rejection = rejection
+            self.reading = reading
+        }
+    }
+
+    /// Evaluates if an estimated frequency falls within 50 cents of the target reference.
+    public static func isCorrectRecordedPitch(_ frequency: Double, reference: Double) -> Bool {
+        guard frequency.isFinite, frequency > 0, reference > 0 else { return false }
+        return abs(1200 * log2(frequency / reference)) <= 50
+    }
+
+    /// Computes fresh coverage duration in seconds over an evaluation interval.
+    public static func freshCoverageSeconds(
+        frames: [ReplayFrame],
+        reference: Double,
+        intervalStart: Double,
+        intervalEnd: Double
+    ) -> Double {
+        var coverage: Double = 0.0
+        var previousTime: Double = intervalStart
+
+        for frame in frames {
+            let t = frame.captureEndSeconds
+            guard t >= intervalStart && t <= intervalEnd else { continue }
+            if let reading = frame.reading, reading.freshness == .fresh, isCorrectRecordedPitch(reading.frequency, reference: reference) {
+                let delta = max(0.0, t - max(intervalStart, previousTime))
+                coverage += delta
+            }
+            previousTime = t
+        }
+        return coverage
+    }
+
+    /// Production-equivalent replay trace with 2,048-sample hops, trailing capture window, and dynamic tracker thresholds.
+    public static func replayTrace(
         samples: [Float],
         sampleRate: Double,
-        config: TunerConfig
-    ) -> (readings: [TunerReading], tracker: PitchTracker) {
-        let detector = PitchDetector(sampleRate: sampleRate)
-        let tracker = PitchTracker()
-        var readings: [TunerReading] = []
-
+        config: TunerConfig,
+        hopSamples: Int = 2048,
+        enableSpectralRecovery: Bool = true
+    ) -> (frames: [ReplayFrame], tracker: PitchTracker) {
         let available = Presets.presets(for: config.instrument)
         let preset = available.first(where: { $0.id == config.tuningId }) ?? available[0]
         let midiList = config.tuningId == "custom" ? config.customMidi : preset.midi
@@ -166,39 +218,70 @@ public enum AudioTestHelpers {
             StringTarget(note: PitchMath.midiNoteName(midi), midi: midi, frequency: PitchMath.midiFrequency(midi, a4: config.a4), number: midiList.count - index)
         }
 
+        let tracker = PitchTracker()
         tracker.reset(targetCount: targets.count)
-        let windowLength = Int(ceil(sampleRate * 0.1)) // 100ms window
+        let session = TunerAnalysisSession(config: config, targets: targets, tracker: tracker)
+        session.isSpectralRecoveryEnabled = enableSpectralRecovery
 
-        let totalMs = Int((Double(samples.count) / sampleRate) * 1000.0)
-        var priorFreq: Double? = nil
-        var priorAt: TimeInterval? = nil
+        var frames: [ReplayFrame] = []
+        let windowLength = AudioCaptureService.requiredInputSamples(for: sampleRate)
+        var sequence: UInt64 = 0
 
-        for atMs in stride(from: 100, through: totalMs, by: 20) {
-            let atSeconds = Double(atMs) / 1000.0
-            let endSample = min(samples.count, Int(round(Double(atMs) * sampleRate / 1000.0)))
+        for endSample in stride(from: hopSamples, through: samples.count, by: hopSamples) {
+            sequence &+= 1
+            let atSeconds = Double(endSample) / sampleRate
             let startSample = max(0, endSample - windowLength)
             let window = Array(samples[startSample..<endSample])
 
-            let pitch = detector.detectPitch(
-                in: window,
-                noiseGateRMS: 0.00006,
-                yinThreshold: priorFreq != nil ? 0.25 : 0.15,
-                referenceA4: config.a4,
-                priorFrequency: priorFreq,
-                priorAt: priorAt,
-                now: atSeconds
+            let frame = AnalysisFrame(
+                samples: window,
+                sampleRate: sampleRate,
+                captureEndSeconds: atSeconds,
+                sequence: sequence,
+                generation: session.generation,
+                callbackFrameCount: hopSamples
             )
 
-            if let reading = tracker.process(pitchResult: pitch, at: atSeconds, config: config, targets: targets) {
-                readings.append(reading)
-                priorFreq = reading.frequency
-                priorAt = reading.at
-            } else {
-                priorFreq = tracker.continuityPrior?.frequency
-                priorAt = tracker.continuityPrior?.at
+            guard let snapshot = session.processFrameSync(frame) else { continue }
+
+            var rejection: String? = nil
+            if !snapshot.pitchResult.isSignalPresent {
+                if snapshot.pitchResult.amplitudeRMS < Double(tracker.recommendedNoiseGate(isSustaining: false)) {
+                    rejection = "gate"
+                } else {
+                    rejection = "noPeriodicity"
+                }
+            } else if snapshot.reading == nil {
+                if snapshot.feedbackState == .checking {
+                    rejection = "acquiring"
+                } else if snapshot.feedbackState == .ambiguous {
+                    rejection = "ambiguity"
+                } else {
+                    rejection = "targetMismatch"
+                }
             }
+
+            frames.append(ReplayFrame(
+                captureEndSeconds: atSeconds,
+                rawFrequency: snapshot.pitchResult.frequency,
+                rawRMS: snapshot.pitchResult.amplitudeRMS,
+                confidence: snapshot.pitchResult.confidence,
+                rejection: rejection,
+                reading: snapshot.reading
+            ))
         }
 
+        return (frames, tracker)
+    }
+
+    /// Replays audio through PitchDetector and PitchTracker (adapter for existing tests).
+    public static func replay(
+        samples: [Float],
+        sampleRate: Double,
+        config: TunerConfig
+    ) -> (readings: [TunerReading], tracker: PitchTracker) {
+        let (frames, tracker) = replayTrace(samples: samples, sampleRate: sampleRate, config: config, hopSamples: 2048)
+        let readings = frames.compactMap { $0.reading }
         return (readings, tracker)
     }
 }

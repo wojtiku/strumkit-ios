@@ -8,6 +8,7 @@ public struct HardwareReadoutView: View {
     let precision: Bool
     let selectedTarget: StringTarget?
     let mode: TunerMode
+    let holdOpacity: Double
 
     public init(
         reading: TunerReading?,
@@ -15,7 +16,8 @@ public struct HardwareReadoutView: View {
         feedback: SignalFeedbackState,
         precision: Bool,
         selectedTarget: StringTarget?,
-        mode: TunerMode
+        mode: TunerMode,
+        holdOpacity: Double = 1.0
     ) {
         self.reading = reading
         self.lastTone = lastTone
@@ -23,6 +25,7 @@ public struct HardwareReadoutView: View {
         self.precision = precision
         self.selectedTarget = selectedTarget
         self.mode = mode
+        self.holdOpacity = holdOpacity
     }
 
     private var activeNoteName: String {
@@ -45,16 +48,7 @@ public struct HardwareReadoutView: View {
     }
 
     private var guidanceText: String {
-        if let reading {
-            if reading.inTune {
-                return "In tune"
-            } else if reading.cents < 0 {
-                return "Tune up"
-            } else {
-                return "Tune down"
-            }
-        }
-        return feedback.advisoryMessage
+        TunerPresentation.guidanceText(for: reading, feedback: feedback)
     }
 
     private var formattedCents: String {
@@ -90,11 +84,13 @@ public struct HardwareReadoutView: View {
                 }
             }
             .frame(height: 70)
+            .opacity(reading?.freshness == .held ? holdOpacity : 1.0)
 
             // Cents Readout
             Text(formattedCents)
                 .font(.system(size: 16, weight: .semibold, design: .monospaced))
                 .foregroundStyle(reading != nil ? statusColor : .secondary)
+                .opacity(reading?.freshness == .held ? holdOpacity : 1.0)
 
             // Flat / Sharp indicator tags
             HStack {
@@ -107,10 +103,11 @@ public struct HardwareReadoutView: View {
                     .foregroundStyle(TunerTheme.sharp.opacity(reading?.cents ?? 0 > 0 ? 1.0 : 0.4))
             }
             .padding(.horizontal, 48)
+            .opacity(reading?.freshness == .held ? holdOpacity : 1.0)
 
             // Guidance Banner
             HStack(spacing: 6) {
-                if reading?.inTune == true {
+                if reading?.inTune == true && reading?.freshness == .fresh {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.subheadline)
                         .foregroundStyle(TunerTheme.inTune)
@@ -125,6 +122,7 @@ public struct HardwareReadoutView: View {
                 Capsule()
                     .fill(TunerTheme.surfaceElevated)
             )
+            .opacity(reading?.freshness == .held ? holdOpacity : 1.0)
 
             // Frequency Comparison
             HStack(spacing: 24) {

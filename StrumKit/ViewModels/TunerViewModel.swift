@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import QuartzCore
 
 @MainActor
 @Observable
@@ -12,6 +13,11 @@ public final class TunerViewModel {
     public var lastTone: ToneMemory? = nil
     public var feedbackState: SignalFeedbackState = .inactive
     public var diagnostics: TunerDiagnostics = TunerDiagnostics()
+    public private(set) var holdOpacity: Double = 1.0
+
+    // Hold Presentation
+    private var holdPresentationTask: Task<Void, Never>? = nil
+    private var activeHoldFreshAt: TimeInterval? = nil
 
     // Guided Mode
     public var guidedProgress: [Bool] = []
@@ -22,20 +28,19 @@ public final class TunerViewModel {
 
     // Services
     private let captureService: AudioCaptureService
-    private let pitchDetector: PitchDetector
     private let stringSynth: AcousticStringSynthesizer
     private let tracker: PitchTracker
     private let preferencesStore: TunerPreferencesStore
+    private let session: TunerAnalysisSession
 
     public init(
         captureService: AudioCaptureService = AudioCaptureService(),
-        pitchDetector: PitchDetector = PitchDetector(),
         stringSynth: AcousticStringSynthesizer = AcousticStringSynthesizer(),
         tracker: PitchTracker = PitchTracker(),
-        preferencesStore: TunerPreferencesStore = TunerPreferencesStore()
+        preferencesStore: TunerPreferencesStore = TunerPreferencesStore(),
+        session: TunerAnalysisSession? = nil
     ) {
         self.captureService = captureService
-        self.pitchDetector = pitchDetector
         self.stringSynth = stringSynth
         self.tracker = tracker
         self.preferencesStore = preferencesStore
@@ -45,12 +50,51 @@ public final class TunerViewModel {
         let initialConfig = loaded.activeConfig()
         self.config = initialConfig
 
+        let initialTargets = Self.computeTargets(config: initialConfig)
+        self.session = session ?? TunerAnalysisSession(
+            config: initialConfig,
+            targets: initialTargets,
+            tracker: tracker
+        )
+
         // Initialize guided progress for active instrument string count
         self.guidedProgress = Array(repeating: false, count: initialConfig.customMidi.count)
+
+        setupCaptureCallbacks()
+    }
+
+    private var listeningIntent: Bool = false
+
+    private func setupCaptureCallbacks() {
+        captureService.onInterruption = { [weak self] began, shouldResume in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if began {
+                    self.engineStatus = .interrupted
+                    self.session.stop()
+                    self.feedbackState = .inactive
+                } else if shouldResume && self.listeningIntent {
+                    await self.start()
+                }
+            }
+        }
+
+        captureService.onRouteChange = { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.listeningIntent else { return }
+                self.captureService.stopCapture()
+                self.session.stop()
+                await self.start()
+            }
+        }
     }
 
     // MARK: - String Targets
     public var targets: [StringTarget] {
+        Self.computeTargets(config: config)
+    }
+
+    private static func computeTargets(config: TunerConfig) -> [StringTarget] {
         let midiList: [Int]
         if config.tuningId == "custom" {
             midiList = config.customMidi
@@ -73,6 +117,7 @@ public final class TunerViewModel {
 
     // MARK: - Audio Capture Lifecycle
     public func start() async {
+        listeningIntent = true
         guard engineStatus != .listening && engineStatus != .requesting else { return }
 
         let permStatus = captureService.checkPermissionStatus()
@@ -90,22 +135,51 @@ public final class TunerViewModel {
 
         do {
             stopReferenceTone()
-            try captureService.startCapture(bufferSize: 2048) { [weak self] buffer, sampleRate in
+            session.start(config: config, targets: targets)
+            session.onSnapshotPublished = { [weak self] snapshot in
+                self?.handleSnapshot(snapshot)
+            }
+            try captureService.startCapture(bufferSize: 1024) { [weak self] window, sampleRate, captureEndSeconds, callbackFrameCount in
                 guard let self else { return }
-                self.processAudioBuffer(buffer, sampleRate: sampleRate)
+                self.session.submitLiveAudio(
+                    window: window,
+                    sampleRate: sampleRate,
+                    captureEndSeconds: captureEndSeconds,
+                    callbackFrameCount: callbackFrameCount
+                )
             }
             self.engineStatus = .listening
             self.feedbackState = .ready
             self.diagnostics.sampleRate = captureService.sampleRate
+        } catch let err as AudioCaptureError {
+            print("[StrumKit] Audio capture error: \(err.localizedDescription)")
+            session.stop()
+            switch err {
+            case .noInputChannelsAvailable, .inputNodeUnavailable:
+                self.engineStatus = .missing
+            case .permissionDenied:
+                self.engineStatus = .denied
+            case .sessionActivationFailed, .engineFailed:
+                self.engineStatus = .failed
+            }
+            self.feedbackState = .inactive
         } catch {
             print("[StrumKit] Error starting audio capture: \(error)")
+            session.stop()
             self.engineStatus = .failed
+            self.feedbackState = .inactive
         }
     }
 
     public func stop() {
+        listeningIntent = false
         captureService.stopCapture()
         stopReferenceTone()
+        session.stop()
+        holdPresentationTask?.cancel()
+        holdPresentationTask = nil
+        activeHoldFreshAt = nil
+        holdOpacity = 1.0
         self.engineStatus = .paused
         self.currentReading = nil
         self.feedbackState = .inactive
@@ -119,56 +193,68 @@ public final class TunerViewModel {
         }
     }
 
-    // MARK: - Buffer Analysis (DSP -> Tracker -> UI)
-    private nonisolated func processAudioBuffer(_ buffer: [Float], sampleRate: Double) {
-        let startTime = CFAbsoluteTimeGetCurrent()
-        let detector = PitchDetector(sampleRate: sampleRate, bufferSize: buffer.count)
+    // MARK: - Snapshot Handler (Serial Session -> UI)
+    internal func handleSnapshot(_ snapshot: AnalysisSnapshot) {
+        guard snapshot.generation == session.generation else { return }
+        self.diagnostics = snapshot.diagnostics
+        self.applyReadingUpdate(snapshot.reading, at: snapshot.reading?.at ?? CACurrentMediaTime())
+        self.feedbackState = snapshot.feedbackState
+        self.guidedProgress = snapshot.guidedProgress
+        self.guidedTargetIndex = snapshot.guidedTargetIndex
+    }
 
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            let currentConfig = self.config
-            let currentTargets = self.targets
-            let prior = self.tracker.continuityPrior
-            let now = Date().timeIntervalSinceReferenceDate
-            let isSustaining = (prior != nil)
-            let dynamicNoiseGate = self.tracker.recommendedNoiseGate(isSustaining: isSustaining)
-            let dynamicYinThreshold = self.tracker.recommendedYinThreshold(isSustaining: isSustaining)
-
-            let pitchResult = await Task.detached(priority: .high) {
-                detector.detectPitch(
-                    in: buffer,
-                    noiseGateRMS: dynamicNoiseGate,
-                    yinThreshold: dynamicYinThreshold,
-                    referenceA4: currentConfig.a4,
-                    priorFrequency: prior?.frequency,
-                    priorAt: prior?.at,
-                    now: now
-                )
-            }.value
-
-            let elapsedMs = (CFAbsoluteTimeGetCurrent() - startTime) * 1000.0
-            self.diagnostics.analysisMs = elapsedMs
-            self.diagnostics.level = pitchResult.amplitudeRMS
-
-            let reading = self.tracker.process(
-                pitchResult: pitchResult,
-                at: now,
-                config: currentConfig,
-                targets: currentTargets
-            )
-
+    private func applyReadingUpdate(_ reading: TunerReading?, at now: TimeInterval) {
+        if let reading {
             self.currentReading = reading
-            self.feedbackState = self.tracker.feedbackState
-            self.guidedProgress = self.tracker.guidedProgress
-            self.guidedTargetIndex = self.tracker.guidedTargetIndex
-
-            if let reading {
+            if reading.freshness == .fresh {
+                holdPresentationTask?.cancel()
+                holdPresentationTask = nil
+                activeHoldFreshAt = nil
+                holdOpacity = 1.0
                 self.lastTone = ToneMemory(
                     note: reading.note,
                     frequency: reading.frequency,
                     source: .detected,
                     reading: reading
                 )
+            } else {
+                // reading.freshness == .held
+                holdOpacity = TunerPresentation.holdOpacity(for: reading, now: now)
+                startHoldPresentationTimerIfNeeded(for: reading)
+            }
+        } else {
+            // Signal expired or no reading
+            holdPresentationTask?.cancel()
+            holdPresentationTask = nil
+            activeHoldFreshAt = nil
+            holdOpacity = 1.0
+            self.currentReading = nil
+        }
+    }
+
+    private func startHoldPresentationTimerIfNeeded(for reading: TunerReading) {
+        guard activeHoldFreshAt != reading.lastFreshAt else { return }
+        holdPresentationTask?.cancel()
+        let holdFreshAt = reading.lastFreshAt
+        activeHoldFreshAt = holdFreshAt
+
+        holdPresentationTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 33_000_000) // ~30 fps
+                guard let self else { break }
+                guard self.activeHoldFreshAt == holdFreshAt else { break }
+                guard let current = self.currentReading, current.freshness == .held, current.lastFreshAt == holdFreshAt else { break }
+                let currentTime = CACurrentMediaTime()
+                let elapsed = currentTime - holdFreshAt
+                if elapsed >= TunerPresentation.displayHoldDuration {
+                    self.currentReading = nil
+                    self.holdOpacity = 1.0
+                    self.activeHoldFreshAt = nil
+                    self.holdPresentationTask = nil
+                    break
+                } else {
+                    self.holdOpacity = TunerPresentation.holdOpacity(for: current, now: currentTime)
+                }
             }
         }
     }
@@ -200,11 +286,21 @@ public final class TunerViewModel {
         if config.mode == .manual {
             config.mode = .auto
         }
-        tracker.reset(targetCount: targets.count)
-        self.guidedProgress = tracker.guidedProgress
-        self.guidedTargetIndex = tracker.guidedTargetIndex
+        resetTrackerAndHold()
+        self.guidedProgress = session.guidedProgress
+        self.guidedTargetIndex = session.guidedTargetIndex
         stopReferenceTone()
         savePreferences()
+    }
+
+    private func resetTrackerAndHold() {
+        session.updateConfiguration(config)
+        session.updateTargets(targets)
+        holdPresentationTask?.cancel()
+        holdPresentationTask = nil
+        activeHoldFreshAt = nil
+        holdOpacity = 1.0
+        currentReading = nil
     }
 
     public func setTuningPreset(id: String) {
@@ -234,9 +330,9 @@ public final class TunerViewModel {
         if config.mode == .manual {
             config.mode = .auto
         }
-        tracker.reset(targetCount: targets.count)
-        self.guidedProgress = tracker.guidedProgress
-        self.guidedTargetIndex = tracker.guidedTargetIndex
+        resetTrackerAndHold()
+        self.guidedProgress = session.guidedProgress
+        self.guidedTargetIndex = session.guidedTargetIndex
         stopReferenceTone()
         savePreferences()
     }
@@ -249,6 +345,7 @@ public final class TunerViewModel {
         } else {
             config.guided = false
         }
+        session.updateConfiguration(config)
         if mode != .manual {
             preferences.mode = mode
             preferences.guided = config.guided
@@ -258,6 +355,7 @@ public final class TunerViewModel {
 
     public func togglePrecision() {
         config.precision.toggle()
+        session.updateConfiguration(config)
         preferences.precision = config.precision
         savePreferences()
     }
@@ -271,18 +369,25 @@ public final class TunerViewModel {
             let target = targets[index]
             lastTone = ToneMemory(note: target.note, frequency: target.frequency, source: .target)
         }
+        session.updateConfiguration(config)
     }
 
     public func unlockString() {
         config.mode = .auto
+        session.updateConfiguration(config)
         preferences.mode = .auto
         savePreferences()
     }
 
     public func resetGuidedSession() {
-        tracker.resetGuidedSession(targetCount: targets.count)
-        self.guidedProgress = tracker.guidedProgress
-        self.guidedTargetIndex = tracker.guidedTargetIndex
+        session.resetGuidedSession()
+        holdPresentationTask?.cancel()
+        holdPresentationTask = nil
+        activeHoldFreshAt = nil
+        holdOpacity = 1.0
+        currentReading = nil
+        self.guidedProgress = session.guidedProgress
+        self.guidedTargetIndex = session.guidedTargetIndex
     }
 
     // MARK: - Reference Tones (Acoustic Pluck)
@@ -312,6 +417,8 @@ public final class TunerViewModel {
     public func updateA4(_ newA4: Double) {
         let clamped = max(TunerConstants.minCalibrationHz, min(TunerConstants.maxCalibrationHz, newA4))
         config.a4 = clamped
+        session.updateConfiguration(config)
+        session.updateTargets(targets)
         preferences.a4 = clamped
         savePreferences()
     }
@@ -327,7 +434,7 @@ public final class TunerViewModel {
             preferences.ukuleleTuningId = "custom"
             preferences.ukuleleCustomMidi = config.customMidi
         }
-        tracker.reset(targetCount: targets.count)
+        resetTrackerAndHold()
         savePreferences()
     }
 

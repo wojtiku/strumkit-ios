@@ -29,10 +29,10 @@ public final class PitchDetector: @unchecked Sendable {
     public static let clippingFraction: Double = 0.01
 
     private let resampler = Resampler()
-    private let sampleRate: Double
-    private let bufferSize: Int
-    private let minFrequency: Double
-    private let maxFrequency: Double
+    public let sampleRate: Double
+    public let bufferSize: Int
+    public let minFrequency: Double
+    public let maxFrequency: Double
 
     public init(
         sampleRate: Double = 44100.0,

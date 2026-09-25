@@ -103,6 +103,7 @@ public struct PitchResult: Sendable, Equatable {
     public let confidence: Double
     public let amplitudeRMS: Double
     public let isSignalPresent: Bool
+    public let recovered: Bool
 
     public init(
         frequency: Double,
@@ -110,7 +111,8 @@ public struct PitchResult: Sendable, Equatable {
         centsDeviation: Double,
         confidence: Double,
         amplitudeRMS: Double,
-        isSignalPresent: Bool
+        isSignalPresent: Bool,
+        recovered: Bool = false
     ) {
         self.frequency = frequency
         self.closestNote = closestNote
@@ -118,6 +120,7 @@ public struct PitchResult: Sendable, Equatable {
         self.confidence = confidence
         self.amplitudeRMS = amplitudeRMS
         self.isSignalPresent = isSignalPresent
+        self.recovered = recovered
     }
 
     public static let idle = PitchResult(
@@ -126,7 +129,8 @@ public struct PitchResult: Sendable, Equatable {
         centsDeviation: 0,
         confidence: 0,
         amplitudeRMS: 0,
-        isSignalPresent: false
+        isSignalPresent: false,
+        recovered: false
     )
 }
 

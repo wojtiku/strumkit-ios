@@ -12,6 +12,8 @@ public enum AudioCaptureError: LocalizedError, Sendable {
     case permissionDenied
     case engineFailed(String)
     case inputNodeUnavailable
+    case sessionActivationFailed(String)
+    case noInputChannelsAvailable
 
     public var errorDescription: String? {
         switch self {
@@ -21,6 +23,10 @@ public enum AudioCaptureError: LocalizedError, Sendable {
             "Audio engine failed: \(reason)"
         case .inputNodeUnavailable:
             "Audio input node is not available on this device."
+        case .sessionActivationFailed(let reason):
+            "Audio session activation failed: \(reason)"
+        case .noInputChannelsAvailable:
+            "Audio input format has 0 channels. No microphone is available."
         }
     }
 }

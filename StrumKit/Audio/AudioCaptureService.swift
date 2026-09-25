@@ -10,6 +10,14 @@ public final class AudioCaptureService: @unchecked Sendable {
     public private(set) var sampleRate: Double = 44100.0
     private var ringBuffer: AudioRingBuffer? = nil
 
+    public var onInterruption: (@Sendable (_ began: Bool, _ shouldResume: Bool) -> Void)? = nil
+    public var onRouteChange: (@Sendable (_ reason: AVAudioSession.RouteChangeReason) -> Void)? = nil
+
+    #if os(iOS)
+    private var interruptionObserver: NSObjectProtocol?
+    private var routeChangeObserver: NSObjectProtocol?
+    #endif
+
     public init() {}
 
     /// Calculates required trailing sample count for the polyphase sinc resampler.
@@ -56,12 +64,17 @@ public final class AudioCaptureService: @unchecked Sendable {
     /// Starts capturing audio, streaming PCM float samples via the buffer handler.
     /// - Parameters:
     ///   - bufferSize: Requested tap buffer size (e.g., 2048 samples).
-    ///   - onBufferReceived: Closure invoked on background queue with array of Float PCM samples.
+    ///   - onBufferReceived: Closure invoked on background queue with array of Float PCM samples, sample rate, capture-end timestamp, and callback frame count.
     public func startCapture(
-        bufferSize: AVAudioFrameCount = 2048,
-        onBufferReceived: @escaping @Sendable ([Float], Double) -> Void
+        bufferSize: AVAudioFrameCount = 1024,
+        onBufferReceived: @escaping @Sendable (
+            _ window: [Float],
+            _ sampleRate: Double,
+            _ captureEndSeconds: TimeInterval,
+            _ callbackFrameCount: Int
+        ) -> Void
     ) throws {
-        queue.sync {
+        try queue.sync {
             guard !self.isRunningInternal else { return }
 
             #if os(iOS)
@@ -74,7 +87,8 @@ public final class AudioCaptureService: @unchecked Sendable {
                     mode: .measurement,
                     options: [.defaultToSpeaker, .allowBluetoothHFP, .mixWithOthers]
                 )
-                try session.setPreferredIOBufferDuration(Double(bufferSize) / 44100.0)
+                // Evaluate 20ms analysis hops (0.020s preferred I/O duration)
+                try session.setPreferredIOBufferDuration(0.020)
 
                 // 1. Hardware Microphone Directionality: Cardioid pattern rejects off-axis room noise
                 if let inputs = session.availableInputs,
@@ -89,14 +103,55 @@ public final class AudioCaptureService: @unchecked Sendable {
                     }
                 }
 
-                // 2. Hardware Input Gain (if supported on active interface/headset)
-                if session.isInputGainSettable {
-                    try? session.setInputGain(1.0)
-                }
+                // Avoid forcing maximum hardware gain as a generic quiet-signal fix (Task 7 requirement).
 
                 try session.setActive(true, options: .notifyOthersOnDeactivation)
+
+                // Register notification observers for interruptions and route changes
+                if self.interruptionObserver == nil {
+                    self.interruptionObserver = NotificationCenter.default.addObserver(
+                        forName: AVAudioSession.interruptionNotification,
+                        object: session,
+                        queue: nil
+                    ) { [weak self] notification in
+                        guard let self,
+                              let userInfo = notification.userInfo,
+                              let typeValue = userInfo[AVAudioSessionInterruptionTypeKey] as? UInt,
+                              let type = AVAudioSession.InterruptionType(rawValue: typeValue) else { return }
+
+                        switch type {
+                        case .began:
+                            self.onInterruption?(true, false)
+                        case .ended:
+                            var shouldResume = false
+                            if let optionsValue = userInfo[AVAudioSessionInterruptionOptionKey] as? UInt {
+                                let options = AVAudioSession.InterruptionOptions(rawValue: optionsValue)
+                                shouldResume = options.contains(.shouldResume)
+                            }
+                            self.onInterruption?(false, shouldResume)
+                        @unknown default:
+                            break
+                        }
+                    }
+                }
+
+                if self.routeChangeObserver == nil {
+                    self.routeChangeObserver = NotificationCenter.default.addObserver(
+                        forName: AVAudioSession.routeChangeNotification,
+                        object: session,
+                        queue: nil
+                    ) { [weak self] notification in
+                        guard let self,
+                              let userInfo = notification.userInfo,
+                              let reasonValue = userInfo[AVAudioSessionRouteChangeReasonKey] as? UInt,
+                              let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else { return }
+
+                        self.onRouteChange?(reason)
+                    }
+                }
             } catch {
-                print("[StrumKit] AVAudioSession setup warning: \(error.localizedDescription)")
+                print("[StrumKit] AVAudioSession setup failure: \(error.localizedDescription)")
+                throw AudioCaptureError.sessionActivationFailed(error.localizedDescription)
             }
             #endif
 
@@ -104,8 +159,8 @@ public final class AudioCaptureService: @unchecked Sendable {
             let inputFormat = inputNode.inputFormat(forBus: 0)
 
             guard inputFormat.channelCount > 0 else {
-                print("[StrumKit] Audio input format has 0 channels. (Simulator with no mic input)")
-                return
+                print("[StrumKit] Audio input format has 0 channels.")
+                throw AudioCaptureError.noInputChannelsAvailable
             }
 
             self.sampleRate = inputFormat.sampleRate > 0 ? inputFormat.sampleRate : 44100.0
@@ -114,10 +169,20 @@ public final class AudioCaptureService: @unchecked Sendable {
             self.ringBuffer = ring
 
             inputNode.removeTap(onBus: 0)
-            inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: inputFormat) { buffer, _ in
+            inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: inputFormat) { buffer, when in
                 guard let channelData = buffer.floatChannelData else { return }
                 let frameLength = Int(buffer.frameLength)
                 guard frameLength > 0 else { return }
+
+                // Determine capture-end timestamp using AVAudioTime.
+                // Denotes buffer trailing edge (end) on the monotonic host timeline (CACurrentMediaTime / mach_absolute_time).
+                let captureEndSeconds: TimeInterval
+                if when.isHostTimeValid && when.hostTime > 0 {
+                    let startSeconds = AVAudioTime.seconds(forHostTime: when.hostTime)
+                    captureEndSeconds = startSeconds + (Double(frameLength) / inputFormat.sampleRate)
+                } else {
+                    captureEndSeconds = CACurrentMediaTime()
+                }
 
                 // Read channel 0 samples
                 let channelPointer = channelData[0]
@@ -125,10 +190,10 @@ public final class AudioCaptureService: @unchecked Sendable {
 
                 ring.write(samples)
                 if let window = ring.readTrailing(count: neededSamples) {
-                    onBufferReceived(window, inputFormat.sampleRate)
+                    onBufferReceived(window, inputFormat.sampleRate, captureEndSeconds, frameLength)
                 } else if ring.availableCount >= 512 {
                     let partial = ring.readTrailing(count: ring.availableCount) ?? samples
-                    onBufferReceived(partial, inputFormat.sampleRate)
+                    onBufferReceived(partial, inputFormat.sampleRate, captureEndSeconds, frameLength)
                 }
             }
 
@@ -138,7 +203,19 @@ public final class AudioCaptureService: @unchecked Sendable {
                 self.isRunningInternal = true
             } catch {
                 print("[StrumKit] Failed to start AVAudioEngine: \(error.localizedDescription)")
+                inputNode.removeTap(onBus: 0)
+                throw AudioCaptureError.engineFailed(error.localizedDescription)
             }
+        }
+    }
+
+    /// Convenience overload invoking onBufferReceived with samples and sampleRate.
+    public func startCapture(
+        bufferSize: AVAudioFrameCount = 1024,
+        onBufferReceived: @escaping @Sendable ([Float], Double) -> Void
+    ) throws {
+        try startCapture(bufferSize: bufferSize) { window, sampleRate, _, _ in
+            onBufferReceived(window, sampleRate)
         }
     }
 
@@ -153,6 +230,14 @@ public final class AudioCaptureService: @unchecked Sendable {
             self.isRunningInternal = false
 
             #if os(iOS)
+            if let obs = self.interruptionObserver {
+                NotificationCenter.default.removeObserver(obs)
+                self.interruptionObserver = nil
+            }
+            if let obs = self.routeChangeObserver {
+                NotificationCenter.default.removeObserver(obs)
+                self.routeChangeObserver = nil
+            }
             do {
                 try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
             } catch {

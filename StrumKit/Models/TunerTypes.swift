@@ -104,6 +104,7 @@ public struct StringTarget: Identifiable, Hashable, Sendable {
 
 public struct TunerReading: Sendable, Equatable {
     public let at: TimeInterval
+    public let lastFreshAt: TimeInterval
     public let frequency: Double
     public let note: String
     public let target: StringTarget
@@ -121,6 +122,7 @@ public struct TunerReading: Sendable, Equatable {
 
     public init(
         at: TimeInterval,
+        lastFreshAt: TimeInterval? = nil,
         frequency: Double,
         note: String,
         target: StringTarget,
@@ -132,6 +134,7 @@ public struct TunerReading: Sendable, Equatable {
         recovered: Bool = false
     ) {
         self.at = at
+        self.lastFreshAt = lastFreshAt ?? at
         self.frequency = frequency
         self.note = note
         self.target = target
@@ -195,15 +198,92 @@ public struct TunerConfig: Sendable, Equatable, Codable {
     }
 }
 
+public struct AnalysisFrame: Sendable {
+    public let samples: [Float]
+    public let sampleRate: Double
+    /// Denotes the timestamp at the trailing edge (end) of the analyzed audio window.
+    public let captureEndSeconds: TimeInterval
+    public let sequence: UInt64
+    public let generation: UInt64
+    public let callbackFrameCount: Int
+
+    public init(
+        samples: [Float],
+        sampleRate: Double,
+        captureEndSeconds: TimeInterval,
+        sequence: UInt64,
+        generation: UInt64,
+        callbackFrameCount: Int = 0
+    ) {
+        self.samples = samples
+        self.sampleRate = sampleRate
+        self.captureEndSeconds = captureEndSeconds
+        self.sequence = sequence
+        self.generation = generation
+        self.callbackFrameCount = callbackFrameCount
+    }
+}
+
+public struct AnalysisSnapshot: Sendable, Equatable {
+    public let reading: TunerReading?
+    public let pitchResult: PitchResult
+    public let feedbackState: SignalFeedbackState
+    public let guidedProgress: [Bool]
+    public let guidedTargetIndex: Int
+    public let diagnostics: TunerDiagnostics
+    public let generation: UInt64
+    public let sequence: UInt64
+
+    public init(
+        reading: TunerReading?,
+        pitchResult: PitchResult,
+        feedbackState: SignalFeedbackState,
+        guidedProgress: [Bool],
+        guidedTargetIndex: Int,
+        diagnostics: TunerDiagnostics,
+        generation: UInt64,
+        sequence: UInt64
+    ) {
+        self.reading = reading
+        self.pitchResult = pitchResult
+        self.feedbackState = feedbackState
+        self.guidedProgress = guidedProgress
+        self.guidedTargetIndex = guidedTargetIndex
+        self.diagnostics = diagnostics
+        self.generation = generation
+        self.sequence = sequence
+    }
+}
+
 public struct TunerDiagnostics: Sendable, Equatable {
     public var sampleRate: Double = 44100.0
     public var analysisMs: Double = 0.0
+    public var dspMs: Double = 0.0
+    public var queueDelayMs: Double = 0.0
+    public var resultAgeMs: Double = 0.0
+    public var replacedFrames: UInt64 = 0
+    public var callbackFrameCount: Int = 0
     public var dropped: Int = 0
     public var level: Double = 0.0
 
-    public init(sampleRate: Double = 44100.0, analysisMs: Double = 0.0, dropped: Int = 0, level: Double = 0.0) {
+    public init(
+        sampleRate: Double = 44100.0,
+        analysisMs: Double = 0.0,
+        dspMs: Double = 0.0,
+        queueDelayMs: Double = 0.0,
+        resultAgeMs: Double = 0.0,
+        replacedFrames: UInt64 = 0,
+        callbackFrameCount: Int = 0,
+        dropped: Int = 0,
+        level: Double = 0.0
+    ) {
         self.sampleRate = sampleRate
         self.analysisMs = analysisMs
+        self.dspMs = dspMs
+        self.queueDelayMs = queueDelayMs
+        self.resultAgeMs = resultAgeMs
+        self.replacedFrames = replacedFrames
+        self.callbackFrameCount = callbackFrameCount
         self.dropped = dropped
         self.level = level
     }

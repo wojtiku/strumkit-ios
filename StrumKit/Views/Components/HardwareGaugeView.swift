@@ -6,11 +6,13 @@ public struct HardwareGaugeView: View {
     let cents: Double
     let visible: Bool
     let inTune: Bool
+    let needleOpacity: Double
 
-    public init(cents: Double, visible: Bool, inTune: Bool) {
+    public init(cents: Double, visible: Bool, inTune: Bool, needleOpacity: Double = 1.0) {
         self.cents = cents
         self.visible = visible
         self.inTune = inTune
+        self.needleOpacity = needleOpacity
     }
 
     // Angle: -50...+50 cents mapped directly to -75°...+75° (cents * 1.5)
@@ -34,7 +36,8 @@ public struct HardwareGaugeView: View {
             // Animated Needle
             if visible {
                 NeedlePointerView(angle: needleAngle, inTune: inTune)
-                    .animation(.spring(response: 0.22, dampingFraction: 0.72), value: needleAngle)
+                    .opacity(needleOpacity)
+                    .animation(nil, value: needleAngle)
             }
 
             // Labels: -50, 0, +50

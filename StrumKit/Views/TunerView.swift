@@ -203,8 +203,9 @@ public struct TunerView: View {
             // Hardware 21-tick Gauge
             HardwareGaugeView(
                 cents: viewModel.currentReading?.displayCents ?? 0,
-                visible: viewModel.currentReading != nil || viewModel.lastTone != nil,
-                inTune: viewModel.currentReading?.inTune ?? false
+                visible: viewModel.currentReading != nil,
+                inTune: viewModel.currentReading?.inTune ?? false,
+                needleOpacity: viewModel.holdOpacity
             )
             .padding(.horizontal, 12)
 
@@ -215,7 +216,8 @@ public struct TunerView: View {
                 feedback: viewModel.feedbackState,
                 precision: viewModel.config.precision,
                 selectedTarget: activeTarget,
-                mode: viewModel.config.mode
+                mode: viewModel.config.mode,
+                holdOpacity: viewModel.holdOpacity
             )
             .padding(.bottom, viewModel.engineStatus.guidanceError == nil ? 14 : 2)
 

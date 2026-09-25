@@ -27,18 +27,32 @@ public final class PitchTracker: @unchecked Sendable {
     public static let ambientCooldown: TimeInterval = 0.35
 
     // Hold & Sustain Grace Durations
-    public static let readingHoldDuration: TimeInterval = 0.85
+    public static let readingHoldDuration: TimeInterval = 1.0
     public static let priorGraceDuration: TimeInterval = 0.85
+
+    // Responsiveness & Confirmation Constants
+    public static let standardEvidenceSpan: TimeInterval = 0.040 // 40 ms
+    public static let onsetEvidenceSpan: TimeInterval = 0.020    // 20 ms
+    public static let maxCandidateGap: TimeInterval = 0.250      // 250 ms: accommodates worker queue & mailbox replacement
+    public static let displayEmaTimeConstant: TimeInterval = 0.050 // tau = 50 ms
+
+    private struct TargetKey: Equatable {
+        let index: Int
+        let midi: Int
+    }
 
     // State
     private var lastReadingTime: TimeInterval = 0
     private var displayCentsEma: Double = 0.0
     private var lastInTuneState: Bool = false
     private var guidedHoldStartTime: TimeInterval? = nil
-    private var previousTargetIndex: Int = -1
+    private var activeTargetKey: TargetKey? = nil
 
-    private var candidateIndex: Int? = nil
+    private var candidateKey: TargetKey? = nil
     private var candidateCount: Int = 0
+    private var candidateFirstSeenAt: TimeInterval = 0
+    private var candidateLastSeenAt: TimeInterval = 0
+    private var candidateIsOnset: Bool = false
     private var lastRms: Double = 0.0
     private var lastForegroundTime: TimeInterval = 0
     private var lastReading: TunerReading? = nil
@@ -70,9 +84,12 @@ public final class PitchTracker: @unchecked Sendable {
         displayCentsEma = 0.0
         lastInTuneState = false
         guidedHoldStartTime = nil
-        previousTargetIndex = -1
-        candidateIndex = nil
+        activeTargetKey = nil
+        candidateKey = nil
         candidateCount = 0
+        candidateFirstSeenAt = 0
+        candidateLastSeenAt = 0
+        candidateIsOnset = false
         lastRms = 0.0
         continuityPrior = nil
         feedbackState = .inactive
@@ -96,9 +113,9 @@ public final class PitchTracker: @unchecked Sendable {
         config: TunerConfig,
         targets: [StringTarget]
     ) -> TunerReading? {
-        guard !targets.isEmpty else { return nil }
+        guard !targets.isEmpty || config.mode == .chromatic else { return nil }
 
-        if guidedProgress.count != targets.count {
+        if config.mode != .chromatic && guidedProgress.count != targets.count {
             guidedProgress = Array(repeating: false, count: targets.count)
             guidedTargetIndex = 0
         }
@@ -122,7 +139,7 @@ public final class PitchTracker: @unchecked Sendable {
 
         let frequency = pitchResult.frequency
         let currentRms = pitchResult.amplitudeRMS
-        let isOnset = (lastRms > 0) && (currentRms >= lastRms * Self.onsetRmsMultiplier)
+        let isOnset = (currentRms >= ambientFloor * 3.5) || ((lastRms > 0) && (currentRms >= lastRms * Self.onsetRmsMultiplier))
         lastRms = currentRms
 
         // 2. Determine target string according to mode
@@ -158,7 +175,7 @@ public final class PitchTracker: @unchecked Sendable {
 
             for (idx, candidate) in targets.enumerated() {
                 let dist = abs(PitchMath.centsBetween(measured: frequency, reference: candidate.frequency))
-                let hysteresis = (idx == previousTargetIndex) ? 20.0 : 0.0
+                let hysteresis = (idx == activeTargetKey?.index) ? 20.0 : 0.0
                 if (dist - hysteresis) < minCentsDist {
                     minCentsDist = dist - hysteresis
                     closestIdx = idx
@@ -175,21 +192,48 @@ public final class PitchTracker: @unchecked Sendable {
             }
         }
 
-        // Multi-reading target confirmation (ACQUIRE_READINGS = 3, or 2 on onset, or immediate on continuing note)
-        let isContinuingTarget = (targetIndex == previousTargetIndex && continuityPrior != nil && (now - lastReadingTime) <= Self.priorGraceDuration)
-        let neededReadings = isOnset ? Self.onsetAcquireReadings : Self.acquireReadings
-        if candidateIndex == targetIndex {
-            candidateCount += 1
-        } else {
-            candidateIndex = targetIndex
-            candidateCount = 1
+        // Elapsed fresh evidence target confirmation
+        let currentTargetKey = TargetKey(index: targetIndex, midi: target.midi)
+
+        // Reset candidate confirmation if gap exceeds candidate gap limit (> 250ms)
+        if candidateKey != nil && (now - candidateLastSeenAt) > Self.maxCandidateGap {
+            candidateKey = nil
+            candidateCount = 0
+            candidateFirstSeenAt = 0
+            candidateLastSeenAt = 0
+            candidateIsOnset = false
         }
 
-        guard isContinuingTarget || candidateCount >= neededReadings || config.mode == .chromatic || config.mode == .manual else {
+        let isContinuingTarget = (currentTargetKey == activeTargetKey && continuityPrior != nil && (now - lastReadingTime) <= Self.priorGraceDuration)
+
+        if candidateKey == currentTargetKey {
+            candidateCount += 1
+            candidateLastSeenAt = now
+            if isOnset {
+                candidateIsOnset = true
+            }
+        } else {
+            candidateKey = currentTargetKey
+            candidateCount = 1
+            candidateFirstSeenAt = now
+            candidateLastSeenAt = now
+            candidateIsOnset = isOnset
+        }
+
+        let elapsedSpan = candidateLastSeenAt - candidateFirstSeenAt
+        let neededSpan = candidateIsOnset ? Self.onsetEvidenceSpan : Self.standardEvidenceSpan
+        let isConfirmed = (candidateCount >= 2 && (candidateIsOnset || elapsedSpan >= (neededSpan - 0.001) || candidateCount >= 3))
+
+        guard isContinuingTarget || isConfirmed || config.mode == .manual || (config.mode == .chromatic && candidateCount >= 2) else {
             feedbackState = .checking
-            if (now - lastReadingTime) <= Self.priorGraceDuration, let last = lastReading {
+            let elapsed = now - lastReadingTime
+            if elapsed > Self.priorGraceDuration {
+                continuityPrior = nil
+            }
+            if elapsed <= Self.readingHoldDuration, let last = lastReading {
                 return TunerReading(
                     at: now,
+                    lastFreshAt: last.lastFreshAt,
                     frequency: last.frequency,
                     note: last.note,
                     target: last.target,
@@ -197,7 +241,8 @@ public final class PitchTracker: @unchecked Sendable {
                     cents: last.cents,
                     displayCents: displayCentsEma,
                     freshness: .held,
-                    inTune: false
+                    inTune: last.inTune,
+                    recovered: last.recovered
                 )
             }
             return nil
@@ -207,9 +252,19 @@ public final class PitchTracker: @unchecked Sendable {
         let rawCents = PitchMath.centsBetween(measured: frequency, reference: target.frequency)
         let clampedCents = max(-50.0, min(50.0, rawCents))
 
-        // 4. Smooth display cents (Exponential Moving Average)
-        let smoothingAlpha = 0.35
-        displayCentsEma = (1.0 - smoothingAlpha) * displayCentsEma + smoothingAlpha * clampedCents
+        // 4. Smooth display cents (Time-based EMA with tau = 50ms) & Target Change Reset
+        let targetChanged = (currentTargetKey != activeTargetKey || continuityPrior == nil || lastReadingTime == 0)
+
+        if targetChanged {
+            displayCentsEma = clampedCents
+            lastInTuneState = false
+            guidedHoldStartTime = nil
+            activeTargetKey = currentTargetKey
+        } else {
+            let deltaSeconds = max(0.0, now - lastReadingTime)
+            let alpha = 1.0 - exp(-deltaSeconds / Self.displayEmaTimeConstant)
+            displayCentsEma += alpha * (clampedCents - displayCentsEma)
+        }
 
         // 5. In-tune check with hysteresis
         let enterThreshold = config.precision ? Self.precisionEnterTuneCents : Self.standardEnterTuneCents
@@ -223,9 +278,9 @@ public final class PitchTracker: @unchecked Sendable {
         }
         lastInTuneState = inTune
 
-        // 6. Guided Mode Progress Advancement (1-second hold requirement)
+        // 6. Guided Mode Progress Advancement (1-second uninterrupted fresh hold requirement)
         if config.mode == .guided && targetIndex == guidedTargetIndex {
-            if inTune && pitchResult.confidence >= Self.guidedCompletionPeriodicity {
+            if inTune && pitchResult.confidence >= Self.guidedCompletionPeriodicity && !pitchResult.recovered {
                 if let startTime = guidedHoldStartTime {
                     if (now - startTime) >= Self.guidedHoldDuration {
                         guidedProgress[targetIndex] = true
@@ -243,7 +298,7 @@ public final class PitchTracker: @unchecked Sendable {
         }
 
         lastReadingTime = now
-        previousTargetIndex = targetIndex
+        activeTargetKey = currentTargetKey
         continuityPrior = (frequency: frequency, at: now)
         feedbackState = .tracking
 
@@ -251,6 +306,7 @@ public final class PitchTracker: @unchecked Sendable {
 
         let reading = TunerReading(
             at: now,
+            lastFreshAt: now,
             frequency: frequency,
             note: noteDisplay,
             target: target,
@@ -258,7 +314,8 @@ public final class PitchTracker: @unchecked Sendable {
             cents: rawCents,
             displayCents: displayCentsEma,
             freshness: .fresh,
-            inTune: inTune
+            inTune: inTune,
+            recovered: pitchResult.recovered
         )
         lastReading = reading
         return reading
@@ -266,16 +323,28 @@ public final class PitchTracker: @unchecked Sendable {
 
     private func handleLostSignal(at now: TimeInterval, rms: Double = 0) -> TunerReading? {
         guidedHoldStartTime = nil
-        candidateCount = 0
-        candidateIndex = nil
+        if (now - candidateLastSeenAt) > Self.maxCandidateGap {
+            candidateKey = nil
+            candidateCount = 0
+            candidateFirstSeenAt = 0
+            candidateLastSeenAt = 0
+            candidateIsOnset = false
+        }
+        lastRms = rms
 
         let elapsed = now - lastReadingTime
 
-        // If a reading occurred recently, keep continuity prior and return held reading
-        if elapsed <= Self.priorGraceDuration, let last = lastReading {
+        // 1. Evaluate prior expiry independently (priorGraceDuration = 0.85s)
+        if elapsed > Self.priorGraceDuration {
+            continuityPrior = nil
+        }
+
+        // 2. Evaluate display hold independently (readingHoldDuration = 1.0s)
+        if elapsed <= Self.readingHoldDuration, let last = lastReading {
             feedbackState = .tracking
             return TunerReading(
                 at: now,
+                lastFreshAt: last.lastFreshAt,
                 frequency: last.frequency,
                 note: last.note,
                 target: last.target,
@@ -283,11 +352,14 @@ public final class PitchTracker: @unchecked Sendable {
                 cents: last.cents,
                 displayCents: displayCentsEma,
                 freshness: .held,
-                inTune: false
+                inTune: last.inTune, // Preserve last confirmed in-tune visual state
+                recovered: last.recovered
             )
         }
 
+        // 3. Past readingHoldDuration: full display expiration
         continuityPrior = nil
+        activeTargetKey = nil
         lastReading = nil
         if rms > 0 && rms < Double(recommendedNoiseGate(isSustaining: false)) && rms > ambientFloor * 0.85 {
             feedbackState = .quiet
