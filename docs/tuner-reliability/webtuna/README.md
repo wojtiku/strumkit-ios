@@ -127,6 +127,44 @@ node tables3.mjs  # dump + verify the 56-band filterbank tables
 node frames.mjs   # prove frames-per-call and the InTuneRatio counter cadence
 ```
 
+## Real recording: `realfile.mjs` + `seg_summary.py`
+
+`realfile.mjs` runs a real recording through the WebTuna oracle and prints a segment
+table. `seg_summary.py` does the same for a StrumKit replay trace of the same file, so
+the two tables are read against each other rather than compared by eye:
+
+```bash
+# 1. WebTuna side. Run from THIS directory: iso.mjs reads ./WebTuna.wasm from the cwd.
+node realfile.mjs ../../StrumKitTests/Fixtures/all-4-with-noise.wav
+
+# 2. StrumKit side. Three configurations; -O so the scalar YIN loop is not the bottleneck.
+xcodebuild test -project ../../StrumKit.xcodeproj -scheme StrumKit \
+  -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath ../../DerivedDataO \
+  SWIFT_OPTIMIZATION_LEVEL=-O \
+  -only-testing:StrumKitTests/RealStrumMeasurementTests 2>&1 \
+  | grep -E '^SEG\|' > /tmp/strumkit-real.txt
+
+# 3. the same segmentation and steadiness statistics over the StrumKit trace
+python3 seg_summary.py /tmp/strumkit-real.txt --json /tmp/seg.json
+```
+
+`seg_summary.py`'s docstring is the specification of the shared method: a gap over 0.4 s
+starts a new segment, a frame is "heard" when `CanHearANote && MeasuredPitchHz > 0` on
+one side and `hz > 0 && state != "none"` on the other, steadiness is the p5–p95 cents
+spread, and a segment that changes string mid-segment is flagged. It also names the two
+places it deliberately differs, both forced by the inputs:
+
+- **Target reference.** `realfile.mjs` uses the *first* string the segment reported, which
+  is why its segment 5 prints NaN. `seg_summary.py` uses the segment's *modal* target
+  frequency and prints the number of distinct targets instead of a NaN, so a segment that
+  changed string is counted rather than hidden.
+- **Display vs estimator.** StrumKit's `hz` is a *displayed* frequency, because a held
+  reading repeats the last fresh value; WebTuna has no such distinction, since every call
+  is a fresh measurement. So the script splits the per-frame DSP estimate into pure YIN
+  (`rec=0`) and spectral-recovery substitutions (`rec=1`) and reports both.
+
+Measured result: [`real-strum-measurement.md`](../../../.superpowers/sdd/2026-09-25-detection-layer-phases-0-3/real-strum-measurement.md).
+
 ## Findings cheat-sheet
 
 * ABI: `analyseBuffer` is **table[7] → func708**, `(tableIdx, ptr, n, stringIdx, sampleRate) -> void`
