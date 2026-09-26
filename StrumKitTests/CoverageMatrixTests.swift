@@ -307,7 +307,7 @@ struct FundamentalEnergyScaleTests {
         #expect(abs(d.highNoteAmbiguityMinEnergyRatio / d.fundamentalMinEnergyRatio - 0.5) < 1e-9)
     }
 
-    @Test("a scale of zero disables the gate without dividing by zero")
+    @Test("a scale of zero is division-safe but inverts the veto at the first call site")
     func zeroIsSafe() {
         let d = PitchDetector(sampleRate: 44100, bufferSize: 4328, fundamentalEnergyScale: 0)
         #expect(d.fundamentalMinEnergyRatio == 0)
@@ -330,10 +330,23 @@ struct FundamentalEnergyScaleTests {
         // measured readings: 110.00008 Hz at every scale from 1.0 down to 0.01,
         // and an abstention at 0.0 alone.
         //
-        // Pinned so the surprise stays deliberate. Task 6 must not read the
-        // scale as a dial that falls monotonically to "off" at zero: below the
-        // point where the gate stops discriminating, the detector stops being
-        // more permissive and starts answering differently.
+        // That veto is the only route to the abstention. The other ambiguity
+        // path, the check that the accepted note's own fundamental clears
+        // `ambiguousThresh`, cannot fire at a zero scale: the numerator is a
+        // normalized power and so non-negative, and a degenerate denominator
+        // only makes the quotient `+inf` or `NaN`, both of which fail `< 0`.
+        // So the abstention is attributable to one mechanism, not two.
+        //
+        // Pinned so the surprise stays deliberate. Note the direction of the
+        // effect on a sweep: because the detector *abstains* at 0.0, a
+        // `net = det - 4*oct - wrong` score reads **worse** there, not better,
+        // and 0.0 is disqualified by the ordinary selection rules rather than
+        // looking attractive. The real hazard is the reading, not the number —
+        // an implementer who takes "0 = gate off = maximally permissive", sees
+        // the worst detect rate on the board, and concludes the sweep is broken
+        // will "fix" it with a clamp nobody asked for. There is nothing to fix:
+        // a scale of 0 was never a supported point, and the sweep does not need
+        // one.
         #expect(off.frequency == 0,
                 "a zero scale is expected to abstain through the candidateEvidence veto")
 

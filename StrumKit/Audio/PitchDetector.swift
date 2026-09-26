@@ -21,18 +21,20 @@ public final class PitchDetector: @unchecked Sendable {
     public static let priorSubharmonicMinEnergyRatio: Double = 0.05
     public static let unprioritizedSubharmonicMinEnergyRatio: Double = 0.30
 
-    /// Multiplies every fundamental-energy gate. `1.0` is the pre-2026-09-25
-    /// behaviour. Swept on coverage-matrix seed A; see RESULTS.md §Phase 1.
+    /// The unscaled floor for a candidate fundamental's share of a window's power.
+    /// Each of the three gates multiplies one of these two bases by the instance's
+    /// `fundamentalEnergyScale`, so at the shipped scale of 1.0 the applied
+    /// thresholds are these two numbers unchanged.
     ///
-    /// These three gates sit *on top of* YIN and were found rejecting correct
-    /// detections: at 0.18 % fundamental energy YIN still reports the right f0
-    /// with zero octave errors, and this gate discards the answer. See
-    /// docs/superpowers/specs/2026-09-25-tuner-detection-layer-design.md §2.2.
+    /// The high-note base is deliberately half the standard one: a note above
+    /// 300 Hz is held to a weaker absolute floor than a low note, and the two
+    /// keep that 2:1 ratio at every scale.
     public static let fundamentalEnergyBase: Double = 0.004
     public static let highNoteEnergyBase: Double = 0.002
 
-    /// The shipped value. `1.0` is the pre-2026-09-25 behaviour; Task 6 changes
-    /// it from a measured sweep and records the decision table in RESULTS.md.
+    /// The shipped value. `1.0` is the pre-2026-09-25 behaviour, bit for bit;
+    /// Task 6 changes it from a measured sweep of `fundamentalEnergyScale` and
+    /// records the decision table in RESULTS.md.
     public static let defaultFundamentalEnergyScale: Double = 1.0
 
     public static let harmonicSupportMinRatio: Double = 0.5
@@ -46,10 +48,48 @@ public final class PitchDetector: @unchecked Sendable {
     public let minFrequency: Double
     public let maxFrequency: Double
 
-    /// See `fundamentalEnergyBase`. Instance state rather than a `static var` so
-    /// the Task 6 sweep needs no global mutable state.
+    /// The one multiplier behind all three fundamental-energy gates, and the only
+    /// thing Task 6 changes. `1.0` is the pre-2026-09-25 behaviour, bit for bit.
+    /// Instance state rather than a `static var` so a sweep needs no global
+    /// mutable state.
+    ///
+    /// **The knob does not turn one way.** Two of the three gates are acceptance
+    /// floors and the third suppresses a veto, so lowering the scale makes the
+    /// detector *less* permissive at that one site and *more* permissive at the
+    /// other two:
+    ///
+    /// - `candidatePowerRatio >= fundamentalMinEnergyRatio`, in the subharmonic
+    ///   loop of `detectPitch`: arms `candidateEvidence` for more candidates,
+    ///   and that bit is a veto rather than a preference — it sets
+    ///   `isAmbiguous` unless the selected multiplier divides the candidate's.
+    ///   Lowering the scale here rejects *more*. (The design spec §2.2 labels
+    ///   this site "subharmonic preference"; the subharmonic-preference site is
+    ///   `shouldPreferSubharmonic`. This comment follows the code.)
+    /// - `highNoteAmbiguityMinEnergyRatio` / `standardAmbiguityMinEnergyRatio` in
+    ///   the ambiguity check, and `evidence.candidateEnergy / power <
+    ///   fundamentalMinEnergyRatio` in `shouldPreferSubharmonic`: both acceptance
+    ///   floors, so lowering the scale accepts more. The ambiguity gate is the
+    ///   one measured rejecting 6/6 correct YIN detections whose fundamentals
+    ///   carry as little as 0.00 % of the window's energy, where 0.18 % is
+    ///   already enough for YIN alone to report the right f0 with zero octave
+    ///   errors. See
+    ///   docs/superpowers/specs/2026-09-25-tuner-detection-layer-design.md §2.2.
+    ///
+    /// Which of the two effects dominates is empirical, not derivable, which is
+    /// why the value gets swept rather than reasoned out. Do not assume the
+    /// loop's gate is inert across the sweep: its floor is 0.004 at the shipped
+    /// scale, and a *clean* 110 Hz case measures 6e-13 for its 2x candidate, but
+    /// a real weak-fundamental note carries much more energy down there and the
+    /// floor only has to fall as far as that ratio for the veto to start firing.
+    /// And a scale of exactly 0 does not disable the gates — it inverts the
+    /// loop's comparison and arms that veto outright, at every signal level.
     public let fundamentalEnergyScale: Double
 
+    // `fundamentalMinEnergyRatio` and `standardAmbiguityMinEnergyRatio` are the
+    // same expression on purpose, not a copy-paste slip: they were already both
+    // 0.004 before any scale existed. One shared base means the knob cannot
+    // split them — giving them separate values is a second edit, here and in
+    // `fundamentalEnergyBase`, and not a sweep result.
     public var fundamentalMinEnergyRatio: Double { Self.fundamentalEnergyBase * fundamentalEnergyScale }
     public var standardAmbiguityMinEnergyRatio: Double { Self.fundamentalEnergyBase * fundamentalEnergyScale }
     public var highNoteAmbiguityMinEnergyRatio: Double { Self.highNoteEnergyBase * fundamentalEnergyScale }
