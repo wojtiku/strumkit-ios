@@ -29,6 +29,12 @@ public final class TunerAnalysisSession: @unchecked Sendable {
     private var detector: PitchDetector? = nil
     private let tracker: PitchTracker
     private let spectralScorer = SpectralPitchScorer()
+
+    /// The one knob behind `PitchDetector`'s three fundamental-energy gates.
+    /// See `PitchDetector.fundamentalEnergyBase`; `1.0` is the pre-2026-09-25
+    /// behaviour and is what the detector uses when this is left at its default.
+    private let fundamentalEnergyScale: Double
+
     // MARK: - Spectral Recovery Tuning
     //
     // These are experimental acceptance settings, not calibrated probabilities.
@@ -129,11 +135,13 @@ public final class TunerAnalysisSession: @unchecked Sendable {
     public init(
         config: TunerConfig = TunerConfig(),
         targets: [StringTarget] = [],
-        tracker: PitchTracker = PitchTracker()
+        tracker: PitchTracker = PitchTracker(),
+        fundamentalEnergyScale: Double = PitchDetector.defaultFundamentalEnergyScale
     ) {
         self.currentConfig = config
         self.currentTargets = targets
         self.tracker = tracker
+        self.fundamentalEnergyScale = fundamentalEnergyScale
     }
 
     // MARK: - Public State Accessors
@@ -455,7 +463,9 @@ public final class TunerAnalysisSession: @unchecked Sendable {
         if let existing = detector, existing.sampleRate == frame.sampleRate, existing.bufferSize == frame.samples.count {
             activeDetector = existing
         } else {
-            let newlyCreated = PitchDetector(sampleRate: frame.sampleRate, bufferSize: frame.samples.count)
+            let newlyCreated = PitchDetector(
+                sampleRate: frame.sampleRate, bufferSize: frame.samples.count,
+                fundamentalEnergyScale: fundamentalEnergyScale)
             detector = newlyCreated
             activeDetector = newlyCreated
         }

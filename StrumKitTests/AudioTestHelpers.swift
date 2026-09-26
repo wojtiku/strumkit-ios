@@ -357,12 +357,17 @@ public enum AudioTestHelpers {
     ///     drops nothing and leaves the trace exactly as production would.
     ///   - dropoutSeed: seed for the frame selection. The same seed always drops
     ///     the same frames; a different seed drops a different set.
+    ///   - fundamentalEnergyScale: the one multiplier behind `PitchDetector`'s
+    ///     three fundamental-energy gates. Defaults to `1.0`, which is the
+    ///     pre-2026-09-25 behaviour and therefore what every other suite here is
+    ///     calibrated against; a sweep passes a smaller value.
     public static func replayTrace(
         samples: [Float],
         sampleRate: Double,
         config: TunerConfig,
         hopSamples: Int = productionHopSamples,
         enableSpectralRecovery: Bool = true,
+        fundamentalEnergyScale: Double = PitchDetector.defaultFundamentalEnergyScale,
         yinDropoutRate: Double = 0.0,
         dropoutSeed: UInt64 = 1
     ) -> (frames: [ReplayFrame], tracker: PitchTracker) {
@@ -375,7 +380,9 @@ public enum AudioTestHelpers {
 
         let tracker = PitchTracker()
         tracker.reset(targetCount: targets.count)
-        let session = TunerAnalysisSession(config: config, targets: targets, tracker: tracker)
+        let session = TunerAnalysisSession(
+            config: config, targets: targets, tracker: tracker,
+            fundamentalEnergyScale: fundamentalEnergyScale)
         session.isSpectralRecoveryEnabled = enableSpectralRecovery
 
         var frames: [ReplayFrame] = []

@@ -20,9 +20,21 @@ public final class PitchDetector: @unchecked Sendable {
     public static let priorSubharmonicMaxDistanceCents: Double = 35.0
     public static let priorSubharmonicMinEnergyRatio: Double = 0.05
     public static let unprioritizedSubharmonicMinEnergyRatio: Double = 0.30
-    public static let fundamentalMinEnergyRatio: Double = 0.004
-    public static let highNoteAmbiguityMinEnergyRatio: Double = 0.002
-    public static let standardAmbiguityMinEnergyRatio: Double = 0.004
+
+    /// Multiplies every fundamental-energy gate. `1.0` is the pre-2026-09-25
+    /// behaviour. Swept on coverage-matrix seed A; see RESULTS.md §Phase 1.
+    ///
+    /// These three gates sit *on top of* YIN and were found rejecting correct
+    /// detections: at 0.18 % fundamental energy YIN still reports the right f0
+    /// with zero octave errors, and this gate discards the answer. See
+    /// docs/superpowers/specs/2026-09-25-tuner-detection-layer-design.md §2.2.
+    public static let fundamentalEnergyBase: Double = 0.004
+    public static let highNoteEnergyBase: Double = 0.002
+
+    /// The shipped value. `1.0` is the pre-2026-09-25 behaviour; Task 6 changes
+    /// it from a measured sweep and records the decision table in RESULTS.md.
+    public static let defaultFundamentalEnergyScale: Double = 1.0
+
     public static let harmonicSupportMinRatio: Double = 0.5
 
     public static let clippingSampleLevel: Float = 0.98
@@ -34,16 +46,26 @@ public final class PitchDetector: @unchecked Sendable {
     public let minFrequency: Double
     public let maxFrequency: Double
 
+    /// See `fundamentalEnergyBase`. Instance state rather than a `static var` so
+    /// the Task 6 sweep needs no global mutable state.
+    public let fundamentalEnergyScale: Double
+
+    public var fundamentalMinEnergyRatio: Double { Self.fundamentalEnergyBase * fundamentalEnergyScale }
+    public var standardAmbiguityMinEnergyRatio: Double { Self.fundamentalEnergyBase * fundamentalEnergyScale }
+    public var highNoteAmbiguityMinEnergyRatio: Double { Self.highNoteEnergyBase * fundamentalEnergyScale }
+
     public init(
         sampleRate: Double = 44100.0,
         bufferSize: Int = 2048,
         minFrequency: Double = TunerConstants.detectorMinHz,
-        maxFrequency: Double = TunerConstants.detectorMaxHz
+        maxFrequency: Double = TunerConstants.detectorMaxHz,
+        fundamentalEnergyScale: Double = PitchDetector.defaultFundamentalEnergyScale
     ) {
         self.sampleRate = sampleRate
         self.bufferSize = bufferSize
         self.minFrequency = minFrequency
         self.maxFrequency = maxFrequency
+        self.fundamentalEnergyScale = fundamentalEnergyScale
     }
 
     /// Full window analysis matching analyzeWindow from chorder/src/audio/tuner/pitch.ts
@@ -226,7 +248,7 @@ public final class PitchDetector: @unchecked Sendable {
                 priorMatches = false
             }
 
-            if candidatePowerRatio >= Self.fundamentalMinEnergyRatio
+            if candidatePowerRatio >= fundamentalMinEnergyRatio
                 && cmnd[candidate.lag] < cmnd[initial.lag]
                 && evidence.harmonicSupport >= evidence.selectedEnergy * Self.harmonicSupportMinRatio {
                 candidateEvidence |= (1 << multiplier)
@@ -256,7 +278,7 @@ public final class PitchDetector: @unchecked Sendable {
         let frequency = refined.frequency
         guard frequency >= minFrequency && frequency <= maxFrequency else { return .idle }
 
-        var ambiguousThresh = frequency > 300.0 ? Self.highNoteAmbiguityMinEnergyRatio : Self.standardAmbiguityMinEnergyRatio
+        var ambiguousThresh = frequency > 300.0 ? highNoteAmbiguityMinEnergyRatio : standardAmbiguityMinEnergyRatio
         if hasPrior {
             ambiguousThresh *= 0.5
         }
@@ -337,7 +359,7 @@ public final class PitchDetector: @unchecked Sendable {
         power: Double,
         priorMatches: Bool
     ) -> Bool {
-        if evidence.candidateEnergy / power < Self.fundamentalMinEnergyRatio {
+        if evidence.candidateEnergy / power < fundamentalMinEnergyRatio {
             return false
         }
         if priorMatches {

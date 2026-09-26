@@ -460,7 +460,7 @@ struct SpectralPitchScorerTests {
         // their second and third partials, as a real low string rings.
         //
         // `fundamentalAmplitude` is chosen to sit just above
-        // `PitchDetector.fundamentalMinEnergyRatio` (0.004), the detector's
+        // `PitchDetector.fundamentalEnergyBase` (0.004), the detector's
         // documented floor for trusting a subharmonic candidate's fundamental.
         // Below that floor YIN reports "signal present, pitch ambiguous" and
         // declines to name a note, which is the intended abstention rather than a
@@ -493,7 +493,7 @@ struct SpectralPitchScorerTests {
                 + secondAmplitude * secondAmplitude
                 + thirdAmplitude * thirdAmplitude
                 + fourthAmplitude * fourthAmplitude)
-        #expect(energyShare > PitchDetector.fundamentalMinEnergyRatio,
+        #expect(energyShare > PitchDetector.fundamentalEnergyBase,
                 "test fixture fundamental must sit above the detector's abstention floor")
 
         let cases: [(name: String, fundamental: Double)] = [

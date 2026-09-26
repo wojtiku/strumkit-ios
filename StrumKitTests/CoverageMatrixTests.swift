@@ -287,3 +287,66 @@ struct DecayWithDropoutTests {
         }
     }
 }
+
+@Suite("Fundamental energy gate is one tunable")
+struct FundamentalEnergyScaleTests {
+
+    @Test("scale 1.0 reproduces today's three thresholds exactly")
+    func scaleOneIsIdentity() {
+        let d = PitchDetector(sampleRate: 44100, bufferSize: 4328, fundamentalEnergyScale: 1.0)
+        #expect(abs(d.fundamentalMinEnergyRatio - 0.004) < 1e-12)
+        #expect(abs(d.standardAmbiguityMinEnergyRatio - 0.004) < 1e-12)
+        #expect(abs(d.highNoteAmbiguityMinEnergyRatio - 0.002) < 1e-12)
+    }
+
+    @Test("scale 0.25 lowers all three and preserves their ratio")
+    func scaleIsProportional() {
+        let d = PitchDetector(sampleRate: 44100, bufferSize: 4328, fundamentalEnergyScale: 0.25)
+        #expect(abs(d.fundamentalMinEnergyRatio - 0.001) < 1e-12)
+        #expect(abs(d.highNoteAmbiguityMinEnergyRatio - 0.0005) < 1e-12)
+        #expect(abs(d.highNoteAmbiguityMinEnergyRatio / d.fundamentalMinEnergyRatio - 0.5) < 1e-9)
+    }
+
+    @Test("a scale of zero disables the gate without dividing by zero")
+    func zeroIsSafe() {
+        let d = PitchDetector(sampleRate: 44100, bufferSize: 4328, fundamentalEnergyScale: 0)
+        #expect(d.fundamentalMinEnergyRatio == 0)
+        #expect(d.standardAmbiguityMinEnergyRatio == 0)
+        #expect(d.highNoteAmbiguityMinEnergyRatio == 0)
+
+        let c = CoverageMatrix.baseCase(truthHz: 110, seed: CoverageMatrix.SEED_A)
+        let samples = CoverageMatrix.signal(c, rate: 44100, seconds: 1.0)
+        let off = d.detectPitch(in: samples, noiseGateRMS: 0, yinThreshold: 0.15, referenceA4: 440)
+        #expect(off.isSignalPresent, "a zero scale must leave the level and periodicity gates alone")
+
+        // A zero scale does not switch the gate off, it inverts it, and on this
+        // case that costs the detection. The first call site is
+        // `candidatePowerRatio >= fundamentalMinEnergyRatio`; the 2x candidate of
+        // a 110 Hz case carries a power ratio of 6.0e-13, thirteen orders of
+        // magnitude under today's 0.004, so the gate is shut at scale 1.0 and
+        // wide open at scale 0. Open, that bit arms `candidateEvidence`, which is
+        // a veto and not a preference: it sets `isAmbiguous` unless the selected
+        // multiplier divides the candidate's, and 1 does not divide 2. The
+        // measured readings: 110.00008 Hz at every scale from 1.0 down to 0.01,
+        // and an abstention at 0.0 alone.
+        //
+        // Pinned so the surprise stays deliberate. Task 6 must not read the
+        // scale as a dial that falls monotonically to "off" at zero: below the
+        // point where the gate stops discriminating, the detector stops being
+        // more permissive and starts answering differently.
+        #expect(off.frequency == 0,
+                "a zero scale is expected to abstain through the candidateEvidence veto")
+
+        // Where the scale still leaves the gate shut, it is the shipped value in
+        // every bit: the thresholds are `base * scale`, so anything that does
+        // not open the gate is the same comparison against the same number.
+        let shipped = PitchDetector(sampleRate: 44100, bufferSize: 4328)
+        let atShipped = shipped.detectPitch(in: samples, noiseGateRMS: 0, yinThreshold: 0.15, referenceA4: 440)
+        for scale in [1.0, 0.5, 0.25, 0.1, 0.01] {
+            let scaled = PitchDetector(sampleRate: 44100, bufferSize: 4328, fundamentalEnergyScale: scale)
+            let r = scaled.detectPitch(in: samples, noiseGateRMS: 0, yinThreshold: 0.15, referenceA4: 440)
+            #expect(r.frequency == atShipped.frequency,
+                    "scale \(scale) moved the answer from \(atShipped.frequency) Hz to \(r.frequency) Hz")
+        }
+    }
+}
