@@ -559,8 +559,7 @@ struct TrackerTests {
     }
 
     @Test("Candidate confirmation resets after gap greater than candidate gap limit (> 250ms)")
-    func testCandidateConfirmationResetsAfterLargeGap() {
-        let tracker = PitchTracker()
+    func testCandidateConfirmationResetsAfterLargeGap() {        let tracker = PitchTracker()
         let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .auto)
         let targets = Presets.guitar[0].midi.enumerated().map { index, midi in
             StringTarget(note: PitchMath.midiNoteName(midi), midi: midi, frequency: PitchMath.midiFrequency(midi), number: 6 - index)
@@ -585,6 +584,231 @@ struct TrackerTests {
         #expect(r3 != nil)
         #expect(r3?.freshness == .fresh)
         #expect(r3?.note == "E2")
+    }
+
+    // MARK: - Continuation hysteresis
+
+    /// A YIN-confirmed reading of E2, repeated. The starting point for every
+    /// test below, so that each one varies exactly one thing.
+    private static func yinE2(rms: Double = 0.05) -> PitchResult {
+        PitchResult(
+            frequency: 82.41,
+            closestNote: MusicalNote(midiNoteNumber: 40),
+            centsDeviation: 0.0,
+            confidence: 0.9,
+            amplitudeRMS: rms,
+            isSignalPresent: true
+        )
+    }
+
+    /// The identical reading arriving from spectral recovery: a success for the
+    /// pipeline, a failure for YIN.
+    private static func recoveredE2() -> PitchResult {
+        PitchResult(
+            frequency: 82.41,
+            closestNote: MusicalNote(midiNoteNumber: 40),
+            centsDeviation: 0.0,
+            confidence: 0.30,
+            amplitudeRMS: 0.002,
+            isSignalPresent: true,
+            recovered: true
+        )
+    }
+
+    /// Nothing to hear, at a level that clears the level gate so the pipeline
+    /// reports "here, but no pitch" rather than "nothing here".
+    private static func silent() -> PitchResult {
+        PitchResult(
+            frequency: 0,
+            closestNote: MusicalNote(midiNoteNumber: 40),
+            centsDeviation: 0,
+            confidence: 0,
+            amplitudeRMS: 0.0003,
+            isSignalPresent: false
+        )
+    }
+
+    private static func guitarTargets() -> [StringTarget] {
+        Presets.guitar[0].midi.enumerated().map { index, midi in
+            StringTarget(note: PitchMath.midiNoteName(midi), midi: midi,
+                          frequency: PitchMath.midiFrequency(midi), number: 6 - index)
+        }
+    }
+
+    /// Number of times the state a player can see changed, over a trace of
+    /// readings. A `nil` reading is the needle going dark, which is a change too.
+    private static func visibleTransitions(_ readings: [TunerReading?]) -> Int {
+        var transitions = 0
+        var previous: String?
+        for reading in readings {
+            let state: String
+            if let reading {
+                state = reading.recovered
+                    ? "recovered"
+                    : (reading.freshness == .fresh ? "fresh" : "held")
+            } else {
+                state = "none"
+            }
+            if state != previous { transitions += 1 }
+            previous = state
+        }
+        return max(0, transitions - 1)  // the first frame is acquisition
+    }
+
+    @Test("An alternating YIN dropout does not move the display at all")
+    func testAlternatingYinDropoutDoesNotFlicker() {
+        let tracker = PitchTracker()
+        let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .auto)
+        let targets = Self.guitarTargets()
+        let cadence = 0.02
+
+        // Acquire E2 and settle the display on a YIN-confirmed reading.
+        var readings: [TunerReading?] = []
+        for step in 0..<5 {
+            readings.append(tracker.process(pitchResult: Self.yinE2(),
+                                           at: 10.0 + Double(step) * cadence,
+                                           config: config, targets: targets))
+        }
+        #expect(readings.last??.freshness == .fresh, "test setup: the display should be on a YIN reading")
+
+        // 30 more frames with the estimator gone on every third one — the cadence
+        // of a real decay tail, where YIN keeps losing lock and the recovery path
+        // keeps handing back a reading.
+        for step in 5..<35 {
+            let frame = step % 3 == 0 ? Self.silent() : Self.yinE2()
+            readings.append(tracker.process(pitchResult: frame,
+                                           at: 10.0 + Double(step) * cadence,
+                                           config: config, targets: targets))
+        }
+
+        let transitions = Self.visibleTransitions(readings)
+        let trace = readings.map { reading -> String in
+            guard let reading else { return "none" }
+            if reading.freshness != .fresh { return "held" }
+            return reading.recovered ? "recovered" : "fresh"
+        }.joined(separator: " ")
+        #expect(transitions <= 1,
+                "A dropout on every third frame produced \(transitions) visible transitions; the estimator never went three frames without a pitch, so the display never earned the right to change. Trace: \(trace)")
+    }
+
+    @Test("A new pluck on another string is still acquired promptly")
+    func testNewPluckOnAnotherStringIsStillPrompt() {
+        let tracker = PitchTracker()
+        let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .auto)
+        let targets = Self.guitarTargets()
+        let cadence = 0.02
+
+        for step in 0..<5 {
+            _ = tracker.process(pitchResult: Self.yinE2(), at: 10.0 + Double(step) * cadence,
+                                 config: config, targets: targets)
+        }
+
+        // A2 on string 5: 500 cents from E2, so nothing about the string prior
+        // can carry it. Acquisition, not continuation, has to do this work, and
+        // the onset is what buys the shorter evidence span.
+        let a2 = PitchResult(
+            frequency: 110.0,
+            closestNote: MusicalNote(midiNoteNumber: 45),
+            centsDeviation: 0.0,
+            confidence: 0.95,
+            amplitudeRMS: 0.08,
+            isSignalPresent: true
+        )
+        _ = tracker.process(pitchResult: a2, at: 10.10, config: config, targets: targets)
+        let replaced = tracker.process(pitchResult: a2, at: 10.12, config: config, targets: targets)
+
+        #expect(replaced?.note == "A2",
+                "A 500-cent move to another string must be acquired, not held")
+        #expect(replaced?.freshness == .fresh)
+        #expect(replaced?.lastFreshAt == 10.12)
+
+        // And the bound: the continuation hysteresis must not have cost it a
+        // frame. Two frames is the onset requirement the tracker has always had,
+        // and this change must not move it to three.
+        let latencyMs = ((replaced?.at ?? 10.10) - 10.10) * 1000
+        #expect(latencyMs <= 45,
+                "The new string was acquired \(latencyMs) ms after the pluck; the onset requirement is 2 frames = 40 ms, and continuation hysteresis must not add to it")
+    }
+
+    @Test("A long dropout still ends a genuine loss: the display expires and the candidate goes with it")
+    func testLongDropoutStillExpiresTheDisplay() {
+        let tracker = PitchTracker()
+        let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .auto)
+        let targets = Self.guitarTargets()
+        let cadence = 0.02
+        let lastFreshAt = 10.08   // the last of the five acquisition frames below
+
+        for step in 0..<5 {
+            _ = tracker.process(pitchResult: Self.yinE2(), at: 10.0 + Double(step) * cadence,
+                                 config: config, targets: targets)
+        }
+
+        // A transient dropout: inside the hold, inside the continuation streak, and
+        // inside the candidate gap. Nothing here may be thrown away.
+        let insideHold = tracker.process(pitchResult: Self.silent(), at: 10.10,
+                                         config: config, targets: targets)
+        #expect(insideHold != nil, "test setup: 20 ms of silence is inside the 1.0 s hold")
+        #expect(tracker.shouldHoldThroughDropout,
+                "test setup: one silent frame is a transient dropout, not a loss")
+
+        // Now keep going, past the hold and past the streak. The hysteresis delays
+        // the display by at most `continuationYinFailuresToWeaken` frames; it must
+        // not be able to reach the duration, or the needle would sit live over
+        // silence for as long as the audio kept delivering frames carrying no
+        // pitch.
+        var expiredAt: TimeInterval?
+        for step in 6..<80 {
+            let at = 10.0 + Double(step) * cadence
+            if tracker.process(pitchResult: Self.silent(), at: at,
+                               config: config, targets: targets) == nil {
+                expiredAt = at
+                break
+            }
+        }
+
+        #expect(expiredAt != nil, "The display never went dark over 1.5 s of silence")
+        #expect((expiredAt ?? 99) <= lastFreshAt + PitchTracker.readingHoldDuration
+                    + Double(PitchTracker.continuationYinFailuresToWeaken + 1) * cadence,
+                "The display expired at \(expiredAt ?? 0)s, later than the 1.0s hold plus the continuation streak past it")
+        #expect(!tracker.shouldHoldThroughDropout,
+                "test setup: a sustained dropout must exhaust the continuation streak")
+
+        // The same has to be true of the candidate, or the note would come back on
+        // one frame of evidence after a silence long enough that it may not have
+        // been the same note. `maxCandidateGap` is that bound: short gaps
+        // individually do not trip it, and the accumulated silence does.
+        let firstBack = tracker.process(pitchResult: Self.yinE2(), at: (expiredAt ?? 12) + 0.02,
+                                        config: config, targets: targets)
+        #expect(firstBack == nil,
+                "One YIN frame after a \(String(format: "%.2f", (expiredAt ?? 12) - lastFreshAt))s dropout published a reading; the candidate must be gone, so this is a new acquisition needing 40 ms of evidence")
+        #expect(tracker.process(pitchResult: Self.yinE2(), at: (expiredAt ?? 12) + 0.06,
+                                config: config, targets: targets)?.freshness == .fresh,
+                "The note should be re-acquired once 40 ms of evidence exists")
+    }
+
+    @Test("A recovery-sourced reading is a failure for YIN, not a weaker success")
+    func testRecoveredFrameCountsAsYinFailure() {
+        let tracker = PitchTracker()
+        let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .auto)
+        let targets = Self.guitarTargets()
+        let cadence = 0.02
+
+        for step in 0..<5 {
+            _ = tracker.process(pitchResult: Self.yinE2(), at: 10.0 + Double(step) * cadence,
+                                 config: config, targets: targets)
+        }
+        #expect(tracker.consecutiveYinSuccesses == 5)
+        #expect(tracker.consecutiveYinFailures == 0)
+
+        // One recovery frame: signal present, so the pipeline succeeded, but the
+        // pitch came from the spectral scorer, so YIN did not produce it.
+        let recovered = tracker.process(pitchResult: Self.recoveredE2(), at: 10.10,
+                                        config: config, targets: targets)
+        #expect(recovered != nil, "a recovered reading is still a reading")
+        #expect(recovered?.freshness == .fresh)
+        #expect(tracker.consecutiveYinFailures == 1)
+        #expect(tracker.consecutiveYinSuccesses == 0)
+        #expect(tracker.shouldHoldThroughDropout)
     }
 }
 
