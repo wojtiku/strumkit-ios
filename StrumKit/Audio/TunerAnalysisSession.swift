@@ -1,4 +1,5 @@
 import Foundation
+import Accelerate
 import QuartzCore
 
 /// Coordinates DSP detection and pitch tracking on a single serial worker.
