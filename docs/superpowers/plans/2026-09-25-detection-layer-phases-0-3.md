@@ -2164,23 +2164,28 @@ struct DecayStabilityTests {
             #expect(t <= 1, "\(cell.label) made \(t) display transitions; G1 allows 1")
             // A count alone is not a complete gate: a one-way terminal
             // degradation - fresh acquires, then every frame is `held` and never
-            // returns - also scores exactly 1, and that is inside the failure
-            // family this fixture exists to detect.
+            // returns - also scores exactly 1, because `countDisplayTransitions`
+            // is `changes - 1` and both `[none, fresh...]` and `[none, held...]`
+            // score 1. That is inside the failure family this fixture detects.
             //
-            // The discriminator is only available on the CLEAN control, where
-            // holding is never correct: a 4 s pluck at the low E with no injected
-            // dropout should stay `fresh` from acquisition to the end, so zero
-            // `held` and zero `recovered` frames is both necessary and sufficient.
-            // Parameter-free, which matters because a bare count threshold is the
-            // exact mistake RESULTS.md §7 already documents once.
+            // The discriminator needs a trace where holding is *never* correct,
+            // and only one such trace is evidenced: the Task 3b decay-with-dropout
+            // control at rate 0.0, whose recorded histogram is
+            // `["none": 1, "fresh": 171]` - zero held, zero recovered, over a
+            // full 4 s low-E decay that is still ringing when the window ends.
+            // So the check is asserted there, on evidence, rather than smeared
+            // across cells whose behaviour nobody has measured.
             //
-            // On the dropout cells the count IS the whole gate, and it is
+            // It is deliberately NOT applied to the `h1-` cells. A 3 s pluck with
+            // a 1.8 s decay tail plausibly leaves `fresh` near the end, and their
+            // recorded `trans = 1` is ambiguous under `changes - 1`, so a
+            // `degraded == 0` rule there is unproven and would forbid legitimate
+            // holding - the same defect as the version this replaced.
+            //
+            // On the dropout cells the count is the whole gate, and it is
             // deliberately not strengthened: after the fix, holding through
-            // transient dropouts IS the intended behaviour, so any rule that
-            // penalises `held` there would fail Task 12 for working as intended.
-            // The one-way degradation is caught at the control instead. This is a
-            // partial gate by design and is recorded as such.
-            if cell.label.hasPrefix("h1-") {
+            // transient dropouts IS the intended behaviour. This is a partial gate
+            // by design and is recorded as such.
                 let degraded = histogram["held", default: 0] + histogram["recovered", default: 0]
                 #expect(degraded == 0,
                         "\(cell.label) produced \(degraded) held/recovered frames in "
