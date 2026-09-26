@@ -32,6 +32,7 @@ Exit codes: 0 compared, 2 parity failure or nobody heard anything,
 """
 import os
 import re
+import subprocess
 import sys
 import tempfile
 
@@ -41,6 +42,31 @@ import tempfile
 # from the per-frame lines would reintroduce a place for the two tolerances to
 # disagree.
 CENTS_TOLERANCE = 50.0
+
+# The one canonical way to regenerate `xtruth.txt`, printed verbatim when the
+# truth table is missing. Three things this has to be, and was not:
+#
+#   * Runnable on the Python that is actually here. An f-string that indexes
+#     `c['label']` inside single quotes is valid only on 3.12+; on 3.9 it is a
+#     SyntaxError. `+` and `str()` are version-agnostic and produce identical
+#     output for both ints and floats, so the data block is unchanged.
+#   * Self-sufficient. It builds the file from `xtruth-header.txt` and
+#     `xcells.json` and never reads `xtruth.txt`, so the remedy printed for
+#     "xtruth.txt is missing" is actually runnable in that situation. The
+#     previous version copied the header out of the file it was repairing.
+#   * Idempotent. A pure function of two committed inputs, so running it on its
+#     own output is a no-op. The previous version appended to what it read and
+#     produced 104 lines instead of 68.
+#
+# The copy in ../README.md must stay in step; `self_check` below re-pastes this
+# string, executes it with `xtruth.txt` absent, and requires byte-identity.
+TRUTH_TABLE_RECIPE = (
+    "cat xtruth-header.txt > xtruth.txt.new && "
+    'python3 -c "import json;'
+    "[print(c['label'] + '=' + str(c['noteHz'])) "
+    "for c in json.load(open('xcells.json'))]\" >> xtruth.txt.new && "
+    "mv xtruth.txt.new xtruth.txt"
+)
 
 
 def median(xs):
@@ -203,9 +229,7 @@ def path_label(path):
 
 
 def main(eng_path, web_path, truth_path):
-    require_file(truth_path, "truth table",
-                 "python3 -c \"import json;[print(f'{c[\\'label\\']}={c[\\'noteHz\\']}') "
-                 "for c in json.load(open('xcells.json'))]\" > xtruth.txt")
+    require_file(truth_path, "truth table", TRUTH_TABLE_RECIPE)
     require_file(eng_path, "StrumKit trace",
                  "xcodebuild test -only-testing:StrumKitTests/CrossEngineComparisonTests "
                  "| grep -E '^(XENG|XENG-SUMMARY)'")
@@ -414,12 +438,61 @@ def self_check():
         if code != 0:
             failures.append(f"commented truth table: expected exit 0, got {code}")
 
+        # 7. The remedy the missing-file error prints must be runnable, on the
+        #    Python that is actually here, and must round-trip the file rather
+        #    than append to it. Both halves of N-3: the old f-string remedy was a
+        #    SyntaxError on 3.9, and the old `sed -n '1,/^$/p'` header copy had no
+        #    terminating blank line to stop at, so it copied the whole file.
+        import re as _re
+        payload = _re.search(r'python3 -c "(.*?)"', TRUTH_TABLE_RECIPE)
+        if payload is None:
+            failures.append("TRUTH_TABLE_RECIPE has no extractable python payload")
+        else:
+            program = payload.group(1).replace('\\"', '"')
+            try:
+                compile(program, "<remedy>", "exec")
+            except SyntaxError as exc:
+                failures.append(f"TRUTH_TABLE_RECIPE is not runnable here: {exc.msg}")
+
+        # Round-trip: build the two committed inputs, leave `xtruth.txt` ABSENT,
+        # run the real recipe in a scratch dir, and require exactly the expected
+        # bytes. Absent is the point: this is the situation the remedy is printed
+        # for, and the previous version could not run there at all.
+        scratch = os.path.join(tmp, "scratch")
+        os.makedirs(scratch, exist_ok=True)
+        with open(os.path.join(scratch, "xcells.json"), "w", encoding="utf8") as h:
+            h.write('[{"label": "c1", "noteHz": 110}, {"label": "c2", "noteHz": 82.4069}]')
+        with open(os.path.join(scratch, "xtruth-header.txt"), "w", encoding="utf8") as h:
+            h.write("# header\n#\n# generated\n")
+        expected = "# header\n#\n# generated\nc1=110\nc2=82.4069\n"
+        proc = subprocess.run(["sh", "-c", TRUTH_TABLE_RECIPE], cwd=scratch,
+                              capture_output=True, text=True)
+        if proc.returncode != 0:
+            failures.append(f"TRUTH_TABLE_RECIPE exited {proc.returncode}: {proc.stderr.strip()[:200]}")
+        elif not os.path.exists(os.path.join(scratch, "xtruth.txt")):
+            failures.append("TRUTH_TABLE_RECIPE did not produce xtruth.txt from an absent start")
+        else:
+            with open(os.path.join(scratch, "xtruth.txt"), encoding="utf8") as h:
+                after = h.read()
+            if after != expected:
+                failures.append(f"TRUTH_TABLE_RECIPE produced {after!r}, expected {expected!r}")
+            # And it must be a no-op on its own output.
+            proc2 = subprocess.run(["sh", "-c", TRUTH_TABLE_RECIPE], cwd=scratch,
+                                   capture_output=True, text=True)
+            with open(os.path.join(scratch, "xtruth.txt"), encoding="utf8") as h:
+                again = h.read()
+            if proc2.returncode != 0 or again != expected:
+                failures.append("TRUTH_TABLE_RECIPE is not idempotent")
+            if again.count("c1=110") != 1:
+                failures.append("TRUTH_TABLE_RECIPE duplicated the data block")
+
     if failures:
         print(f"SELF-CHECK FAILED ({len(failures)}):")
         for f in failures:
             print(f"  - {f}")
         return 1
-    print("SELF-CHECK PASSED: 6 cases, including the all-miss zero-detect path.")
+    print("SELF-CHECK PASSED: 7 cases, including the all-miss zero-detect path "
+          "and an executed copy of the missing-file remedy.")
     return 0
 
 

@@ -18,10 +18,15 @@
 #   2. The `truth` column printed in the table, so a reader does not have to
 #      open the JSON to check a number.
 #
-# Generated from xcells.json, which the Swift test writes. Regenerate with the
-# command in ../README.md; the header is prepended by that command, so
-# regenerate rather than hand-editing.
-#
+# GENERATED FILE - regenerate, never hand-edit. This file is exactly
+# `xtruth-header.txt` followed by one `label=noteHz` line per manifest entry.
+# The recipe in ../README.md rebuilds it from those two committed inputs and
+# never reads its own output, so running it is idempotent and it works even
+# when this file has been deleted. A hand-edited value here would be silently
+# reverted by the next regeneration, and until then would not be what the
+# generator produces - which is exactly how three `110.0`/`440.0` lines got in
+# once.
+
 h1-1.0=82.4069
 h1-0.3=82.4069
 h1-0.1=82.4069
@@ -49,7 +54,7 @@ lvl--36dB=82.4069
 lvl--24dB=82.4069
 lvl--6dB=82.4069
 str-g0=82.4069
-str-g1=110.0
+str-g1=110
 str-g2=146.8324
 str-g3=195.9977
 str-g4=246.9417
@@ -57,8 +62,8 @@ str-g5=329.6276
 str-u0=391.9954
 str-u1=261.6256
 str-u2=329.6276
-str-u3=440.0
+str-u3=440
 poly-E2+A2=82.4069
 poly-E2+E4=82.4069
-poly-A2+E4=110.0
+poly-A2+E4=110
 poly-E2+Fs2=82.4069

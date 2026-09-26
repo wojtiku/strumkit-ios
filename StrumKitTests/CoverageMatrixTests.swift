@@ -138,13 +138,26 @@ struct CoverageMatrixSignalModelTests {
                 #expect(withVoice > without * 4,
                         "\(cell.label): no energy at the second voice \(f) Hz (with voice \(withVoice), primary only \(without))")
 
-                // (2) Position: that energy is centred on f, not merely somewhere
-                //     in a 8 Hz-wide window. A 1 Hz-wide band at 1.02f costs one
-                //     more bandEnergy call and has ~27x margin, because a
-                //     coherent tone one bin away is a near-perfect null over a
-                //     1 s window. On its own this would be vacuous — with the
-                //     voice absent both bands would be equal — so it only means
-                //     something alongside (1).
+                // (2) Position: that energy is centred on f, not merely
+                //     somewhere in the 8 Hz window (1) used. A 2 Hz-wide band
+                //     (`halfWidthHz: 1` is +-1, so 1 Hz either side) at 1.02f
+                //     costs one more bandEnergy call. The comparison probe sits
+                //     2% above f, which is 1.85 Hz at the 92.5 Hz cell and
+                //     6.6 Hz at the 329.6 Hz one - not "one bin", which is what
+                //     an earlier version of this comment wrongly called it.
+                //
+                //     Measured margins against the 4x threshold, from the
+                //     committed traces: 17.1x (poly-E2+Fs2), 25.5x
+                //     (poly-E2+A2), 130x (poly-A2+E4), 138x (poly-E2+E4). The
+                //     17.1x is the minimum and is the one to quote. The ratio
+                //     is scale-invariant — both bands come from the same signal,
+                //     so any common scaling cancels — which is why the threshold
+                //     is a ratio and not an absolute level.
+                //
+                //     On its own this would be vacuous: with the voice absent both
+                //     bands would be equal. It only means something alongside (1),
+                //     and a 5% detuning of the voice fails it while passing
+                //     (1) on the two E4 cells.
                 let atVoice = CoverageMatrix.bandEnergy(
                     full, rate: 44100, aroundHz: f, halfWidthHz: 1)
                 let offVoice = CoverageMatrix.bandEnergy(

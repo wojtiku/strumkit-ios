@@ -206,9 +206,27 @@ struct CrossEngineComparisonTests {
             // not merely equal to the matrix. Both emitters gate on this number,
             // so a value that is not in the tuning would have both engines
             // grading against a note that is not there.
+            //
+            // No `?? available.first` fallback. Falling back to the first
+            // available preset grades the cell against a tuning it does not
+            // claim, which is exactly the vacuity this assertion exists to
+            // prevent: a bogus `tuningId` whose note happens to sit in
+            // `available.first` (a ukulele cell landing on a guitar E) would
+            // pass. An unresolvable `tuningId` is a matrix bug, so it is
+            // reported as one rather than papered over.
             let available = Presets.presets(for: cell.config.instrument)
-            guard let preset = available.first(where: { $0.id == cell.config.tuningId })
-                    ?? available.first else { continue }
+            // Bind the id to a local so the failure message cannot report a
+            // different value than the one that failed to resolve.
+            let tuningId = cell.config.tuningId
+            guard let preset = available.first(where: { $0.id == tuningId }) else {
+                Issue.record("""
+                    \(cell.label): tuningId "\(tuningId)" is not a \
+                    \(cell.config.instrument) preset, so noteHz cannot be checked \
+                    against the cell's own tuning. Available: \
+                    \(available.map(\.id).joined(separator: ", "))
+                    """)
+                continue
+            }
             let strings = preset.midi.map { PitchMath.midiFrequency($0, a4: cell.config.a4) }
             #expect(strings.contains { abs($0 - cell.noteHz) < 0.001 },
                     "\(cell.label): \(cell.noteHz) Hz is not a string of \(cell.config.tuningId) (\(strings))")

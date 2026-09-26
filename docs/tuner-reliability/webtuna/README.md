@@ -60,16 +60,29 @@ node xeng.mjs > xweb-trace.txt
 python3 xcompare.py /tmp/xeng-trace.txt xweb-trace.txt xtruth.txt
 ```
 
-`xtruth.txt` is generated from `xcells.json` and committed alongside it, so the label set
-cannot drift. Its header documents what it is and is not: a label set plus a
-human-readable frequency column, **not** a third independent check on `noteHz` — both
-emitters gate on the manifest's own value. It is load-bearing as the third leg of the
-label-parity check. Regenerate with (the header is part of the output, so regenerate
-rather than hand-editing):
+`xtruth.txt` is generated from two committed inputs, `xtruth-header.txt` (the prose) and
+`xcells.json` (the data), so the label set cannot drift. Its header documents what it is
+and is not: a label set plus a human-readable frequency column, **not** a third independent
+check on `noteHz` — both emitters gate on the manifest's own value. It is load-bearing as
+the third leg of the label-parity check. Regenerate rather than hand-editing:
 
 ```bash
-{ sed -n '1,/^$/p' xtruth.txt; python3 -c "import json;[print(f\"{c['label']}={c['noteHz']}\") for c in json.load(open('xcells.json'))]"; } > xtruth.txt.new && mv xtruth.txt.new xtruth.txt
+cat xtruth-header.txt > xtruth.txt.new && python3 -c "import json;[print(c['label'] + '=' + str(c['noteHz'])) for c in json.load(open('xcells.json'))]" >> xtruth.txt.new && mv xtruth.txt.new xtruth.txt
 ```
+
+This is character-for-character the string `xcompare.py` prints as the remedy when
+`xtruth.txt` is missing, so the copy here and the copy in the error message cannot
+disagree — `xcompare.py --self-check` runs it with `xtruth.txt` **absent** and requires
+byte-identity plus idempotence. Two details are load-bearing:
+
+- The Python is `print(c['label'] + '=' + str(c['noteHz']))`, **not** an f-string indexing
+  `c['label']` inside single quotes. That form is valid only on Python 3.12+; on the 3.9
+  that is otherwise here it is a `SyntaxError`, which is what the error message used to
+  print. Both produce identical output.
+- The three integer-valued cells (`str-g1`, `str-u3`, `poly-A2+E4`) print as `110` and
+  `440`, not `110.0` and `440.0`, because the manifest holds JSON integers for exactly
+  those three. A previous hand-edited copy wrote `110.0`/`440.0`, which is why the file is
+  now generated and never typed.
 
 Two guards make a drift loud instead of silent, and `xcompare.py` exits 2 on either:
 
