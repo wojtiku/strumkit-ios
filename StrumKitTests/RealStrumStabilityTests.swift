@@ -182,6 +182,36 @@ struct RealStrumStabilityTests {
         )
     }
 
+    /// The same file with everything after the boundary digitally silenced.
+    ///
+    /// This is the control that gives the tail assertion a meaning. The display
+    /// cannot be dark immediately after the last strum, because the last strum is
+    /// still decaying at 15.850 s and `PitchTracker.readingHoldDuration` is 1.0 s
+    /// past the last frame the estimator had anything to say about. So the floor of
+    /// the "frames with a live display in the tail" measure is not 0, and a gate
+    /// that asserted 0 would be asserting that the tuner forgets a note the instant
+    /// it stops being loud. This measures that floor on the same file, the same
+    /// pipeline and the same code, so the real number can be read against it.
+    ///
+    /// Measured: **47 live frames and 2 post-boundary transitions with the room tone
+    /// removed, against 54 and 2 with it present.** The tail is therefore
+    /// indistinguishable from silence, and the seven-frame difference is the only
+    /// thing the room tone still contributes to the display.
+    private static func silencedTail(
+        wav: (samples: [Float], sampleRate: Double),
+        config: TunerConfig
+    ) -> [AudioTestHelpers.ReplayFrame] {
+        var samples = wav.samples
+        let cut = Int(Self.postMusicStart * wav.sampleRate)
+        for i in cut..<samples.count { samples[i] = 0 }
+        return AudioTestHelpers.replayTrace(
+            samples: samples,
+            sampleRate: wav.sampleRate,
+            config: config,
+            hopSamples: AudioTestHelpers.productionHopSamples
+        ).frames
+    }
+
     // MARK: - Stability
 
     @Test("Auto mode holds a stable display across the whole real recording")
@@ -236,44 +266,70 @@ struct RealStrumStabilityTests {
         // the breakdown recorded so the next person can see what each transition
         // is. Both halves are ratchets, not targets:
         //
-        //   present = 20, afterMusicStops = 11, total = 31 (was 75 before
-        //   continuation hysteresis).
+        //   present = 15, afterMusicStops = 2, total = 17 (was 20 / 11 / 31 at the
+        //   previous ratchet, and 75 before continuation hysteresis).
         //
+        // The present half moves for the same reason the tail does: five of the
+        // twenty were the room's own bursts re-acquiring a string during the gaps
+        // between strums. What is left is B1's decay weakening to a hold, the
+        // 44-frame hold across the 1.35 s before B2, `fresh <-> recovered` handoffs
+        // on B2's and B3's real sustains, and the weakenings as B4 and B5 decay.
         // The aspiration for `whileSignalPresent` is still ≤ 8, and it is not
-        // reachable by any continuation threshold. All 29 surviving runs are ≥ 3
-        // frames and are real: B1's decay weakening to a 23-frame hold, the 44-frame
-        // hold across the 1.35 s before B2, `fresh <-> recovered` handoffs on B2's
-        // and B3's real sustains of 15–90 frames each, and the weakenings at
-        // 13.973 s and 15.147 s as B4 decays. Reaching 8 means suppressing the
-        // recovery handoff on genuine decays, which is a different mechanism (the
-        // median ring, or the display EMA) and out of scope here.
-        #expect(split.whileSignalPresent <= 20,
-                "The display changed state \(split.whileSignalPresent) times at or before \(String(format: "%.3f", Self.postMusicStart))s, the last strum. Ratchet: 20. Aspiration: 8, which no continuation threshold reaches on this file.")
+        // reachable by any level or continuation threshold: reaching it means
+        // suppressing the recovery handoff on genuine sustains, which is a different
+        // mechanism (the median ring, or the display EMA) and out of scope here.
+        #expect(split.whileSignalPresent <= 15,
+                "The display changed state \(split.whileSignalPresent) times at or before \(String(format: "%.3f", Self.postMusicStart))s, the last strum (ratchet: 20, measured now 15). Aspiration: 8, which no level or continuation threshold reaches on this file.")
 
-        // The tail is a separate, tighter question, and the answer is not good.
+        // The tail is a separate question, and it is the one that was wrong.
         //
-        // The music ends at 15.850 s. The recording then has 6.1 s of −46 dBFS room
-        // tone, and the display is live on 274 of the tail's 287 frames — 5.9 s of
-        // it — changing state 11 times and naming three different strings (G4, C4,
-        // A4) out of silence. **No tuner should be reporting at all over room
-        // tone**, so this is a real defect and not a tuning question. It is a
-        // ratchet at the measured 11 rather than a rejection, because the brief for
-        // this change was to reconcile the tests against a landed fix, not to
-        // invent a new mechanism. The measured value is the finding; the
-        // aspiration is 0.
+        // The music ends at 15.850 s. The recording then has 6.12 s of −46.3 dBFS
+        // room tone, and the display used to be live on 274 of the tail's 287
+        // frames — 5.85 s of it, 95 % — changing state 11 times and naming three
+        // different strings (G4, C4, A4) out of silence. Continuation hysteresis
+        // did not create it and could not remove it, and the two preceding reports
+        // said so from opposite directions.
         //
-        // What is *not* the defect: `fresh`, `held` and `recovered` all appear down
-        // here and all are real state changes of a display that is confidently
-        // wrong. Continuation hysteresis did not create it and cannot remove it —
-        // the estimator is producing confident, in-vocabulary pitches out of room
-        // tone (272 Hz at 17.067 s, accepted as C4; 573 Hz at 17.600 s, correctly
-        // refused as out of vocabulary), so the level gate and the recovery path
-        // are where the next mechanism belongs. See
-        // `.superpowers/sdd/2026-09-25-detection-layer-phases-0-3/reconciliation-report.md`.
-        #expect(split.afterMusicStops <= 11,
-                "The display changed state \(split.afterMusicStops) times over \(String(format: "%.1f", split.tailSeconds))s of room tone after the last strum decayed (ratchet: 11, aspiration: 0): \(split.tail.joined(separator: ", ")). A tuner reporting at all here is wrong, not merely jittery.")
-        #expect(split.tailLiveSeconds <= 6.0,
-                "The display was live on \(split.tailLiveFrames) frames (\(String(format: "%.1f", split.tailLiveSeconds))s) of the \(String(format: "%.1f", split.tailSeconds))s tail; a silent room should leave the needle dark")
+        // **What the mechanism turned out to be**, since the guess on the table was
+        // wrong in an instructive way. The hypothesis was a chicken-and-egg in the
+        // adaptive noise gate: periodicity on noise keeps `lastForegroundTime`
+        // fresh, the 0.35 s cooldown never expires, the floor never rises, so the
+        // noise keeps looking periodic. Instrumented over the tail, **the floor is
+        // not flat** — it climbs 0.00263 → 0.00428 and the cooldown expires dozens of
+        // times, so adaptation is reachable and that specific story is refuted. What
+        // is true is weaker and was the actual defect: the floor is an EMA of the
+        // *non-foreground* subset of the room, and the frames of room tone that look
+        // most periodic are also the loudest ones (their median is 1.90× the floor
+        // against 1.37× for the tail as a whole), so the sample it learns from is
+        // biased low. The floor settled at **0.77× the room's true mean**, and
+        // `recommendedNoiseGate` therefore sat *below* that mean — not a gate at all.
+        //
+        // A level threshold alone could not repair it, and that is worth recording
+        // because it is the tempting next step. A synthetic pluck mixed into this
+        // room's own bed is still acquired at **1.49× the floor**, while the bed's
+        // false acquisitions reach **4.76×**; the real recording's two marginal
+        // re-acquisitions sit at 1.20× and 1.54×. Level, YIN periodicity and
+        // frequency stability all overlap between the two populations, so no
+        // threshold on `PitchResult` separates them. What did separate them was
+        // *what the frame is allowed to do*: `isContinuingTarget` bypassed the
+        // candidate requirement entirely, so a room-tone frame at 0.41× the floor
+        // inside the prior's grace window reached `lastReadingTime` and restarted the
+        // 1.0 s display hold, and the tail held itself up. Gating that shortcut and
+        // candidate confirmation on a foreground test that includes the level takes
+        // the tail from 274 live frames to 54.
+        //
+        // **54, and not 0, because 47 is what the hold costs on its own.** The same
+        // file replayed with the room tone replaced by digital silence is live on 47
+        // of the same 287 frames, because the last strum is still decaying at the
+        // boundary and `readingHoldDuration` is 1.0 s. `postMusicTailIsAsDarkAsSilence`
+        // measures that control in the suite, so 54 is a number with a meaning
+        // rather than a number someone liked. What is left in the tail is two state
+        // changes at 16.235 s and 17.003 s — the A4 finishing its decay, and the
+        // same two changes the silenced control makes at 15.979 s and 16.853 s.
+        #expect(split.afterMusicStops <= 2,
+                "The display changed state \(split.afterMusicStops) times over \(String(format: "%.1f", split.tailSeconds))s of room tone after the last strum decayed (was 11): \(split.tail.joined(separator: ", ")). A tuner reporting at all here is wrong, not merely jittery.")
+        #expect(split.tailLiveFrames <= 60,
+                "The display was live on \(split.tailLiveFrames) of the tail's \(frames.count - frames.prefix { $0.captureEndSeconds <= Self.postMusicStart }.count) frames (\(String(format: "%.2f", split.tailLiveSeconds))s of \(String(format: "%.1f", split.tailSeconds))s); it was 274 before `PitchTracker.foregroundLevelMultiple`, and 47 is this file with the room tone removed, so anything near 274 is the room talking.")
 
         // Unchanged, and the assertion that carries the fix. 25 of 73 runs ≤ 2
         // frames (34%, median 107 ms) before; 0 of 29 after. Every survivor is ≥ 3
@@ -281,6 +337,101 @@ struct RealStrumStabilityTests {
         // gone and the transitions that remain are not a subtler version of it.
         #expect(shortRuns.isEmpty,
                 "\(shortRuns.count) of \(runs.count) non-`none` display runs lasted 2 frames or fewer (≤ 43 ms at the 1024-sample hop), lengths \(shortRuns.sorted().prefix(20)). A needle that is only briefly wrong still reads as a glitch.")
+    }
+
+    // MARK: - The tail, against its own control
+
+    /// The post-music tail must be as dark as the same file with the room removed.
+    ///
+    /// "The display should not be live over room tone" is not the same claim as "the
+    /// display should be dark from 15.850 s", and this test is what keeps the two
+    /// apart. Zeroing the tail does not remove the last strum — it is still decaying
+    /// at the boundary, and `PitchTracker.readingHoldDuration` holds the display for
+    /// 1.0 s past the last frame the estimator had a pitch for. That is correct
+    /// behaviour and it sets a floor on the honest measure, so the floor is measured
+    /// here on the same file rather than asserted from memory.
+    ///
+    /// Measured: with the room tone, 54 live frames and 2 post-boundary transitions;
+    /// with it replaced by silence, 47 and 2. The gate is on the *difference*, which
+    /// is the only part the room tone is responsible for, and it is set at 12 frames
+    /// (0.26 s, 4 % of the tail) against a measured 7. Before
+    /// `PitchTracker.foregroundLevelMultiple` the difference was 224 frames.
+    @Test("The post-music tail is as dark as the same file with the room tone removed")
+    func postMusicTailIsAsDarkAsSilence() {
+        guard let wav = AudioTestHelpers.loadWav(name: Self.fixtureName) else {
+            Issue.record("Failed to load fixture \(Self.fixtureName).wav from StrumKitTests/Fixtures")
+            return
+        }
+
+        let config = TunerConfig(instrument: .ukulele, tuningId: "high-g", mode: .auto)
+        let live = Self.transitionSplit(
+            AudioTestHelpers.replayTrace(samples: wav.samples, sampleRate: wav.sampleRate, config: config).frames,
+            boundary: Self.postMusicStart
+        )
+        let silenced = Self.transitionSplit(
+            Self.silencedTail(wav: wav, config: config),
+            boundary: Self.postMusicStart
+        )
+
+        let excessFrames = live.tailLiveFrames - silenced.tailLiveFrames
+        print("TAILCONTROL|withRoom=\(live.tailLiveFrames)/\(Int(live.tailSeconds / 0.0213333 + 0.5)) frames, \(live.afterMusicStops) transitions (\(live.tail.joined(separator: ", ")))"
+              + "|silenced=\(silenced.tailLiveFrames) frames, \(silenced.afterMusicStops) transitions (\(silenced.tail.joined(separator: ", ")))"
+              + "|excess=\(excessFrames) frames")
+
+        #expect(excessFrames <= 12,
+                "The display was live on \(live.tailLiveFrames) frames of room tone against \(silenced.tailLiveFrames) for the same file silenced — \(excessFrames) frames (\(String(format: "%.2f", Double(excessFrames) * 0.0213333))s) of the tail are the room's doing. It was 224 before `PitchTracker.foregroundLevelMultiple`.")
+        #expect(live.tailSeconds > 6.0,
+                "This control is only meaningful if the tail is still the long silent stretch it is supposed to be; it is \(String(format: "%.2f", live.tailSeconds))s")
+    }
+
+    /// The level-qualified foreground test must cost the quiet plucks nothing.
+    ///
+    /// `PitchTracker.foregroundLevelMultiple` is the one number standing between
+    /// "the display is dark over room tone" and "quiet plucks are still detected",
+    /// and the two are not obviously compatible: a decaying pluck and a room-tone
+    /// burst reach the same level, and the only thing that separates them is that
+    /// one of them was asked for. So the cost side is asserted here, in the same
+    /// file as the benefit, rather than being left to `RecordedAudioTests` — a
+    /// future change that raises the multiple to 2.5 to buy a quieter tail must
+    /// break a test that names what it is buying it with.
+    ///
+    /// The cliff is measured, not guessed. Sweeping the multiple over 1.0 … 5.0 with
+    /// everything else fixed leaves every fixture below bit-identical at 1.0, 1.5 and
+    /// 2.0, and then `quiet_a` falls from 86 fresh frames to 29 at 2.5 and 17 at
+    /// 3.0, taking `RecordedAudioTests`' 0.40 s coverage gate to 0.62 s and 0.36 s.
+    /// The 1.00 s floor here is roughly twice that gate, so there is room to absorb a
+    /// little drift without the test going blind, and it still fails within one step
+    /// of the shipped value.
+    @Test("The level-qualified foreground test does not cost the quiet plucks their decay")
+    func levelQualifiedForegroundKeepsQuietPlucks() {
+        let fixtures: [(name: String, midi: Int)] = [
+            ("quiet_a", 69), ("quiet_c", 60), ("quiet_e", 64), ("quiet_g", 67)
+        ]
+
+        for (name, midi) in fixtures {
+            guard let wav = AudioTestHelpers.loadWav(name: name) else {
+                Issue.record("Failed to load \(name).wav")
+                continue
+            }
+            let config = TunerConfig(instrument: .ukulele, tuningId: "high-g", mode: .auto)
+            let frames = AudioTestHelpers.replayTrace(
+                samples: wav.samples, sampleRate: wav.sampleRate, config: config
+            ).frames
+            let reference = PitchMath.midiFrequency(midi, a4: config.a4)
+            let fresh = frames.compactMap { $0.reading }.filter { $0.freshness == .fresh }
+            let wrong = fresh.filter { !AudioTestHelpers.isCorrectRecordedPitch($0.frequency, reference: reference) }
+            let coverage = AudioTestHelpers.freshCoverageSeconds(
+                frames: frames, reference: reference,
+                intervalStart: 0, intervalEnd: frames.last?.captureEndSeconds ?? 0
+            )
+
+            print(String(format: "QUIETPLUCK|%@|fresh=%d|wrongFresh=%d|coverage=%.3fs", name, fresh.count, wrong.count, coverage))
+
+            #expect(wrong.isEmpty,
+                    "\(name): the display named \(wrong.count) wrong fresh notes; suppressing room tone must not have made it more willing to guess")
+            #expect(coverage >= 1.00,
+                    "\(name): fresh coverage over its own length fell to \(String(format: "%.3f", coverage))s. `RecordedAudioTests` gates 0.40 s over a shorter window; this is roughly twice that, and it is the number that moves when `PitchTracker.foregroundLevelMultiple` is raised — it is 1.83 s at the shipped 2.0 and 0.62 s at 2.5.")
+        }
     }
 
     // MARK: - Stability without string assignment
@@ -312,19 +463,20 @@ struct RealStrumStabilityTests {
             100.0 * shortRate, runs.min() ?? 0
         ))
 
-        // Recorded ceiling for this file and mode: 112 transitions over 111
-        // non-`none` runs, 52 of them ≤ 2 frames (47%). Chromatic is asserted as a
-        // ceiling rather than a target on purpose. It has no string prior, so the
-        // continuation tolerance has nothing to be sticky about and is deliberately
-        // not applied here; what this guards is that leaving it alone stays true.
-        // The 112 and the 47% are the plan's open item, and this case is where they
-        // will be closed — by whatever the state machine needs, not by a string
-        // prior.
-        #expect(transitions <= 112,
-                "Chromatic display changed state \(transitions) times; the recorded baseline is 112 and this configuration was the worst of the five measured.")
+        // These two were ceilings at numbers nobody could reconstruct — 112
+        // transitions and 47 % short runs, recorded from an earlier build and left
+        // as "do not regress" markers. The reconciliation report named them as this
+        // file's last uninformed thresholds, and the level-qualified foreground test
+        // is what makes them informable: chromatic has no string prior, so the
+        // continuation tolerance had nothing to be sticky about, and 38 transitions
+        // with 0 of 35 runs short is what the same recording produces once a frame
+        // has to be louder than the room to reach the display. Measured here, both
+        // are now ratchets at the values this file can reproduce.
+        #expect(transitions <= 44,
+                "Chromatic display changed state \(transitions) times over \(runs.count) runs; the measured value on this branch is 38 and the ceiling was an unreconstructible 112.")
 
-        #expect(shortRate <= 0.47,
-                "Chromatic short-run rate is \(Int(round(100 * shortRate)))% (\(shortRuns.count) of \(runs.count) runs ≤ 2 frames); the recorded baseline is 47%.")
+        #expect(shortRate <= 0.05,
+                "Chromatic short-run rate is \(Int(round(100 * shortRate)))% (\(shortRuns.count) of \(runs.count) runs ≤ 2 frames); the measured value on this branch is 0% and the ceiling was 47%.")
     }
 
     // MARK: - Detection is not traded for stability
