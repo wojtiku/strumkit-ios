@@ -54,6 +54,7 @@
 		C7F28B11FF86D33534E292F6 /* PitchDetectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A80EE17CBE59AD7D1D3737DD /* PitchDetectionTests.swift */; };
 		D113A9C4E137C93FBD4BDA0C /* StrumKitApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CD8553C0788E345EE166E2F /* StrumKitApp.swift */; };
 		D4AC69922F9F63E04908046D /* quiet_e.m4a in Resources */ = {isa = PBXBuildFile; fileRef = F7962DE8A22F1088B105500E /* quiet_e.m4a */; };
+		D84551A8F0EC3A3992674C38 /* RealStrumStabilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E2EC88610804667F563783C /* RealStrumStabilityTests.swift */; };
 		DAB4E495FA868985EB86A31D /* uke_a.wav in Resources */ = {isa = PBXBuildFile; fileRef = 46392009556A225043E27FDA /* uke_a.wav */; };
 		EC76E68DE1870D612A1D5DA9 /* HardwareReadoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E7BE48FE2F485FB47182300 /* HardwareReadoutView.swift */; };
 		ECF4D8EEAFF0033CA3FAF1D5 /* MusicalNoteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AECC7DF1BA2D4B95A1958BB7 /* MusicalNoteTests.swift */; };
@@ -88,6 +89,7 @@
 		1D1FB670B594ED47B2E7958C /* quiet_c.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = quiet_c.wav; sourceTree = "<group>"; };
 		1EBBE085E6A0AEA296635DC7 /* TunerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunerView.swift; sourceTree = "<group>"; };
 		29536BF2D48530651C9D7629 /* StrumKitTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = StrumKitTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		2E2EC88610804667F563783C /* RealStrumStabilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealStrumStabilityTests.swift; sourceTree = "<group>"; };
 		2E7BE48FE2F485FB47182300 /* HardwareReadoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareReadoutView.swift; sourceTree = "<group>"; };
 		30EB1B11BD02A61C26F5E63C /* AnalysisSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisSessionTests.swift; sourceTree = "<group>"; };
 		32196A1344E1B81BC9B48A9F /* TunerPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunerPresentationTests.swift; sourceTree = "<group>"; };
@@ -186,6 +188,7 @@
 				BF9B7515D46B65D7111B714A /* PitchTests.swift */,
 				D2829779E0C8247F29DFFBE1 /* PreferencesTests.swift */,
 				9A30B89BB74B2B1543E4704A /* RealStrumMeasurementTests.swift */,
+				2E2EC88610804667F563783C /* RealStrumStabilityTests.swift */,
 				A85FCA30A6417445D89A5867 /* RecordedAudioTests.swift */,
 				6E53CEB0A21776415C63A53D /* ReplayMetricsTests.swift */,
 				CADC48A2F52FE2D23DC527F7 /* SpectralPitchScorerTests.swift */,
@@ -453,6 +456,7 @@
 				B32EBE1A321A004AD6C3A3D7 /* PitchTests.swift in Sources */,
 				91F21502BE17BB30BFD2D476 /* PreferencesTests.swift in Sources */,
 				B1E2B85A41713B7B7E5ACF82 /* RealStrumMeasurementTests.swift in Sources */,
+				D84551A8F0EC3A3992674C38 /* RealStrumStabilityTests.swift in Sources */,
 				186004F88204EC9C3D9F37AF /* RecordedAudioTests.swift in Sources */,
 				4B83FC613F1B5F0B671AF77D /* ReplayMetricsTests.swift in Sources */,
 				9830CDA328EA1B4B1EAB6AB9 /* SpectralPitchScorerTests.swift in Sources */,
