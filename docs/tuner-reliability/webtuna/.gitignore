@@ -1,0 +1,15 @@
+# WebTuna.wasm is Yousician's intellectual property and is not committed.
+# Fetch it before running anything in this directory that loads the engine:
+#
+#   curl -o WebTuna.wasm https://guitartuna.com/webtuna/WebTuna.wasm
+#
+# `WebTuna.dcmp` is the product of wabt's wasm-decompile on that binary and is
+# likewise Yousician's IP in derived form; see README.md for how to build it.
+WebTuna.wasm
+WebTuna.dcmp
+
+# Local run products of the cross-engine comparison. `xcells.json` and
+# `xtruth.txt` ARE committed — they are the shared, reviewable description of
+# the matrix that both engines' traces are scored against.
+xeng-trace.txt
+xweb-trace.txt

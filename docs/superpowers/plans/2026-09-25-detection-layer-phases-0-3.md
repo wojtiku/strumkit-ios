@@ -334,15 +334,28 @@ Append to `CoverageMatrixSignalModelTests`:
     func matrixCoverage() {
         let a = CoverageMatrix.matrix(seed: CoverageMatrix.SEED_A)
         let b = CoverageMatrix.matrix(seed: CoverageMatrix.SEED_B)
-        #expect(a.count >= 120, "expected a broad matrix, got \(a.count) cells")
-        #expect(Set(a.map(\.label)) != Set(b.map(\.label)),
-                "seed A and seed B must be different runs, not the same cells")
-
-        func hasAxis(_ name: String) -> Bool {
-            a.contains { $0.label.contains(name) }
+        #expect(a.count == 40, "spec §6 enumerates 40 cells across eight axes; got \(a.count)")
+        // Compare the seeds, not the labels: a label carries no seed, so the
+        // label sets are identical by construction and comparing them is
+        // unsatisfiable.
+        #expect(a.allSatisfy { $0.case.seed == CoverageMatrix.SEED_A })
+        #expect(b.allSatisfy { $0.case.seed == CoverageMatrix.SEED_B })
+        // Select a finite-SNR cell: a clean cell is seed-independent by
+        // construction, because `signal` returns before the noise loop.
+        if let noisyA = a.first(where: { $0.case.snrDB.isFinite }),
+           let noisyB = b.first(where: { $0.case.snrDB.isFinite }) {
+            #expect(CoverageMatrix.signal(noisyA.case, rate: 44100, seconds: 0.25)
+                    != CoverageMatrix.signal(noisyB.case, rate: 44100, seconds: 0.25),
+                    "seed A and seed B must generate different audio, not just differ in seed")
         }
-        for axis in ["h1", "snr", "B", "atk", "lvl", "tau", "poly"] {
-            #expect(hasAxis(axis), "matrix is missing the \(axis) axis")
+
+        // Pin the per-axis distribution, not just the total: a bare substring
+        // check on "B" is satisfied by every `lvl-` label, which ends in "dB".
+        let expected: [String: Int] = ["h1-": 6, "snr-": 5, "B-": 4, "atk-": 3,
+                                      "tau-": 3, "lvl-": 5, "str-": 10, "poly-": 4]
+        for (tag, count) in expected {
+            let actual = a.filter { $0.label.hasPrefix(tag) }.count
+            #expect(actual == count, "axis \(tag) has \(actual) cells, spec §6 says \(count)")
         }
     }
 
@@ -377,7 +390,9 @@ Append to `CoverageMatrix`:
     /// frequency a correct reading must land on.
     struct Cell: Sendable {
         let label: String
-        let case: Case
+        // Backticked: `case` is a Swift keyword. Member *access* (cell.case) is
+        // fine, so Tasks 4, 6, 10 and 12 read `.case` unchanged.
+        let `case`: Case
         let config: TunerConfig
         let noteHz: Double
         let extraStrings: [Double]
@@ -643,6 +658,54 @@ concern. The first frame is acquisition, not a transition."
 ```
 
 ---
+
+### Task 3b: the decay-with-dropout family (spec §6's primary G1 gate)
+
+Spec §6 names a family this plan originally omitted: *"a 4 s decay with per-frame YIN
+dropout injected at 0 %, 10 %, 30 % and 50 % of frames. This is the fixture that reproduces
+the reported symptom and it is the primary gate for G1."* It is a **replay-time** construct,
+not a signal — you cannot inject frame-level dropout into a generated waveform — so it does
+not belong in `CoverageMatrix.matrix(seed:)` and is not a `Case`. It is part of Task 3.
+
+- **3b.1** `AudioTestHelpers.replayTrace` gains `yinDropoutRate: Double = 0.0`. For a
+  deterministic subset of frames selected by a Park-Miller walk seeded from the case's seed,
+  the frame is analysed as if the signal had been lost: feed a window of the same length and
+  sample rate but replace the samples with a low-level noise-only buffer scaled to the
+  configured `lvl-` amplitude, which is what a real dropout looks like to YIN. Deterministic
+  for a given seed; seed A and seed B must drop different frames.
+- **3b.2** Add `CoverageMatrix.decayWithDropout(rate:seed:) -> Case` — a 4 s decay
+  (`decayTau: 4.0`) at the low E, one per dropout rate in {0.0, 0.1, 0.3, 0.5}. The 0.0
+  member is the control: it must produce zero transitions, which proves the injection itself
+  is what the G1 gate is measuring.
+- **3b.3** Test. A clean pluck legitimately transitions at the end of its decay
+  (`fresh → held`, then off the display entirely), so the control is a *small* count, not zero, and the assertion
+  is **comparative** — which also makes it robust to that natural tail:
+  - `transitions(0.0) <= 3`, and print it as the control. The control's observed
+    value is **1**, and that 1 is attributable: its state histogram is
+    `["none": 1, "fresh": 171]` — the single transition is the `none -> fresh`
+    acquisition, not an expiry. `countDisplayTransitions` returns `max(0, n-1)`,
+    which removes frame 0's *appearance* but keeps the `none -> fresh` change. A
+    trace that acquires at frame 0 instead would score 0, so 1 is the floor for
+    the observed acquire-at-frame-1 shape, and each subsequent flap costs +2.
+  - `transitions(0.1) >= transitions(0.0)`, `transitions(0.3) >= transitions(0.0) + 5`, and
+    the same for 0.5. Pre-fix a dropped frame costs roughly one transition, so a 4 s decay at
+    0.3 has ~35 dropped frames and transitions in the dozens. These assertions are expected to
+    **pass before** the Phase 2-3 fixes — that is what makes this a reproduction rather than a
+    gate. The gate is Task 12, which asserts `transitions <= 1` on the same fixture and is
+    expected to fail until Tasks 10-12 land.
+  - Print all four counts, since the pre-fix numbers are the G1 baseline.
+  - **`held == 0 && recovered == 0` on the control.** The clean control is the only
+    trace where holding is never correct: a 4 s low-E pluck with a 4 s decay is still
+    ringing when the window ends, so it must never leave `fresh` after acquisition.
+    Task 12 reuses this as its one-way-degradation discriminator, because a
+    transition count alone cannot separate `[none, fresh...]` from `[none, held...]`
+    — both score 1 under `changes - 1`. This assertion is on evidence (the recorded
+    histogram is `["none": 1, "fresh": 171]`), so it is safe to gate on. Asserting it
+    on a trace whose behaviour nobody has measured is not.
+
+**Gate:** the pre-fix transition counts for 0.0/0.1/0.3/0.5 are recorded in `RESULTS.md`, and
+the comparative assertions pass — i.e. the fixture demonstrably reproduces the reported
+symptom.
 
 ### Task 4: Head-to-head trace emitter against the WebTuna oracle
 
@@ -2091,14 +2154,55 @@ struct DecayStabilityTests {
     /// Review Focus #4: inharmonicity, the axis no recorded fixture touches.
     @Test("every coverage-matrix cell stays within one transition after acquisition")
     func matrixStability() {
-        for cell in CoverageMatrix.matrix(seed: CoverageMatrix.SEED_A) {
+        // The controller ruling on this plan: assert on one representative cell per axis
+        // tag and print the full matrix, because a 40-cell pass in Debug is minutes long
+        // and a gate that cannot finish is not a gate. The full print is pasted into
+        // RESULTS.md for human review.
+        let byTag = Dictionary(grouping: CoverageMatrix.matrix(seed: CoverageMatrix.SEED_A),
+                               by: { $0.label.split(separator: "-").first.map(String.init) ?? $0.label })
+        for (tag, cells) in byTag.sorted(by: { $0.key < $1.key }) {
+            let cell = cells[0]
             let audio = CoverageMatrix.signal(cell.case, rate: 44100, seconds: 3.0)
             let (frames, _) = AudioTestHelpers.replayTrace(
                 samples: audio, sampleRate: 44100, config: cell.config)
             let t = AudioTestHelpers.countDisplayTransitions(frames)
-            print("G1 [\(cell.label)] transitions=\(t)")
+            let histogram = AudioTestHelpers.stateHistogram(frames)
+            print("G1 [\(tag)/\(cell.label)] transitions=\(t) of \(cells.count) cells "
+                  + "states=\(histogram)")
             #expect(t <= 1, "\(cell.label) made \(t) display transitions; G1 allows 1")
+            // A count alone is not a complete gate: a one-way terminal
+            // degradation - fresh acquires, then every frame is `held` and never
+            // returns - also scores exactly 1, because `countDisplayTransitions`
+            // is `changes - 1` and both `[none, fresh...]` and `[none, held...]`
+            // score 1. That is inside the failure family this fixture detects.
+            //
+            // The discriminator needs a trace where holding is *never* correct,
+            // and only one such trace is evidenced: the Task 3b decay-with-dropout
+            // control at rate 0.0, whose recorded histogram is
+            // `["none": 1, "fresh": 171]` - zero held, zero recovered, over a
+            // full 4 s low-E decay that is still ringing when the window ends.
+            // So the check is asserted there, on evidence, rather than smeared
+            // across cells whose behaviour nobody has measured.
+            //
+            // It is deliberately NOT applied to the `h1-` cells. A 3 s pluck with
+            // a 1.8 s decay tail plausibly leaves `fresh` near the end, and their
+            // recorded `trans = 1` is ambiguous under `changes - 1`, so a
+            // `degraded == 0` rule there is unproven and would forbid legitimate
+            // holding - the same defect as the version this replaced.
+            //
+            // On the dropout cells the count is the whole gate, and it is
+            // deliberately not strengthened: after the fix, holding through
+            // transient dropouts IS the intended behaviour. This is a partial gate
+            // by design and is recorded as such.
+                let degraded = histogram["held", default: 0] + histogram["recovered", default: 0]
+                #expect(degraded == 0,
+                        "\(cell.label) produced \(degraded) held/recovered frames in "
+                        + "\(histogram) with no injected dropout - the note degraded "
+                        + "one-way, which a transition count alone cannot see")
+            }
         }
+        // The dropout family is the primary G1 gate (spec §6) and lives in the
+        // replay harness, not in CoverageMatrix.matrix. See Task 3b.
     }
 }
 ```

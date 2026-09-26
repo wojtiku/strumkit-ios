@@ -66,9 +66,32 @@ threshold is changed.
 ### 2.2 The acceptance gate rejects valid detections
 
 `fundamentalMinEnergyRatio = 0.004` and its two siblings are applied at three call sites in
-`PitchDetector`: subharmonic preference (`:229`), ambiguity threshold (`:259`), and final
-acceptance (`:340`). Per §2.1 they reject 6/6 correct detections below 1.89 % fundamental
-energy and prevent no octave errors at any strength tested.
+`PitchDetector`. **Corrected after implementation review:** this section originally claimed all
+three reject the §2.1 detections, and that was wrong. The three sites are not equivalent, and
+the direction of each threshold is not the same.
+
+| Site (post-Task-5 line numbers) | Role | Polarity when the scale falls |
+|---|---|---|
+| `shouldPreferSubharmonic` (`:402`) | accepts a lower candidate | **more permissive** — relaxes an acceptance test |
+| ambiguity threshold (`:321`) | flags a note as ambiguous | **more permissive** — relaxes an acceptance test |
+| `candidateEvidence` bit (`:291`) | **suppresses a veto**, not a preference: the bit sets `isAmbiguous` unless the selected multiplier divides the candidate's | **less permissive** — arms the veto |
+
+So lowering the scale moves two acceptance thresholds and one veto in opposite directions, and
+the optimum is interior. Neither endpoint is "the permissive one". This is why the sweep must
+read the whole table rather than pick an endpoint, and why `net = detected - 4*octave - wrong`
+is a better summary than raw detect count.
+
+**Which site actually causes the §2.1 rejections:** only the ambiguity threshold (`:321`). The
+subharmonic search probes `f0/2`, `f0/3` and `f0/4` — the *sub-octave*, not the second
+harmonic, which is `2*f0` and above. The whole `h1-` axis is built on 82.4069 Hz, so all three
+candidates fall below `TunerConstants.detectorMinHz = 50` and the loop is skipped entirely. The
+§2.1 cells therefore never execute the subharmonic gate at all, and their accept/reject split
+(1.89 % accepted, 0.18 % rejected, straddling the 0.004 floor) is the ambiguity threshold's
+signature. The rejections are real and the thresholds are the cause; the mechanism is not the
+one originally claimed.
+
+Per §2.1 the gates reject 6/6 correct detections below 1.89 % fundamental energy and prevent
+no octave errors at any strength tested.
 
 ### 2.3 The flapping mechanism
 
@@ -94,6 +117,62 @@ upstream of any state decision, and a continuous score rather than a boolean. St
 change bypasses it. This is the one structural idea worth taking.
 
 ---
+
+## 2.5 The dominant defect, found on a real recording (added 2026-09-26)
+
+The user supplied a real recording — four strings strummed **in sequence**, with room noise,
+21.95 s at 48 kHz. Measured on both engines. This reorders everything below.
+
+| config | heard | display transitions | strums detected |
+|---|---:|---:|---|
+| ukulele auto + recovery (**production**) | 90 % | **75** | **4/4, right string** |
+| chromatic + recovery | 91 % | 112 | 4/4 |
+| **GuitarTuna, chromatic** | — | **0 string switches** | 4/4 |
+
+**Detection was never the problem.** StrumKit finds every strum and names the right string.
+The defect is display stability: 75 transitions against 0.
+
+**The mechanism.** The first strum's segment is an exact tie — **72 frames reported as G4, 72
+frames as E4.** G4 is correct (390.8–395.1 Hz at confidence 0.98–0.999). Then YIN returns
+302.6–356.5 Hz, which is **136 ¢ from E4 and comfortably inside the 200 ¢ `maxDetuningCents`
+acquisition gate**, so `PitchTracker`'s auto-mode search reassigns the display to E4 and holds it
+for 0.98 s. A reverb tail is being displayed as a valid string match. The existing 20 ¢
+hysteresis bonus cannot help: it is 116 ¢ short of the error it would have to absorb.
+
+Supporting: **25 of 73 non-`none` runs last ≤ 2 frames** (median 107 ms), stable at ~34 % across
+every vocabulary and 47 % in chromatic. Recovery accounts for only 5 of the 75. And StrumKit is
+**3.6× better than GuitarTuna on the loud attack** (sd 0.139 vs 0.500 Hz) and 5–10× worse on
+sustains, discarding the good answer.
+
+**What this adds to the design.** Two *continuation* tolerances, which the original phases did
+not contain. A plucked fundamental does not move during its own decay — `RESULTS.md` §1 already
+asserts this and the YIN anchor validates it at +0.91 ¢ — so:
+
+- **Assignment stickiness.** While a target is live, a reading more than
+  `continuationMaxDetuningCents` from *that* target may not be reassigned to a different string.
+  The wide 200 ¢ window stays for **acquisition**, where a genuinely flat string needs it.
+- **Frequency continuity.** While a target is live, a measured frequency more than
+  `continuationMaxFrequencyCents` from the continuity prior is held at the prior rather than
+  followed.
+- **A breach counter.** Both produce a *hold*, not a rejection, so tuning a string while holding
+  it still works: once the disagreement persists for `continuationBreachFrames`, the new value
+  wins. This is the same shape as the phase-3 continuation counters, applied to the value rather
+  than only to the estimator's success.
+
+Thresholds start at 50 ¢, chosen because a real drift during one decay is single-digit cents
+and 50 ¢ is an order of magnitude beyond that. They are a **chosen value, not a derived one**,
+and the sweep is deferred — the same honesty Task 4's `extraVoiceWeight` now carries.
+
+**Consequence for the phases.** The median ring is demoted: it bypasses itself when entries
+disagree by > 15 ¢, and a 50/50 G4/E4 split is maximal disagreement, which is exactly when it
+stands aside. The ratchet is demoted: recovery is 5 of 75 transitions. Continuation hysteresis
+is promoted. And chromatic mode being *worst* (112 transitions, 47 % short runs) is the
+confirmation — it is the only mode with no string prior, so the prior is the stabiliser and the
+gate is the weakness.
+
+**The real recording becomes a permanent gate.** Synthetic cells cannot reproduce a strum
+sequence with decay tails and room noise, so this file is the acceptance test for stability, and
+it is the one the user actually cares about.
 
 ## 3. Goals
 

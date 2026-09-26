@@ -1,0 +1,69 @@
+# Truth table for the cross-engine comparison.
+#
+# ROLE: a label set plus a human-readable frequency column. It is NOT a third
+# independent check on `noteHz` and must not be read as one.
+#
+# Both emitters gate on `xcells.json`'s own `noteHz`:
+#   - CrossEngineComparisonTests.swift  -> cell.noteHz
+#   - xeng.mjs                          -> cell.noteHz from the manifest
+# and xcompare.py scores the `first`/`last` values those two already produced.
+# Nothing here re-derives a verdict from this file, so a disagreement between
+# this column and the manifest would not change any number in the table.
+#
+# What it IS used for, and is load-bearing:
+#   1. The third leg of the label-parity check. xcompare.py refuses to score
+#      unless the labels here, in the StrumKit trace and in the WebTuna trace
+#      are the same set. That catches a cell silently vanishing from either
+#      side, which the two traces alone cannot detect.
+#   2. The `truth` column printed in the table, so a reader does not have to
+#      open the JSON to check a number.
+#
+# GENERATED FILE - regenerate, never hand-edit. This file is exactly
+# `xtruth-header.txt` followed by one `label=noteHz` line per manifest entry.
+# The recipe in ../README.md rebuilds it from those two committed inputs and
+# never reads its own output, so running it is idempotent and it works even
+# when this file has been deleted. A hand-edited value here would be silently
+# reverted by the next regeneration, and until then would not be what the
+# generator produces - which is exactly how three `110.0`/`440.0` lines got in
+# once.
+
+h1-1.0=82.4069
+h1-0.3=82.4069
+h1-0.1=82.4069
+h1-0.03=82.4069
+h1-0.01=82.4069
+h1-0.004=82.4069
+snr-clean=82.4069
+snr-20=82.4069
+snr-12=82.4069
+snr-6=82.4069
+snr-0=82.4069
+B-0=82.4069
+B-1e-4=82.4069
+B-5e-4=82.4069
+B-2e-3=82.4069
+atk-0.6ms=82.4069
+atk-6ms=82.4069
+atk-30ms=82.4069
+tau-0.4s=82.4069
+tau-1.8s=82.4069
+tau-6s=82.4069
+lvl--60dB=82.4069
+lvl--48dB=82.4069
+lvl--36dB=82.4069
+lvl--24dB=82.4069
+lvl--6dB=82.4069
+str-g0=82.4069
+str-g1=110
+str-g2=146.8324
+str-g3=195.9977
+str-g4=246.9417
+str-g5=329.6276
+str-u0=391.9954
+str-u1=261.6256
+str-u2=329.6276
+str-u3=440
+poly-E2+A2=82.4069
+poly-E2+E4=82.4069
+poly-A2+E4=110
+poly-E2+Fs2=82.4069

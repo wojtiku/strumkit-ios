@@ -26,6 +26,44 @@ public final class PitchTracker: @unchecked Sendable {
     public static let foregroundPeriodicityThreshold: Double = 0.75
     public static let ambientCooldown: TimeInterval = 0.35
 
+    /// How far above the learned ambient floor a frame must be before a
+    /// periodicity value is allowed to mean "something was played".
+    ///
+    /// **A periodicity value alone is not evidence of a note.** A CMNDF measures
+    /// pseudo-periodicity, and noise has it: over the 6.12 s of −46.3 dBFS room
+    /// tone that follows the last strum on `all-4-with-noise.wav`, 53 of 287
+    /// frames reach YIN periodicity ≥ 0.75 (median 0.830, max 0.963), and the
+    /// frames the display actually acquired a *string* from sit at 0.697–0.940 —
+    /// overlapping the quiet plucks' 0.668–0.978 exactly. So periodicity cannot
+    /// carry the decision, and the level has to.
+    ///
+    /// **The multiple is the room's own 99th percentile, not a guess.** Over 256
+    /// frames of provable silence on that file (16.5 s–21.95 s, after the
+    /// estimator's last real estimate at 16.171 s) the 90 ms RMS has mean 0.004406,
+    /// p90 1.57× that mean, p99 2.24×, maximum 2.51×. A 90 ms window is atypical of
+    /// the room above p99, and 2.24 / 1.03 = **2.18** is that percentile expressed
+    /// in units of the floor once the floor is fixed to estimate the room rather
+    /// than a downward-biased subset of it (it measured 0.77× the room's mean
+    /// before this change and 1.03× after). 2.0 sits just under it, on the
+    /// sensitivity side, because the percentile is a property of one recording and
+    /// the cost of being wrong is asymmetric.
+    ///
+    /// **What the sweep says about that choice.** Sweeping the multiple over
+    /// 1.0 … 5.0 with everything else fixed: the post-music tail goes 179 → 112 →
+    /// 54 → 34 → 33 → 31 live frames, the fourth string is never lost below 8.0,
+    /// and *every* quiet fixture's fresh-frame count and coverage is bit-identical
+    /// to the pre-change baseline at 1.0, 1.5 and 2.0. The next step is a cliff:
+    /// at 2.5 `quiet_a` drops from 86 fresh frames to 29 and at 3.0 to 17, taking
+    /// its recorded 0.40 s coverage gate to 0.62 s and 0.36 s. So 2.0 is the
+    /// largest multiple that costs the quiet plucks nothing, and the tail it buys
+    /// is 54 of 287 frames — against 50 for the same file with the room tone
+    /// replaced by silence, i.e. indistinguishable from the hold's own cost.
+    ///
+    /// The headroom on the detection side is large either way: the four strum
+    /// onsets on that file are 18.8×–66× the room's mean, and the weakest real
+    /// acquisition on any recorded fixture is 12.28×.
+    public static let foregroundLevelMultiple: Double = 2.0
+
     // Hold & Sustain Grace Durations
     public static let readingHoldDuration: TimeInterval = 1.0
     public static let priorGraceDuration: TimeInterval = 0.85
@@ -36,9 +74,45 @@ public final class PitchTracker: @unchecked Sendable {
     public static let maxCandidateGap: TimeInterval = 0.250      // 250 ms: accommodates worker queue & mailbox replacement
     public static let displayEmaTimeConstant: TimeInterval = 0.050 // tau = 50 ms
 
+    // Continuation hysteresis. Acquisition has always demanded more than one frame
+    // of evidence before it will put a note on screen; continuation had no
+    // equivalent, which is why the display could leave and rejoin a note it had
+    // already found. These two streaks are that missing requirement, and they are
+    // asymmetric on purpose: giving up is the visible failure a player notices, so
+    // it is the sticky direction; coming back is the visible correction, so it is
+    // the prompt one.
+    public static let continuationYinFailuresToWeaken: Int = 3     // ~70 ms at the 43.1 Hz capture cadence
+    public static let continuationYinSuccessesToStrengthen: Int = 2 // ~46 ms
+
     private struct TargetKey: Equatable {
         let index: Int
         let midi: Int
+    }
+
+    /// How much the reading currently on screen is worth, which is the only thing
+    /// the continuation hysteresis reasons about.
+    ///
+    /// Ordered so `>` reads as "better evidence for the display to move to".
+    /// `recovery` sits above `held` because a spectrally recovered estimate is a
+    /// fresh measurement of something real, while a held reading is the absence of
+    /// one; the display already treats them as different states, so the gate can
+    /// too, and ordering them makes "weakening" and "strengthening" mean the same
+    /// thing in both.
+    private enum DisplayEvidence: Int, Comparable {
+        case dark = 0
+        case held = 1
+        case recovery = 2
+        case yin = 3
+
+        init(reading: TunerReading?) {
+            guard let reading else { self = .dark; return }
+            guard reading.freshness == .fresh else { self = .held; return }
+            self = reading.recovered ? .recovery : .yin
+        }
+
+        static func < (lhs: DisplayEvidence, rhs: DisplayEvidence) -> Bool {
+            lhs.rawValue < rhs.rawValue
+        }
     }
 
     // State
@@ -57,11 +131,33 @@ public final class PitchTracker: @unchecked Sendable {
     private var lastForegroundTime: TimeInterval = 0
     private var lastReading: TunerReading? = nil
 
+    /// The last reading the display was actually handed, whatever its state.
+    ///
+    /// `lastReading` is the last reading the tracker *estimated*, and the hold
+    /// branches repeat it without replacing it; this is what the player is looking
+    /// at. The two differ exactly while a hold is on screen, and a gate reading the
+    /// wrong one believes it has weakened to `held` while the screen still says
+    /// `fresh` — which puts a `held → fresh` step back in the middle of a dropout
+    /// and rebuilds the flicker the gate exists to remove.
+    private var displayedReading: TunerReading? = nil
+
     public private(set) var ambientFloor: Double = initialAmbientFloor
     public private(set) var guidedProgress: [Bool] = []
     public private(set) var guidedTargetIndex: Int = 0
     public private(set) var feedbackState: SignalFeedbackState = .inactive
     public private(set) var continuityPrior: (frequency: Double, at: TimeInterval)? = nil
+
+    /// Consecutive frames on which YIN, rather than spectral recovery, produced
+    /// the estimate the display is acting on.
+    public private(set) var consecutiveYinSuccesses: Int = 0
+    /// Consecutive frames on which it did not: no pitch, or a recovered one.
+    public private(set) var consecutiveYinFailures: Int = 0
+
+    /// True while the dropout streak is short enough that the display has not yet
+    /// earned the right to weaken to a recovery or a hold.
+    public var shouldHoldThroughDropout: Bool {
+        consecutiveYinFailures < Self.continuationYinFailuresToWeaken
+    }
 
     public init() {}
 
@@ -104,6 +200,9 @@ public final class PitchTracker: @unchecked Sendable {
         candidateIsOnset = false
         lastRms = 0.0
         continuityPrior = nil
+        displayedReading = nil
+        consecutiveYinSuccesses = 0
+        consecutiveYinFailures = 0
         feedbackState = .inactive
         ambientFloor = Self.initialAmbientFloor
         lastForegroundTime = 0
@@ -137,14 +236,52 @@ public final class PitchTracker: @unchecked Sendable {
             guidedTargetIndex = 0
         }
 
-        // Update ambient noise floor during quiet / unvoiced intervals
+        // The streak is counted on the estimator, not on the pitch. A spectrally
+        // recovered estimate is a success for the pipeline — it is a reading, and
+        // it is steadier than the YIN frames it replaces — but it is a *failure*
+        // for YIN, and conflating the two is what makes the state flap. Counting
+        // them as one thing gives a frame that is weaker evidence exactly the same
+        // vote as the frame before it, so the display alternates between two
+        // readings of the same note at the estimator's own cadence.
+        if pitchResult.isSignalPresent && !pitchResult.recovered {
+            consecutiveYinSuccesses += 1
+            consecutiveYinFailures = 0
+        } else {
+            consecutiveYinFailures += 1
+            consecutiveYinSuccesses = 0
+        }
+
+        // What counts as evidence that something was actually played. The level
+        // conjunct is load-bearing, and it is the same predicate the display uses
+        // below, so "foreground" means one thing throughout the tracker.
+        //
+        // A recovered estimate is exempt from the *periodicity* conjunct only.
+        // `TunerAnalysisSession` deliberately reports it as a salience capped at
+        // 0.70 — below `foregroundPeriodicityThreshold` — precisely because
+        // salience is not periodicity, so reading it as one is meaningless. It is
+        // also the estimate that exists to carry a display through a decay YIN has
+        // lost, so it must be able to; demanding a YIN periodicity of it would
+        // make the whole recovery path inert. Its level still has to clear the same
+        // bar, on top of the harmonic-support, score and separation gates
+        // `TunerAnalysisSession` already applied to produce it at all.
         let isForeground = pitchResult.isSignalPresent
             && pitchResult.frequency >= TunerConstants.detectorMinHz
-            && pitchResult.confidence >= Self.foregroundPeriodicityThreshold
+            && (pitchResult.recovered || pitchResult.confidence >= Self.foregroundPeriodicityThreshold)
+            && pitchResult.amplitudeRMS >= Self.foregroundLevelMultiple * ambientFloor
 
         if isForeground {
             lastForegroundTime = now
-        } else if (now - lastForegroundTime) >= Self.ambientCooldown && pitchResult.amplitudeRMS > 0 {
+        } else if displayedReading == nil
+                    && (now - lastForegroundTime) >= Self.ambientCooldown
+                    && pitchResult.amplitudeRMS > 0 {
+            // The floor estimates the *room*, and the room is only observable while
+            // nothing is on the display. Without the `displayedReading == nil` guard
+            // a decaying note is not foreground (its level is below the floor's
+            // multiple) and so feeds the floor, which raises the floor, which makes
+            // the next frame of the same decay even less foreground. Measured on
+            // `quiet_a.wav`, that feedback alone takes fresh coverage from 1.17 s to
+            // 0.17 s — below the 0.40 s acceptance gate — while four of the eight
+            // recorded fixtures lose their decay display entirely.
             let alpha = 0.05
             ambientFloor = max(Self.minAmbientFloor, min(Self.maxAmbientFloor, (1.0 - alpha) * ambientFloor + alpha * pitchResult.amplitudeRMS))
         }
@@ -221,7 +358,19 @@ public final class PitchTracker: @unchecked Sendable {
             candidateIsOnset = false
         }
 
-        let isContinuingTarget = (currentTargetKey == activeTargetKey && continuityPrior != nil && (now - lastReadingTime) <= Self.priorGraceDuration)
+        // Continuing a note the display already shows is not a second look at the
+        // same question — it is the shortcut that kept the post-music tail alive.
+        // `isContinuingTarget` bypasses the candidate requirement entirely, so any
+        // frame with an in-vocabulary estimate inside `priorGraceDuration` reached
+        // `lastReadingTime = now` and restarted the 1.0 s display hold. Measured on
+        // `all-4-with-noise.wav`, a room-tone frame at 0.41× the floor was enough to
+        // hold the needle up for 5.85 s over 6.12 s of silence, naming G4, C4 and A4
+        // out of −46 dBFS room tone. Gating the shortcut on the same foreground test
+        // is what takes the tail from 199 live frames to 33.
+        let isContinuingTarget = isForeground
+            && currentTargetKey == activeTargetKey
+            && continuityPrior != nil
+            && (now - lastReadingTime) <= Self.priorGraceDuration
 
         if candidateKey == currentTargetKey {
             candidateCount += 1
@@ -239,7 +388,13 @@ public final class PitchTracker: @unchecked Sendable {
 
         let elapsedSpan = candidateLastSeenAt - candidateFirstSeenAt
         let neededSpan = candidateIsOnset ? Self.onsetEvidenceSpan : Self.standardEvidenceSpan
+        // A candidate that has only ever seen non-foreground frames has only ever
+        // seen the room agree with itself, and the room agrees with itself for as
+        // long as you ask. Manual and chromatic mode still bypass this: manual's
+        // player has already chosen the string, and chromatic's whole job is to
+        // report whatever it hears.
         let isConfirmed = (candidateCount >= 2 && (candidateIsOnset || elapsedSpan >= (neededSpan - 0.001) || candidateCount >= 3))
+            && (isForeground || config.mode == .manual || (config.mode == .chromatic && candidateCount >= 2))
 
         guard isContinuingTarget || isConfirmed || config.mode == .manual || (config.mode == .chromatic && candidateCount >= 2) else {
             feedbackState = .checking
@@ -247,8 +402,12 @@ public final class PitchTracker: @unchecked Sendable {
             if elapsed > Self.priorGraceDuration {
                 continuityPrior = nil
             }
+            // Past the hold duration the display expires whatever the streak says:
+            // that is a duration, not a judgement about the estimator, and letting
+            // the hysteresis reach it would leave a needle live over silence.
             if elapsed <= Self.readingHoldDuration, let last = lastReading {
-                return TunerReading(
+                guard mayChangeDisplay(to: .held) else { return pinnedReading(at: now) }
+                return publish(TunerReading(
                     at: now,
                     lastFreshAt: last.lastFreshAt,
                     frequency: last.frequency,
@@ -260,9 +419,9 @@ public final class PitchTracker: @unchecked Sendable {
                     freshness: .held,
                     inTune: last.inTune,
                     recovered: last.recovered
-                )
+                ))
             }
-            return nil
+            return publish(nil)
         }
 
         // 3. Calculate cents deviation
@@ -328,6 +487,20 @@ public final class PitchTracker: @unchecked Sendable {
         continuityPrior = (frequency: frequency, at: now)
         feedbackState = .tracking
 
+        // 7. Continuation hysteresis. Everything above has decided what the
+        //    display *could* show on this frame; this decides whether the estimator
+        //    has been saying the same thing long enough for the display to act on
+        //    it. Held here, the frame's estimate is still recorded in the candidate,
+        //    the prior and the reading clock — the evidence is real, only the display
+        //    is not yet entitled to move — so acquisition and responsiveness are
+        //    untouched and only the visible state waits. Letting the clock advance
+        //    is deliberate: the frame is evidence about the note even when it is not
+        //    evidence about the display, and the display's own expiry is a duration
+        //    that the streak must not be able to reach.
+        guard mayChangeDisplay(to: pitchResult.recovered ? .recovery : .yin) else {
+            return pinnedReading(at: now)
+        }
+
         let noteDisplay = PitchMath.midiNoteName(target.midi)
 
         let reading = TunerReading(
@@ -344,11 +517,20 @@ public final class PitchTracker: @unchecked Sendable {
             recovered: pitchResult.recovered
         )
         lastReading = reading
-        return reading
+        return publish(reading)
     }
 
     private func handleLostSignal(at now: TimeInterval, rms: Double = 0) -> TunerReading? {
-        guidedHoldStartTime = nil
+        // A dropout shorter than the continuation streak is not evidence that the
+        // note stopped. It is evidence that this frame is bad, so it must not cost
+        // the player a guided hold they have already earned, and it must not throw
+        // away a candidate that is one frame from confirming. Both stay bounded:
+        // `maxCandidateGap` is still the only thing that ends a candidate, and it
+        // ends one however short the dropouts were.
+        let isTransient = shouldHoldThroughDropout
+        if !isTransient {
+            guidedHoldStartTime = nil
+        }
         if (now - candidateLastSeenAt) > Self.maxCandidateGap {
             candidateKey = nil
             candidateCount = 0
@@ -368,7 +550,8 @@ public final class PitchTracker: @unchecked Sendable {
         // 2. Evaluate display hold independently (readingHoldDuration = 1.0s)
         if elapsed <= Self.readingHoldDuration, let last = lastReading {
             feedbackState = .tracking
-            return TunerReading(
+            guard mayChangeDisplay(to: .held) else { return pinnedReading(at: now) }
+            return publish(TunerReading(
                 at: now,
                 lastFreshAt: last.lastFreshAt,
                 frequency: last.frequency,
@@ -380,7 +563,7 @@ public final class PitchTracker: @unchecked Sendable {
                 freshness: .held,
                 inTune: last.inTune, // Preserve last confirmed in-tune visual state
                 recovered: last.recovered
-            )
+            ))
         }
 
         // 3. Past readingHoldDuration: full display expiration
@@ -392,11 +575,71 @@ public final class PitchTracker: @unchecked Sendable {
         } else if elapsed > 0.4 {
             feedbackState = .ready
         }
-        return nil
+        return publish(nil)
     }
 
     private func handleAmbiguousSignal(at now: TimeInterval) {
         guidedHoldStartTime = nil
         feedbackState = .ambiguous
+    }
+
+    /// Whether the display may change its relationship to the estimator on this
+    /// frame, given how long the estimator has been saying the same thing.
+    ///
+    /// Not changing costs nothing: the frame's estimate is still recorded, and the
+    /// next frame sees the streak it would have seen anyway. So the cheap error
+    /// here is a frame or two of a stale reading, and the expensive one is a
+    /// needle that blinks. Hence the asymmetry — weaken slowly, strengthen
+    /// quickly — and hence that the question is asked about the *estimator* and
+    /// not about the pitch: a decaying note produces confident, in-vocabulary,
+    /// wildly different pitches, and no threshold on the pitch can tell that from a
+    /// player tuning.
+    private func mayChangeDisplay(to evidence: DisplayEvidence) -> Bool {
+        let current = DisplayEvidence(reading: displayedReading)
+        if evidence == current { return true }
+        // Going from nothing to something is acquisition, not continuation, and
+        // acquisition already has its own requirements — the candidate count, the
+        // evidence span, the onset shortcut. Applying a second, stricter one here
+        // would cost manual mode its first frame, and manual mode is the mode where
+        // the player has already chosen the string and is waiting for a number.
+        guard current != .dark else { return true }
+        if evidence > current {
+            return consecutiveYinSuccesses >= Self.continuationYinSuccessesToStrengthen
+        }
+        return consecutiveYinFailures >= Self.continuationYinFailuresToWeaken
+    }
+
+    /// The reading the display is already showing, published again unchanged.
+    ///
+    /// Every field the player can see is the field they saw on the previous frame,
+    /// which is the entire point: the display's relationship to the estimator did
+    /// not change, so nothing on screen moves. `at` advances and `lastFreshAt`
+    /// does not, so a consumer that ages a reading by `lastFreshAt` still sees this
+    /// one for exactly as long as it is true. The copy is of `displayedReading`
+    /// rather than of `lastReading`, so pinning a hold stays a hold.
+    private func pinnedReading(at now: TimeInterval) -> TunerReading? {
+        guard let shown = displayedReading else { return nil }
+        return TunerReading(
+            at: now,
+            lastFreshAt: shown.lastFreshAt,
+            frequency: shown.frequency,
+            note: shown.note,
+            target: shown.target,
+            targetIndex: shown.targetIndex,
+            cents: shown.cents,
+            displayCents: shown.displayCents,
+            freshness: shown.freshness,
+            inTune: shown.inTune,
+            recovered: shown.recovered
+        )
+    }
+
+    /// Hands `reading` to the display and records it as what is now on screen.
+    ///
+    /// Every path that returns a reading goes through here, so the continuation
+    /// gate and the screen can never disagree about what the player is looking at.
+    private func publish(_ reading: TunerReading?) -> TunerReading? {
+        displayedReading = reading
+        return reading
     }
 }

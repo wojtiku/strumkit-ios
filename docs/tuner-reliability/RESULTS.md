@@ -10,7 +10,8 @@ xcodebuild test -project StrumKit.xcodeproj -scheme StrumKit \
 ```
 
 Print prefixes to grep for: `BASELINE`, `TASK5-GATE`, `RECOVERY-BIAS`, `RECOVERY-CONTRACT`,
-`RECOVERY-NOISE`, `WEAK-FUNDAMENTAL`, `ACCURACY`, `EVID`.
+`RECOVERY-NOISE`, `WEAK-FUNDAMENTAL`, `ACCURACY`, `EVID`, `DROPOUT-BASELINE`,
+`XENG` / `XENG-SUMMARY` (head-to-head emitter, §11).
 
 **Status: 90 tests in 12 suites passing.** Replay cadence is the live request cadence
 (`AudioTestHelpers.productionHopSamples` = 1024 frames, matching the capture tap's
@@ -217,94 +218,207 @@ would introduce a data race between the tap overwriting a window and the worker 
 which is a worse outcome than the allocation. **The tap is therefore not claimed to be
 real-time safe** — it is measurably better than before and still documented as a risk.
 
-## 11. Sustain continuity — the north star, and what blocks it
+## 11. Head-to-head against WebTuna — the G2 baseline (Phase 0, pre-change)
 
-The stated north star: for a clean pluck, detect the tone on the pluck and hold that
-detection steady for as long as the sound lasts. `SustainContinuityTests` measures it on the
-four recorded fixtures by establishing the sounding span from raw RMS (independent of the
-detector), then counting fresh vs held readings, wrong notes, string transitions and the
-longest run without a fresh reading.
+**This is the number G2 is measured against.** It was produced before any Phase 1-3
+change landed and must not be regenerated without recording why.
 
-### 11.1 What already works
+The same 40 cells of the coverage matrix (`CoverageMatrix.matrix(seed: SEED_A)`, spec §6)
+were pushed through both engines. StrumKit via `StrumKitTests/CrossEngineComparisonTests.swift`
+(3.0 s of audio, 1024-sample hop, 129 frames per cell); WebTuna via
+`docs/tuner-reliability/webtuna/xeng.mjs` (32 calls of 4096 samples, covering 2.97 s).
 
-| fixture | sounding | correct | wrong | transitions | longest gap |
-|---|---|---|---|---|---|
-| quiet_a | 2.20 s | 37 | **0** | **0** | 0.235 s |
-| quiet_c | 3.29 s | 105 | **0** | **0** | 0.107 s |
-| quiet_e | 2.60 s | 45 | **0** | **0** | 0.213 s |
-| quiet_g | 2.30 s | 34 | **0** | **0** | 0.192 s |
+`first`/`last` are the first and last moment at which the engine's **own reported
+frequency** was within ±50 cents of the cell's truth frequency, or `-` for never.
+"Own reported frequency" is deliberately not the same as what the user would see: the
+StrumKit column is `PitchDetector`'s YIN output, so it excludes the spectral-recovery
+path. The emitter also prints `firstReading`/`lastReading` (the reading the display would
+have shown, recovery included) on the same line; on this run the two differ on only one
+cell (`poly-A2+E4`, 0.023 s vs 0.046 s), so the recovery path changed nothing material.
 
-No wrong note, no string jump, no drift, and no gap longer than 235 ms on any fixture. The
-core case is sound. Synthetic plucks are better still: 21 ms to first detection, zero
-transitions, fresh detection held to the end of a 3 s decay.
+| Cell | Truth Hz | SK first | SK last | SK trans | WT first | WT last | Winner |
+|---|---:|---:|---:|---:|---:|---:|---|
+| `B-0` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `B-1e-4` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `B-2e-3` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `B-5e-4` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `atk-0.6ms` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `atk-30ms` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `atk-6ms` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `h1-0.004` | 82.41 | **–** | **–** | 0 | 0.279 s | 2.972 s | **WebTuna** |
+| `h1-0.01` | 82.41 | **–** | **–** | 0 | 0.279 s | 2.972 s | **WebTuna** |
+| `h1-0.03` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `h1-0.1` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `h1-0.3` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `h1-1.0` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `lvl--24dB` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `lvl--36dB` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `lvl--48dB` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `lvl--60dB` | 82.41 | 0.046 s | 2.159 s | 2 | 0.279 s | 2.972 s | tie |
+| `lvl--6dB` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `poly-A2+E4` | 110.00 | 0.023 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `poly-E2+A2` | 82.41 | **–** | **–** | 0 | 0.279 s | 2.972 s | **WebTuna** |
+| `poly-E2+E4` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `poly-E2+Fs2` | 82.41 | **–** | **–** | 1 | 0.279 s | 2.972 s | **WebTuna** |
+| `snr-0` | 82.41 | 0.046 s | 1.927 s | 8 | 0.279 s | 2.972 s | tie |
+| `snr-12` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `snr-20` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `snr-6` | 82.41 | 0.070 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `snr-clean` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `str-g0` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `str-g1` | 110.00 | 0.023 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `str-g2` | 146.83 | 0.023 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `str-g3` | 196.00 | 0.023 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `str-g4` | 246.94 | 0.023 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `str-g5` | 329.63 | 0.023 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `str-u0` | 392.00 | 0.023 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `str-u1` | 261.63 | 0.023 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `str-u2` | 329.63 | 0.023 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `str-u3` | 440.00 | 0.023 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `tau-0.4s` | 82.41 | 0.046 s | 2.624 s | 2 | 0.279 s | 2.601 s | tie |
+| `tau-1.8s` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
+| `tau-6s` | 82.41 | 0.046 s | 2.995 s | 1 | 0.279 s | 2.972 s | tie |
 
-### 11.2 The two open shortfalls
+**Detect rate: StrumKit 36/40, WebTuna 40/40. G2 does not hold today.** StrumKit misses
+four cells, in two groups:
 
-| fixture | acquisition | trailing held readout |
-|---|---|---|
-| quiet_a | 235 ms | 1131 ms of 2197 ms sounding |
-| quiet_c | 107 ms | 384 ms of 3285 ms sounding |
-| quiet_e | 213 ms | 1195 ms of 2603 ms sounding |
-| quiet_g | 128 ms | 1173 ms of 2304 ms sounding |
+- **Weak fundamental** - `h1-0.01` and `h1-0.004`, fundamental at 1% and 0.4% of the
+  second partial. This is the `fundamentalMinEnergyRatio = 0.004` gate of section 4 above,
+  and it is the gap Phase 1 exists to close (`FundamentalEnergyScale`, Tasks 5-6).
+- **Polyphony** - `poly-E2+A2` and `poly-E2+Fs2`, both genuinely two-voiced. StrumKit's
+  YIN reports a wandering ~85-90 Hz on `poly-E2+Fs2` (59-78 cents sharp of E2, never
+  inside 50 cents), which is the semitone-interference failure this axis exists to catch.
+  `poly-E2+E4` and `poly-A2+E4` - pairs more than an octave apart - are both read
+  correctly, so the failure is specific to close intervals, which is what a semitone
+  pair is.
 
-**(a) Acquisition latency.** 107–235 ms from first audible sample to first fresh reading.
-The analysis window alone is 98 ms and the tracker then needs further frames to confirm, so
-the structural floor is well below this. Not yet diagnosed.
+### WebTuna is *not* defeated by E2+F#2, contradicting spec section 6
 
-**(b) End-of-sustain dropout.** Fresh detection stops at ~1.1–1.5 s while the string is
-still audible for another 1–1.2 s, after which the app shows a held, dimmed reading. This is
-the failure the project set out to fix, and it is now localised precisely.
+Spec section 6 calls `E2+F#2` "the pair that defeats WebTuna". Measured, it does not.
+WebTuna locks onto the primary at 82-83 Hz (-8.6 to +12.4 cents) from call 3 onward and
+never names F#2 - it tracks the louder voice, which is the correct behaviour for a tuner
+and scores as a detect. So **WebTuna scores 40/40 including the polyphony axis**, and the
+40/40 is not a fixture artefact the way it was before the fix:
+`CoverageMatrixTests.polyCellsArePolyphonic` now proves the second voice is in the audio,
+and the per-cell `sig=` checksums prove both engines received it. The premise in spec
+section 6 should be revisited. **This is an open question, not a settled finding**, and it
+was not something this task was chartered to resolve. Candidate explanations, none of them
+established:
 
-### 11.3 Root cause of (b)
+- the defeat needs a second voice *louder* than the primary, or closer to it in level than
+  this fixture's parity-at-the-fundamental produces
+- the defeat needs a real string's partial structure, not a bare sine
+- the original claim came from a different fixture or a different level relationship
+- WebTuna handles this case and the spec's premise was never true
 
-Not the noise gate, not the prior expiry, not YIN's ambiguity test. YIN reports
-`isSignalPresent == true` with `frequency == 0` from t≈0.96 s onward while the string rings
-at RMS 0.0005. Spectral recovery is entered and then **refused by its separation gate**:
-`why=separation` on 4 of the first 6 refused frames, the rest `why=score`.
+**Do not read the bare sine as the easy case.** `extraVoiceWeight` is 0.7 and the poly
+cells' primary `h1` is 0.7, so the two voices are at *parity* at the fundamental — the
+second voice carries 44% of the combined energy, and the primary is louder in RMS terms
+only because it has four partials (0.783 vs 0.700). A *quieter* second voice would have
+been easier for the oracle to reject, so the shipped fixture is the harder of those two
+directions. What it does *not* model is the partial structure of a real second string, and
+that remains a plausible hole in the fixture.
 
-The vetoing competitor is the top-ranked peak *anywhere* outside the 70-cent search window.
-Measured on quiet_a, t=1.067–1.195, against a correct 437–441 Hz candidate, it was 296.6,
-59.5, 54.9, 62.6, 78.4, 57.1 and 57.4 Hz — ratios of 1.5x and 7–8x below. Not octave errors,
-not plausible subharmonics: low-frequency artefacts. At t=1.195 the 57.4 Hz artefact
-outranked the real note outright.
+**Time to first reading is not a like-for-like quality comparison.** Median first correct
+reading: StrumKit 0.046 s (n=36), WebTuna 0.279 s (n=40). But **WebTuna's 0.279 s is an ABI
+artefact, not a tuning result**: its first two 4096-sample calls *always* return
+`CanHearANote == false` - it needs three frames before it will name a note at all - so
+2 x 4096 / 44100 = 0.186 s plus one call is the earliest it is arithmetically capable of.
+The two columns also differ in resolution: 129 StrumKit frames against 32 WebTuna chunks
+per cell, so StrumKit has ~4x the temporal resolution to find an early reading. Read this
+as "WebTuna is not slower", which is all G2 asks.
 
-### 11.4 Why the obvious fix was rejected
+**`trans` is the G1 number, shown here because it came for free.** Two cells flap:
+`snr-0` at 8 transitions and `lvl--60dB` at 2. Every other cell is 1 - acquire once, hold
+to the end. This is consistent with the `DROPOUT-BASELINE` numbers Task 3 recorded, and it
+says the reported flapping symptom is **not** reproduced by these synthetic cells: it needs
+the injected-dropout family, which is not a generated `Case` and so is not in this matrix.
+The `-60 dBFS` cell losing its reading at 2.159 s is the level gate adapting, not flapping.
 
-Narrowing the comparison to genuine octave/subharmonic confusions (f0/2, /3, /4) fixes the
-dropout — coverage rose on all four fixtures — **and was reverted**, because it let broadband
-noise fabricate readings up to **60 cents** off at amplitudes 0.004 and above. The
-low-frequency artefact that vetoes noise frames is the same one vetoing real frames.
+### Build configuration
 
-Five ways of separating "decaying note" from "broadband noise" on this evidence were tried.
-**All five failed to separate them:**
+Measured under both configurations; **the two traces are byte-identical** (5200 lines,
+`diff` clean), so the detect counts above are not build-dependent.
 
-| discriminator | real decaying note | broadband noise | verdict |
-|---|---|---|---|
-| relative salience (score / best in window) | 0.40–0.97 | 0.58–1.12 | noise scores *better* |
-| supporting-partial count | median 8 | median 8 | identical |
-| RMS vs tracker's own ambient floor | — | — | does not separate |
-| frame-to-frame frequency stability | median 18c | median 29c | overlapping |
-| harmonic alignment error | median 0.4c | median 1.8c | overlapping (0.2–1.4 vs 0.2–3.1) |
+| Configuration | Derived data | Wall clock |
+|---|---|---:|
+| Debug (`-Onone`) | `./DerivedData` | 276 s |
+| Release (`-O`) | `./DerivedDataO` | **2.5 s** |
 
-The structural reason: the synthetic noise is **4–5x louder** than the decaying note it must
-be told apart from, so no level or salience threshold admits one and rejects the other.
+A 112x difference with identical output. Any future full-matrix measurement should use
+`-O`; the Debug path takes nearly five minutes and buys nothing.
 
-Keeping the wide comparison costs ~1.1 s of readout at the very end of a quiet pluck.
-Loosening it costs correctness against noise. For a tuner that is the worse trade, so the
-gate is held and the shortfall left open and visible. The `SustainContinuityTests` comment
-records all of this so the next attempt starts from measurement rather than from the same
-four refuted ideas.
+### What this table does not measure
 
-## 12. Spectral acquisition — still blocked
+- **Realistic polyphony.** The second voice *is* synthesised and both engines received it
+  (`polyCellsArePolyphonic` proves the audio; the `sig=` checksums prove both sides agree).
+  But it is a **bare sine with no partials of its own**, at a level
+  (`CoverageMatrix.extraVoiceWeight` = 0.7) that is a **chosen value, not a derived one** —
+  spec §6 gives no per-voice level and no real-pluck measurement informed it. See the
+  constant's doc-comment. A real second string would have its own inharmonic partial
+  structure and its own decay. So these cells measure *close-interval* interference, which
+  is the hard case, but not a realistic two-string pluck.
+- **Which note is "correct" for a two-voice cell.** `noteHz` is the primary, and WebTuna
+  tracking the primary is scored as a detect. A player tuning the *second* string would
+  want F♯2 named; this table cannot say whether either engine would do that.
+- **The four recorded fixtures.** These are synthetic cells; §3's quiet_a/c/e/g numbers come
+  from a different path and are not comparable to this table.
+- **Anything below −60 dBFS or above 0 dB SNR.** Both are outside spec §6's axis ranges.
 
-`SpectralAcquisitionTests` remains 3 tests failing. Same root cause, one step earlier in the
-chain: the prior-free path needs `spectralAcquisitionSeparationRatio = 1.60` and the measured
-separation for weak fundamentals is 1.15–1.79, degrading smoothly as the fundamental weakens.
-1.60 was an arbitrary pick that excludes exactly the cases the path exists to rescue. The
-score, RMS and harmonic-count gates all pass comfortably, and the winning candidate is the
-correct note at every level tested.
+### Reproducing this table
 
-Lowering 1.60 to ~1.20–1.25 is the obvious move and is **not** justified by any evidence
-collected here — §11.4 shows the same tradeoff plays out at the acquisition gate, where
-fabricating a note with no prior to corroborate it is strictly worse. Blocked pending a
-discriminator that is measured to work.
+```bash
+make project    # required: StrumKit.xcodeproj globs StrumKitTests/
+
+# -O is worth the separate derived-data path: 2.5 s against 276 s, identical output.
+xcodebuild test -project StrumKit.xcodeproj -scheme StrumKit \
+  -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath ./DerivedDataO \
+  SWIFT_OPTIMIZATION_LEVEL=-O \
+  -only-testing:StrumKitTests/CrossEngineComparisonTests 2>&1 \
+  | grep -E '^(XENG|XENG-SUMMARY)' > /tmp/xeng-trace.txt
+
+cd docs/tuner-reliability/webtuna
+curl -o WebTuna.wasm https://guitartuna.com/webtuna/WebTuna.wasm
+node xeng.mjs > xweb-trace.txt
+python3 xcompare.py /tmp/xeng-trace.txt xweb-trace.txt xtruth.txt
+```
+
+Never run two `xcodebuild` invocations against the same simulator concurrently — the
+second test host is SIGKILLed and it looks like a crash in the code under test.
+
+Output prefixes: `XENG` / `XENG-SUMMARY` (StrumKit) and `XWEB` / `XWEB-SUMMARY` (WebTuna).
+Summary lines carry `first` / `last` / `transitions` / `frames` / `firstReading` /
+`lastReading` / `extraStrings` / `sig`; the WebTuna side carries `first` / `last` /
+`chunks` / `extraStrings` / `sig`.
+
+`xcompare.py` refuses to score (exit 2) unless the two traces carry the same 40 labels
+**and** the per-cell FNV-1a checksums of the generated audio agree. On this run: 40/40
+labels on all three sides, 40/40 checksums identical. `WebTuna.wasm` is Yousician's IP and
+is not committed.
+
+---
+
+## 13. Spectral acquisition — dropped at merge (2026-09-27)
+
+A prior-free spectral acquisition path was implemented on `main` and is **not** carried
+into the detection-layer line. It is not a casualty of the merge: it was measured and
+found blocked on its own side first. The finding is preserved here because it is the
+evidence for the decision, and because it constrains any future attempt.
+
+The path needed `spectralAcquisitionSeparationRatio = 1.60`. The measured separation for
+weak fundamentals is 1.15-1.79, degrading smoothly as the fundamental weakens, so 1.60
+excluded precisely the cases the path existed to rescue. The score, RMS and
+harmonic-count gates all passed comfortably, and the winning candidate was the correct
+note at every level tested — the failure was the gate, not the scorer.
+
+Lowering 1.60 to ~1.20-1.25 is the obvious move and is **not** justified: section 11.4
+above shows the same trade-off at the recovery gate, where loosening it was measured to
+let broadband noise fabricate readings up to 60 cents off. Fabricating a note with no
+prior to corroborate it is strictly worse than dropping a note that is genuinely
+sounding, and no discriminator separating the two cases was found.
+
+Consequence for the vocabulary: `Acquired` evidence does not exist in this codebase.
+Only `Measured` (periodicity found in the audio) and `Sustained` (a `Note` already being
+tracked, extended through a decay) do. A future acquisition attempt is a new decision,
+gated on a discriminator that is measured to work — not on a threshold moved until the
+suite goes green. See `CONTEXT.md` for the glossary this constrains.

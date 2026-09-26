@@ -42,3 +42,14 @@ targets:
         CODE_SIGNING_REQUIRED: NO
         CODE_SIGN_IDENTITY: ""
         CODE_SIGNING_ALLOWED: NO
+        # The test target is built -O, the app target stays -Onone.
+        #
+        # Not a preference. At -Onone the suite takes ~276 s and the test host is killed
+        # by a watchdog partway through, which xcodebuild reports as dozens of failing
+        # tests that in fact never ran. At -O the same suite finishes in ~2.5 s with
+        # byte-identical output (5200-line traces, diff clean) — measured in
+        # docs/tuner-reliability/RESULTS.md section 11, "Build configuration".
+        #
+        # Override for a genuine unoptimized debug run with:
+        #   make test SLOW=1
+        SWIFT_OPTIMIZATION_LEVEL: "-O"

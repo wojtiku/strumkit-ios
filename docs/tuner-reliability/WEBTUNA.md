@@ -125,8 +125,16 @@ The wasm's internal string order is **highest string first**: for a 6-string gui
 }
 ```
 
-`MeasuredPitchHz` and `TuningErrorCents` are both `floor()`ed on the way out. This is a real
-precision loss in the wire format: at E2 one Hz is 21 cents, so the reported Hz has ±21 ¢ of
+**Corrected 2026-09-26 by the Swift reference port (D1):** `MeasuredPitchHz` is **`rint`**
+(round-to-nearest), not `floor`. Measured: an internal 82.565 Hz is reported as 83, which
+`floor` would also give, but 82.4 → 82 and 82.6 → 83 discriminate between the two. So the
+quantisation is **half a hertz, ±10.5 ¢ at E2, not ±21 ¢.** `TuningErrorCents` is separately
+`floor`ed and that claim is unchanged. `rint` is the better choice of the two, and it halves
+the headline weakness this section was written around.
+
+`TuningErrorCents` is `floor()`ed on the way out. This is a real
+precision loss in the wire format: at E2 one Hz is 21 cents, so the reported cents field has
+21 ¢ of
 quantisation. The reported *cents* come from the unrounded internal frequency, so they stay
 accurate — the two fields disagree, and the site only uses the MIDI/cents pair.
 
@@ -252,6 +260,23 @@ therefore yields 2 frames. The site never exploits the 50 % overlap — it just 
 frame rate for free.
 
 ### 3.3 56-band log filterbank (the `SalienceBooster` neighbourhood)
+
+**Corrected 2026-09-26 by the Swift reference port (D6): the 56-float array this section
+identifies is probably NOT the filterbank output.** The port's finding is specific and it is
+load-bearing: the array satisfies the salience relation to float32 precision, but its values sit
+**51x to 6.0e5x below any weighted sum of the observed spectrum**, so it cannot be a
+filterbank response. Either it is a differently-scaled intermediate, or the real filterbank
+output was never located. The static decompiler is the likely culprit — it also produced float
+literals that do not reproduce this section's own table (the fitted constants
+`0.04680435` / `228.93762` hit all five live band values to 7.4e-8, so **the constants below are
+sound and the table printed alongside them is not**). Field indices from the decompiler do not
+survive into the real struct layout, which blocked the port at exactly this step.
+
+**Treat stages 4, 6 and 7 of the Swift port as reconstruction, not verification.** Stages 1, 2,
+3, 5 and 8 are verified against the real wasm (1280 calls, 40 cells). The port is at
+`docs/tuner-reliability/webtuna/swift-reference/`, with all 9 divergences in its `DIVERGENCES.md`.
+
+
 
 Three 56-entry tables are built lazily on first use (`f_rs`, guarded by a one-shot flag) from
 
@@ -479,7 +504,13 @@ checking the live bass tuner before we assume that page is fine.
 
 ### 4.5 Sub-octave ceiling
 
-Chromatic mode never reports above ~1320 Hz. A 1976 Hz tone reports 988 Hz, 2637 Hz reports
+**Corrected 2026-09-26 by the Swift reference port (D3): this ceiling does not exist.** The
+chromatic candidate grid builds **1125 entries reaching MIDI 89.9**, not a 675-entry grid
+stopping near 1320 Hz. The grid *is* coarse — its step is 6.67 ¢ — but it is not truncated
+where this section said. The sub-octave readings below are therefore a consequence of coarse
+grid arithmetic, not of a hard ceiling. The corrected statement follows.
+
+Chromatic mode still misreads intervals a whole tone or more up. A 1976 Hz tone reports 988 Hz, 2637 Hz reports
 1318 Hz, 3951 Hz reports 1317 Hz. In string mode the search is clamped to the tuning, so a
 6-string guitar is unaffected — but a **12-string high E (1976 Hz) or a 7-string B (2469 Hz)
 would be out of range** unless `setTuning` widens the candidate grid.

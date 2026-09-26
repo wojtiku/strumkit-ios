@@ -168,16 +168,19 @@ struct SustainContinuityTests {
         //     98 ms, and the tracker then needs further frames to confirm, so the
         //     structural floor is well under this. Not yet diagnosed.
         //
-        //  b) End-of-sustain dropout. On quiet_a, quiet_e and quiet_g the last fresh
-        //     reading lands at ~1.1-1.5 s while the string is still audible for another
-        //     1-1.2 s, after which the app shows a held, dimmed reading. The cause is
-        //     located: spectral recovery stops accepting frames, vetoed by its
-        //     separation gate. The vetoing peak is a 55-78 Hz artefact 7-8x below the
-        //     note, not a competing pitch. Narrowing the gate to genuine octave
-        //     confusions fixes the dropout but was measured to let broadband noise
-        //     fabricate readings up to 60 cents off, and four alternative
-        //     discriminators all failed to separate the two cases. See the note on
-        //     `spectralRecoverySeparationRatio`.
+        //  b) End-of-sustain dropout. This was the dominant shortfall when this suite
+        //     was written: trailing held readout ran 384-1195 ms across the four
+        //     fixtures, and the cause was located to spectral recovery stopping
+        //     because its separation gate was vetoed by a 55-78 Hz artefact 7-8x below
+        //     the note rather than a competing pitch. Continuation hysteresis has since
+        //     cut that to 21-213 ms with no change to the gate, which is the outcome
+        //     that gate was left alone to buy. The rejected discriminators, and why
+        //     narrowing it was measured to let broadband noise fabricate readings up
+        //     to 60 cents off, are recorded in RESULTS.md 11.3-11.4.
+        //
+        //     It is not zero, so this remains a shortfall rather than a fix. Closing
+        //     the remainder needs a discriminator that is measured to work, not a
+        //     threshold moved until the suite goes green.
         for m in results {
             let sounding = m.soundingEnd - m.soundingStart
             let trailingHeld = m.soundingEnd - m.lastFresh

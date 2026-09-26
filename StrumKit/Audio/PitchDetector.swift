@@ -20,9 +20,26 @@ public final class PitchDetector: @unchecked Sendable {
     public static let priorSubharmonicMaxDistanceCents: Double = 35.0
     public static let priorSubharmonicMinEnergyRatio: Double = 0.05
     public static let unprioritizedSubharmonicMinEnergyRatio: Double = 0.30
-    public static let fundamentalMinEnergyRatio: Double = 0.004
-    public static let highNoteAmbiguityMinEnergyRatio: Double = 0.002
-    public static let standardAmbiguityMinEnergyRatio: Double = 0.004
+
+    /// The unscaled floor for a candidate fundamental's share of a window's power.
+    /// Each of the three gates multiplies one of these two bases by the instance's
+    /// `fundamentalEnergyScale`, so at the shipped scale of 1.0 the applied
+    /// thresholds are these two numbers unchanged.
+    ///
+    /// The high-note base is deliberately half the standard one, and the 300 Hz
+    /// split that chooses between them exists at the ambiguity threshold *only*.
+    /// The subharmonic loop and `shouldPreferSubharmonic` both apply
+    /// `fundamentalMinEnergyRatio` at every frequency, high notes included, so
+    /// "high notes get a weaker floor" is true of one site out of three. The two
+    /// bases keep their 2:1 ratio at every scale.
+    public static let fundamentalEnergyBase: Double = 0.004
+    public static let highNoteEnergyBase: Double = 0.002
+
+    /// The shipped value. `1.0` is the pre-2026-09-25 behaviour, bit for bit;
+    /// Task 6 changes it from a measured sweep of `fundamentalEnergyScale` and
+    /// records the decision table in RESULTS.md.
+    public static let defaultFundamentalEnergyScale: Double = 1.0
+
     public static let harmonicSupportMinRatio: Double = 0.5
 
     public static let clippingSampleLevel: Float = 0.98
@@ -34,16 +51,76 @@ public final class PitchDetector: @unchecked Sendable {
     public let minFrequency: Double
     public let maxFrequency: Double
 
+    /// The one multiplier behind all three fundamental-energy gates, and the only
+    /// thing Task 6 changes. `1.0` is the pre-2026-09-25 behaviour, bit for bit.
+    /// Instance state rather than a `static var` so a sweep needs no global
+    /// mutable state.
+    ///
+    /// **The knob does not turn one way.** Two of the three gates are acceptance
+    /// floors and the third suppresses a veto, so lowering the scale makes the
+    /// detector *less* permissive at that one site and *more* permissive at the
+    /// other two:
+    ///
+    /// - `candidatePowerRatio >= fundamentalMinEnergyRatio` (`:291`), in the
+    ///   subharmonic loop of `detectPitch`: arms `candidateEvidence` for more
+    ///   candidates, and that bit is a veto rather than a preference — it sets
+    ///   `isAmbiguous` unless the selected multiplier divides the candidate's.
+    ///   Lowering the scale here rejects *more*. (The design spec §2.2 labels
+    ///   this site "subharmonic preference"; the subharmonic-preference site is
+    ///   `shouldPreferSubharmonic`. This comment follows the code. The line
+    ///   numbers are the spec §2.2 table's, which names the same three sites.)
+    /// - `highNoteAmbiguityMinEnergyRatio` / `standardAmbiguityMinEnergyRatio`
+    ///   (`:321`) in the ambiguity check, and `evidence.candidateEnergy / power <
+    ///   fundamentalMinEnergyRatio` (`:402`) in `shouldPreferSubharmonic`: both
+    ///   acceptance floors, so lowering the scale accepts more. The ambiguity
+    ///   threshold is the one doing the rejecting — spec §2.1 has it accepting
+    ///   0/12 of 12 in each of the three weakest cells (0.18 %, 0.02 % and 0.00 %
+    ///   fundamental energy, 12 trials each) while YIN named the right f0 with
+    ///   zero octave errors in all 36. (The spec's §1 and the webtuna README
+    ///   state the same finding as "6/6"; §2.1 is primary because it carries the
+    ///   trial count.) See
+    ///   docs/superpowers/specs/2026-09-25-tuner-detection-layer-design.md §2.1.
+    ///
+    /// Which of the two effects dominates is empirical, not derivable, which is
+    /// why the value gets swept rather than reasoned out. The loop's gate should
+    /// not be assumed inert across that sweep, because no cell that *reaches* it
+    /// has been measured at a swept floor. The subharmonic search probes f0/2,
+    /// f0/3 and f0/4 — the sub-octave, not the second harmonic, which is 2*f0
+    /// and above it — and every low-E cell sits at 82.4 Hz, where all three
+    /// candidates fall below `TunerConstants.detectorMinHz` and the loop is
+    /// skipped before the gate is read at all. Lowering a fundamental's own
+    /// strength does not load f0/2, so the `h1-` axis says nothing about this
+    /// site. The gate only runs for f0 >= 100 Hz: the high-string cells reach it
+    /// (246.9 Hz probes 123.5, 329.6 Hz probes 164.8) and no seed-A number exists
+    /// for them. A sweep over the low-E cells has not tested this site at all.
+    ///
+    /// A scale of exactly 0 does not disable the gates — it makes the loop's
+    /// ratio test vacuously true, so that veto arms strictly more often than at
+    /// any positive scale. Its other two conjuncts still apply, so "more often"
+    /// is not "always", and nothing here claims which signals those are.
+    public let fundamentalEnergyScale: Double
+
+    // `fundamentalMinEnergyRatio` and `standardAmbiguityMinEnergyRatio` are the
+    // same expression on purpose, not a copy-paste slip: they were already both
+    // 0.004 before any scale existed. One shared base means the knob cannot
+    // split them — giving them separate values is a second edit, here and in
+    // `fundamentalEnergyBase`, and not a sweep result.
+    public var fundamentalMinEnergyRatio: Double { Self.fundamentalEnergyBase * fundamentalEnergyScale }
+    public var standardAmbiguityMinEnergyRatio: Double { Self.fundamentalEnergyBase * fundamentalEnergyScale }
+    public var highNoteAmbiguityMinEnergyRatio: Double { Self.highNoteEnergyBase * fundamentalEnergyScale }
+
     public init(
         sampleRate: Double = 44100.0,
         bufferSize: Int = 2048,
         minFrequency: Double = TunerConstants.detectorMinHz,
-        maxFrequency: Double = TunerConstants.detectorMaxHz
+        maxFrequency: Double = TunerConstants.detectorMaxHz,
+        fundamentalEnergyScale: Double = PitchDetector.defaultFundamentalEnergyScale
     ) {
         self.sampleRate = sampleRate
         self.bufferSize = bufferSize
         self.minFrequency = minFrequency
         self.maxFrequency = maxFrequency
+        self.fundamentalEnergyScale = fundamentalEnergyScale
     }
 
     /// Full window analysis matching analyzeWindow from chorder/src/audio/tuner/pitch.ts
@@ -226,7 +303,7 @@ public final class PitchDetector: @unchecked Sendable {
                 priorMatches = false
             }
 
-            if candidatePowerRatio >= Self.fundamentalMinEnergyRatio
+            if candidatePowerRatio >= fundamentalMinEnergyRatio
                 && cmnd[candidate.lag] < cmnd[initial.lag]
                 && evidence.harmonicSupport >= evidence.selectedEnergy * Self.harmonicSupportMinRatio {
                 candidateEvidence |= (1 << multiplier)
@@ -256,7 +333,7 @@ public final class PitchDetector: @unchecked Sendable {
         let frequency = refined.frequency
         guard frequency >= minFrequency && frequency <= maxFrequency else { return .idle }
 
-        var ambiguousThresh = frequency > 300.0 ? Self.highNoteAmbiguityMinEnergyRatio : Self.standardAmbiguityMinEnergyRatio
+        var ambiguousThresh = frequency > 300.0 ? highNoteAmbiguityMinEnergyRatio : standardAmbiguityMinEnergyRatio
         if hasPrior {
             ambiguousThresh *= 0.5
         }
@@ -337,7 +414,7 @@ public final class PitchDetector: @unchecked Sendable {
         power: Double,
         priorMatches: Bool
     ) -> Bool {
-        if evidence.candidateEnergy / power < Self.fundamentalMinEnergyRatio {
+        if evidence.candidateEnergy / power < fundamentalMinEnergyRatio {
             return false
         }
         if priorMatches {

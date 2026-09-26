@@ -11,6 +11,17 @@ DESTINATION     := platform=iOS Simulator,name=$(DEVICE_NAME)
 DERIVED_DATA    := ./DerivedData
 APP_BUNDLE      := $(DERIVED_DATA)/Build/Products/Debug-iphonesimulator/$(PROJECT_NAME).app
 
+# Test builds are -O by default (see project.yml). SLOW=1 forces -Onone, which is ~112x
+# slower and gets the test host killed partway through — useful only when debugging
+# unoptimized behaviour, never for a suite run.
+ifdef SLOW
+TEST_DERIVED_DATA := $(DERIVED_DATA)
+TEST_OPT_FLAGS    :=
+else
+TEST_DERIVED_DATA := ./DerivedDataO
+TEST_OPT_FLAGS    := SWIFT_OPTIMIZATION_LEVEL=-O
+endif
+
 FORMATTER       := $(shell command -v xcbeautify 2>/dev/null)
 
 # ANSI Colors
@@ -72,20 +83,25 @@ else
 endif
 
 # Run all unit tests
+#
+# Uses $(TEST_DERIVED_DATA) and $(TEST_OPT_FLAGS) so the suite runs -O by default.
+# Override with `make test SLOW=1` for a genuine -Onone run.
 test:
-	@echo -e "$(BOLD)$(CYAN)Running all unit tests (7 suites, 28 tests)...$(RESET)"
+	@echo -e "$(BOLD)$(CYAN)Running unit tests (-O, $(TEST_DERIVED_DATA))...$(RESET)"
 ifeq ($(strip $(FORMATTER)),)
 	@xcodebuild test \
 		-project $(PROJECT_NAME).xcodeproj \
 		-scheme $(SCHEME) \
 		-destination "$(DESTINATION)" \
-		-derivedDataPath $(DERIVED_DATA)
+		-derivedDataPath $(TEST_DERIVED_DATA) \
+		$(TEST_OPT_FLAGS)
 else
 	@set -o pipefail && xcodebuild test \
 		-project $(PROJECT_NAME).xcodeproj \
 		-scheme $(SCHEME) \
 		-destination "$(DESTINATION)" \
-		-derivedDataPath $(DERIVED_DATA) | $(FORMATTER)
+		-derivedDataPath $(TEST_DERIVED_DATA) \
+		$(TEST_OPT_FLAGS) | $(FORMATTER)
 endif
 
 # Regenerate project from project.yml
