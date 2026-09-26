@@ -694,6 +694,14 @@ not belong in `CoverageMatrix.matrix(seed:)` and is not a `Case`. It is part of 
     gate. The gate is Task 12, which asserts `transitions <= 1` on the same fixture and is
     expected to fail until Tasks 10-12 land.
   - Print all four counts, since the pre-fix numbers are the G1 baseline.
+  - **`held == 0 && recovered == 0` on the control.** The clean control is the only
+    trace where holding is never correct: a 4 s low-E pluck with a 4 s decay is still
+    ringing when the window ends, so it must never leave `fresh` after acquisition.
+    Task 12 reuses this as its one-way-degradation discriminator, because a
+    transition count alone cannot separate `[none, fresh...]` from `[none, held...]`
+    — both score 1 under `changes - 1`. This assertion is on evidence (the recorded
+    histogram is `["none": 1, "fresh": 171]`), so it is safe to gate on. Asserting it
+    on a trace whose behaviour nobody has measured is not.
 
 **Gate:** the pre-fix transition counts for 0.0/0.1/0.3/0.5 are recorded in `RESULTS.md`, and
 the comparative assertions pass — i.e. the fixture demonstrably reproduces the reported
