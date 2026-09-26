@@ -26,6 +26,44 @@ public final class PitchTracker: @unchecked Sendable {
     public static let foregroundPeriodicityThreshold: Double = 0.75
     public static let ambientCooldown: TimeInterval = 0.35
 
+    /// How far above the learned ambient floor a frame must be before a
+    /// periodicity value is allowed to mean "something was played".
+    ///
+    /// **A periodicity value alone is not evidence of a note.** A CMNDF measures
+    /// pseudo-periodicity, and noise has it: over the 6.12 s of −46.3 dBFS room
+    /// tone that follows the last strum on `all-4-with-noise.wav`, 53 of 287
+    /// frames reach YIN periodicity ≥ 0.75 (median 0.830, max 0.963), and the
+    /// frames the display actually acquired a *string* from sit at 0.697–0.940 —
+    /// overlapping the quiet plucks' 0.668–0.978 exactly. So periodicity cannot
+    /// carry the decision, and the level has to.
+    ///
+    /// **The multiple is the room's own 99th percentile, not a guess.** Over 256
+    /// frames of provable silence on that file (16.5 s–21.95 s, after the
+    /// estimator's last real estimate at 16.171 s) the 90 ms RMS has mean 0.004406,
+    /// p90 1.57× that mean, p99 2.24×, maximum 2.51×. A 90 ms window is atypical of
+    /// the room above p99, and 2.24 / 1.03 = **2.18** is that percentile expressed
+    /// in units of the floor once the floor is fixed to estimate the room rather
+    /// than a downward-biased subset of it (it measured 0.77× the room's mean
+    /// before this change and 1.03× after). 2.0 sits just under it, on the
+    /// sensitivity side, because the percentile is a property of one recording and
+    /// the cost of being wrong is asymmetric.
+    ///
+    /// **What the sweep says about that choice.** Sweeping the multiple over
+    /// 1.0 … 5.0 with everything else fixed: the post-music tail goes 179 → 112 →
+    /// 54 → 34 → 33 → 31 live frames, the fourth string is never lost below 8.0,
+    /// and *every* quiet fixture's fresh-frame count and coverage is bit-identical
+    /// to the pre-change baseline at 1.0, 1.5 and 2.0. The next step is a cliff:
+    /// at 2.5 `quiet_a` drops from 86 fresh frames to 29 and at 3.0 to 17, taking
+    /// its recorded 0.40 s coverage gate to 0.62 s and 0.36 s. So 2.0 is the
+    /// largest multiple that costs the quiet plucks nothing, and the tail it buys
+    /// is 54 of 287 frames — against 50 for the same file with the room tone
+    /// replaced by silence, i.e. indistinguishable from the hold's own cost.
+    ///
+    /// The headroom on the detection side is large either way: the four strum
+    /// onsets on that file are 18.8×–66× the room's mean, and the weakest real
+    /// acquisition on any recorded fixture is 12.28×.
+    public static let foregroundLevelMultiple: Double = 2.0
+
     // Hold & Sustain Grace Durations
     public static let readingHoldDuration: TimeInterval = 1.0
     public static let priorGraceDuration: TimeInterval = 0.85
@@ -213,14 +251,37 @@ public final class PitchTracker: @unchecked Sendable {
             consecutiveYinSuccesses = 0
         }
 
-        // Update ambient noise floor during quiet / unvoiced intervals
+        // What counts as evidence that something was actually played. The level
+        // conjunct is load-bearing, and it is the same predicate the display uses
+        // below, so "foreground" means one thing throughout the tracker.
+        //
+        // A recovered estimate is exempt from the *periodicity* conjunct only.
+        // `TunerAnalysisSession` deliberately reports it as a salience capped at
+        // 0.70 — below `foregroundPeriodicityThreshold` — precisely because
+        // salience is not periodicity, so reading it as one is meaningless. It is
+        // also the estimate that exists to carry a display through a decay YIN has
+        // lost, so it must be able to; demanding a YIN periodicity of it would
+        // make the whole recovery path inert. Its level still has to clear the same
+        // bar, on top of the harmonic-support, score and separation gates
+        // `TunerAnalysisSession` already applied to produce it at all.
         let isForeground = pitchResult.isSignalPresent
             && pitchResult.frequency >= TunerConstants.detectorMinHz
-            && pitchResult.confidence >= Self.foregroundPeriodicityThreshold
+            && (pitchResult.recovered || pitchResult.confidence >= Self.foregroundPeriodicityThreshold)
+            && pitchResult.amplitudeRMS >= Self.foregroundLevelMultiple * ambientFloor
 
         if isForeground {
             lastForegroundTime = now
-        } else if (now - lastForegroundTime) >= Self.ambientCooldown && pitchResult.amplitudeRMS > 0 {
+        } else if displayedReading == nil
+                    && (now - lastForegroundTime) >= Self.ambientCooldown
+                    && pitchResult.amplitudeRMS > 0 {
+            // The floor estimates the *room*, and the room is only observable while
+            // nothing is on the display. Without the `displayedReading == nil` guard
+            // a decaying note is not foreground (its level is below the floor's
+            // multiple) and so feeds the floor, which raises the floor, which makes
+            // the next frame of the same decay even less foreground. Measured on
+            // `quiet_a.wav`, that feedback alone takes fresh coverage from 1.17 s to
+            // 0.17 s — below the 0.40 s acceptance gate — while four of the eight
+            // recorded fixtures lose their decay display entirely.
             let alpha = 0.05
             ambientFloor = max(Self.minAmbientFloor, min(Self.maxAmbientFloor, (1.0 - alpha) * ambientFloor + alpha * pitchResult.amplitudeRMS))
         }
@@ -297,7 +358,19 @@ public final class PitchTracker: @unchecked Sendable {
             candidateIsOnset = false
         }
 
-        let isContinuingTarget = (currentTargetKey == activeTargetKey && continuityPrior != nil && (now - lastReadingTime) <= Self.priorGraceDuration)
+        // Continuing a note the display already shows is not a second look at the
+        // same question — it is the shortcut that kept the post-music tail alive.
+        // `isContinuingTarget` bypasses the candidate requirement entirely, so any
+        // frame with an in-vocabulary estimate inside `priorGraceDuration` reached
+        // `lastReadingTime = now` and restarted the 1.0 s display hold. Measured on
+        // `all-4-with-noise.wav`, a room-tone frame at 0.41× the floor was enough to
+        // hold the needle up for 5.85 s over 6.12 s of silence, naming G4, C4 and A4
+        // out of −46 dBFS room tone. Gating the shortcut on the same foreground test
+        // is what takes the tail from 199 live frames to 33.
+        let isContinuingTarget = isForeground
+            && currentTargetKey == activeTargetKey
+            && continuityPrior != nil
+            && (now - lastReadingTime) <= Self.priorGraceDuration
 
         if candidateKey == currentTargetKey {
             candidateCount += 1
@@ -315,7 +388,13 @@ public final class PitchTracker: @unchecked Sendable {
 
         let elapsedSpan = candidateLastSeenAt - candidateFirstSeenAt
         let neededSpan = candidateIsOnset ? Self.onsetEvidenceSpan : Self.standardEvidenceSpan
+        // A candidate that has only ever seen non-foreground frames has only ever
+        // seen the room agree with itself, and the room agrees with itself for as
+        // long as you ask. Manual and chromatic mode still bypass this: manual's
+        // player has already chosen the string, and chromatic's whole job is to
+        // report whatever it hears.
         let isConfirmed = (candidateCount >= 2 && (candidateIsOnset || elapsedSpan >= (neededSpan - 0.001) || candidateCount >= 3))
+            && (isForeground || config.mode == .manual || (config.mode == .chromatic && candidateCount >= 2))
 
         guard isContinuingTarget || isConfirmed || config.mode == .manual || (config.mode == .chromatic && candidateCount >= 2) else {
             feedbackState = .checking
