@@ -112,6 +112,24 @@ public struct SettingsView: View {
                     LabeledContent("Sample Rate", value: "\(Int(viewModel.diagnostics.sampleRate)) Hz")
                     LabeledContent("Analysis Latency", value: String(format: "%.1f ms", viewModel.diagnostics.analysisMs))
                     LabeledContent("Status", value: viewModel.engineStatus.displayTitle)
+
+                    // The first thing to check when a detector "does nothing". A
+                    // simulator audio client can start cleanly, report "Listening" with a
+                    // live latency, and still deliver pure silence — indistinguishable
+                    // from a broken algorithm unless the level is measured, not inferred.
+                    let input = viewModel.inputLevel
+                    LabeledContent("Measured input RMS", value: String(format: "%.7f", input.rms))
+                    LabeledContent("Measured input peak", value: String(format: "%.7f", input.peak))
+                    LabeledContent("Windows analysed", value: "\(input.frames)")
+                    if input.frames > 30 && input.peak < 1e-5 {
+                        Label {
+                            Text("The capture tap is delivering silence. No detector can hear anything until real audio reaches it — this is an input problem, not an algorithm problem.")
+                                .font(.caption)
+                        } icon: {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(TunerTheme.sharp)
+                        }
+                    }
                 }
 
                 // Section 4: Privacy Notice

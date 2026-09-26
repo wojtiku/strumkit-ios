@@ -15,6 +15,15 @@ public final class TunerViewModel {
     public var diagnostics: TunerDiagnostics = TunerDiagnostics()
     public private(set) var holdOpacity: Double = 1.0
 
+    /// Measured level of the audio the capture tap is actually delivering.
+    ///
+    /// This is the first thing to check when a detector "does nothing": a simulator HAL
+    /// client can start cleanly, report "Listening" with a live latency, and still deliver
+    /// pure silence, which looks exactly like a broken algorithm.
+    public var inputLevel: TunerAnalysisSession.InputLevel {
+        session.inputLevel
+    }
+
     /// Opacity the gauge needle should render at.
     ///
     /// Combines the hold fade with the dimming applied to spectrally recovered
@@ -160,19 +169,21 @@ public final class TunerViewModel {
             // object there means a weak-reference load and retain/release per
             // callback. `TunerAnalysisSession` is `Sendable`, so this is safe.
             let analysisSession = session
-            try captureService.startCapture(bufferSize: 1024) { window, sampleRate, captureEndSeconds, callbackFrameCount in
+            NSLog("[VM] starting capture")
+            try captureService.startCapture(bufferSize: 1024) { window, sampleRate, captureEndSeconds, callbackFrameCount, newSampleCount in
                 analysisSession.submitLiveAudio(
                     window: window,
                     sampleRate: sampleRate,
                     captureEndSeconds: captureEndSeconds,
-                    callbackFrameCount: callbackFrameCount
+                    callbackFrameCount: callbackFrameCount,
+                    newSampleCount: newSampleCount
                 )
             }
             self.engineStatus = .listening
             self.feedbackState = .ready
             self.diagnostics.sampleRate = captureService.sampleRate
         } catch let err as AudioCaptureError {
-            print("[StrumKit] Audio capture error: \(err.localizedDescription)")
+            NSLog("[VM] capture FAILED: %@", err.localizedDescription)
             session.stop()
             switch err {
             case .noInputChannelsAvailable, .inputNodeUnavailable:

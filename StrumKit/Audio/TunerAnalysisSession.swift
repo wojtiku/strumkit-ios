@@ -1,4 +1,5 @@
 import Foundation
+import Accelerate
 import QuartzCore
 
 /// Coordinates DSP detection and pitch tracking on a single serial worker.
@@ -29,7 +30,7 @@ public final class TunerAnalysisSession: @unchecked Sendable {
     private var detector: PitchDetector? = nil
     private let tracker: PitchTracker
     private let spectralScorer = SpectralPitchScorer()
-    // MARK: - Spectral Recovery Tuning
+    /// MARK: - Spectral Recovery Tuning
     //
     // These are experimental acceptance settings, not calibrated probabilities.
     // They were chosen against the recorded quiet-pluck fixtures and are
@@ -53,6 +54,7 @@ public final class TunerAnalysisSession: @unchecked Sendable {
     /// 445 Hz "A4" out of a 0.0008-amplitude noise tail, 21 cents sharp. 1.25 keeps
     /// the measured real-signal separation (1.36-1.44x on the quiet fixtures) while
     /// rejecting that case.
+    ///
     public static let spectralRecoverySeparationRatio: Double = 1.25
 
     /// A recovered candidate must be explained by at least this many distinct
@@ -68,6 +70,49 @@ public final class TunerAnalysisSession: @unchecked Sendable {
     /// RMS multiple above the previous frame that marks an onset.
     public static let onsetRmsRatio: Double = 2.5
     public static let onsetMinRMS: Double = 0.005
+
+    // MARK: - Spectral Acquisition Tuning
+    //
+    // Recovery can lean on an existing prior, so its gate is comparatively loose.
+    // Acquisition has nothing to lean on: it is naming a note for the first time, from
+    // spectral evidence alone, and every mistake here is a false note the player acts on.
+    // These thresholds are therefore markedly stricter than the recovery set, and are
+    // documented in docs/tuner-reliability/RESULTS.md.
+
+    /// Enables the prior-free spectral acquisition path.
+    public static let spectralAcquisitionEnabled: Bool = true
+
+    /// Absolute evidence floor, ~3.4x the recovery floor.
+    public static let spectralAcquisitionMinScore: Double = 0.12
+
+    /// Minimum pre-whitening RMS. Higher than recovery: acquiring on near-silence is how
+    /// a tuner starts inventing notes in a quiet room.
+    public static let spectralAcquisitionMinRMS: Double = 0.0012
+
+    /// The winning candidate must beat the best *other* candidate by this ratio.
+    ///
+    /// Stricter than recovery's 1.25 because there is no prior to restrict attention, so
+    /// the competitor set is the whole grid. This is the check that most directly
+    /// separates "one f0 explains the partials" from "a noise blob outscored a note".
+    public static let spectralAcquisitionSeparationRatio: Double = 1.60
+
+    /// Number of supporting partials required.
+    ///
+    /// Higher than recovery's 2: with no prior, two peaks can coincide by chance, but a
+    /// real plucked note explains a run of them.
+    public static let spectralAcquisitionMinHarmonics: Int = 3
+
+    /// A candidate must be this many semitones from the nearest competing *harmonic* of
+    /// itself to count as a fundamental rather than a partial.
+    ///
+    /// Guards the classic error: hearing 2f0 and reporting f0's half, or hearing f0/2 and
+    /// reporting a note an octave below the truth.
+    public static let spectralAcquisitionRejectOctaveCents: Double = 45.0
+
+    /// Two consecutive frames must agree within this many cents before acquisition is
+    /// believed. The tracker requires evidence over time; this requires it in the DSP
+    /// domain, because a single frame naming a new note is not evidence of anything.
+    public static let spectralAcquisitionAgreementCents: Double = 30.0
 
     /// Half-width of the local search around the continuity prior.
     ///
@@ -85,6 +130,12 @@ public final class TunerAnalysisSession: @unchecked Sendable {
     public static let recoveredFramesMayAssertInTune: Bool = false
 
     private var previousFrameRms: Double = 0.0
+
+    // Acquisition state. A candidate seen on one frame is a proposal, not a note: it must
+    // be corroborated by the next frame before it is allowed to name a pitch.
+    private var pendingAcquisitionFrequency: Double?
+    private var pendingAcquisitionAt: TimeInterval = 0
+    private var acquisitionFrameCount: Int = 0
 
     /// Controls whether spectral harmonic recovery is active during sustain.
     private var _isSpectralRecoveryEnabled: Bool = true
@@ -192,6 +243,8 @@ public final class TunerAnalysisSession: @unchecked Sendable {
         tracker.reset(targetCount: targets.count)
         detector = nil
         previousFrameRms = 0.0
+        pendingAcquisitionFrequency = nil
+        acquisitionFrameCount = 0
         lock.unlock()
     }
 
@@ -262,7 +315,8 @@ public final class TunerAnalysisSession: @unchecked Sendable {
         window: [Float],
         sampleRate: Double,
         captureEndSeconds: TimeInterval,
-        callbackFrameCount: Int = 0
+        callbackFrameCount: Int = 0,
+        newSampleCount: Int? = nil
     ) {
         let enqueuedAt = CACurrentMediaTime()
         lock.lock()
@@ -273,7 +327,8 @@ public final class TunerAnalysisSession: @unchecked Sendable {
             captureEndSeconds: captureEndSeconds,
             sequence: sequenceNumber,
             generation: activeGeneration,
-            callbackFrameCount: callbackFrameCount
+            callbackFrameCount: callbackFrameCount,
+            newSampleCount: newSampleCount
         )
 
         if pendingFrame != nil {
@@ -327,6 +382,156 @@ public final class TunerAnalysisSession: @unchecked Sendable {
         )
     }
 
+    private var _inputRMS: Double = 0
+    private var _inputPeak: Double = 0
+    private var _inputFrameCount: UInt64 = 0
+
+    /// Measured level of the audio the capture tap is actually delivering.
+    public struct InputLevel: Sendable, Equatable {
+        public var rms: Double = 0
+        public var peak: Double = 0
+        public var frames: UInt64 = 0
+    }
+
+    public var inputLevel: InputLevel {
+        lock.lock()
+        defer { lock.unlock() }
+        return InputLevel(rms: _inputRMS, peak: _inputPeak, frames: _inputFrameCount)
+    }
+
+    private static func rms(of samples: [Float]) -> Double {
+        guard !samples.isEmpty else { return 0 }
+        var value: Float = 0
+        vDSP_rmsqv(samples, 1, &value, vDSP_Length(samples.count))
+        return Double(value)
+    }
+
+    /// Names a pitch from spectral evidence alone, for a note YIN has not acquired.
+    ///
+    /// Closes the gap recorded in `COMPARISON.md` §5.1: recovery could only ever extend a
+    /// note, because it requires a continuity prior that only exists once YIN has already
+    /// been accepted twice. A pluck whose fundamental is too weak for YIN's
+    /// `fundamentalMinEnergyRatio` therefore produced no note at all, and no amount of
+    /// recovery tuning could help.
+    ///
+    /// Because there is no prior to lean on, the gate is deliberately much stricter than
+    /// recovery's, and the candidate must be corroborated by two consecutive frames. It is
+    /// also the only path that can invent a note out of nothing, so the competitor,
+    /// octave and partial-count checks are all mandatory.
+    private func trySpectralAcquisition(
+        pitchResult: inout PitchResult,
+        hasPrior: Bool,
+        currentRms: Double,
+        sampleRate: Double,
+        samples: [Float],
+        config: TunerConfig,
+        at now: TimeInterval
+    ) {
+        guard Self.spectralAcquisitionEnabled else { return }
+
+        // Only when YIN has nothing, and only when there is no live prior to defer to.
+        // A prior means the note is already being tracked, which is recovery's job.
+        guard !hasPrior else { return }
+        guard !pitchResult.isSignalPresent || pitchResult.frequency <= 0 else { return }
+        guard currentRms >= Self.spectralAcquisitionMinRMS else { return }
+
+        // Propose on the first frame that clears the bar; believe it on the second.
+        if let pending = pendingAcquisitionFrequency,
+           now - pendingAcquisitionAt <= PitchTracker.maxCandidateGap,
+           let analysis = spectralScorer.analyzeAudio(samples: samples, sampleRate: sampleRate),
+           let accepted = Self.acceptAcquisition(
+                analysis: analysis,
+                corroborating: pending,
+                config: config,
+                rms: currentRms
+            ) {
+            acquisitionFrameCount += 1
+            pendingAcquisitionFrequency = accepted.frequency
+            pendingAcquisitionAt = now
+            pitchResult = accepted
+            return
+        }
+
+        pendingAcquisitionFrequency = nil
+
+        guard let analysis = spectralScorer.analyzeAudio(samples: samples, sampleRate: sampleRate) else { return }
+        let proposal = Self.acceptAcquisition(
+            analysis: analysis,
+            corroborating: nil,
+            config: config,
+            rms: currentRms
+        )
+        pendingAcquisitionFrequency = proposal?.frequency
+        pendingAcquisitionAt = now
+    }
+
+    /// Applies the acquisition gate to the scorer's ranked candidates.
+    ///
+    /// - Parameter corroborating: a frequency proposed on the previous frame. When
+    ///   supplied, the returned candidate must agree with it, which is what makes
+    ///   acquisition take two frames instead of one.
+    private static func acceptAcquisition(
+        analysis: SpectralPitchScorer.WindowAnalysis,
+        corroborating: Double?,
+        config: TunerConfig,
+        rms: Double
+    ) -> PitchResult? {
+        let candidates = analysis.candidates
+        guard let index = candidates.firstIndex(where: { $0.frequency > 0 }) else { return nil }
+        let candidate = candidates[index]
+        guard candidate.score >= spectralAcquisitionMinScore else { return nil }
+
+        // Separation from the best other candidate, across the whole grid.
+        if candidates.count > 1, let competitor = candidates.dropFirst().first(where: { $0.frequency > 0 }) {
+            guard candidate.score >= competitor.score * spectralAcquisitionSeparationRatio else { return nil }
+        }
+
+        // Supporting partials, and octave sanity.
+        guard index < analysis.evidence.count else { return nil }
+        let evidence = analysis.evidence[index]
+        let strongest = evidence.map { Double($0.peakMagnitude) }.max() ?? 0
+        guard strongest > 0 else { return nil }
+        let supporting = evidence.filter {
+            $0.peakFrequency != nil && Double($0.peakMagnitude) >= strongest * spectralSupportFraction
+        }
+        guard supporting.count >= spectralAcquisitionMinHarmonics else { return nil }
+
+        // Must not be a partial of itself: reject if a strong peak sits an octave away.
+        for other in candidates.dropFirst() where other.frequency > 0 {
+            let cents = abs(PitchMath.centsBetween(measured: other.frequency, reference: candidate.frequency))
+            let isOctaveish = abs(cents - 1200) < spectralAcquisitionRejectOctaveCents
+                || abs(cents - 1902) < spectralAcquisitionRejectOctaveCents
+                || abs(cents + 1200) < spectralAcquisitionRejectOctaveCents
+                || abs(cents + 1902) < spectralAcquisitionRejectOctaveCents
+                || abs(cents - 700) < spectralAcquisitionRejectOctaveCents
+                || abs(cents + 700) < spectralAcquisitionRejectOctaveCents
+            if isOctaveish, other.score >= candidate.score * spectralSupportFraction {
+                return nil
+            }
+        }
+
+        // Two-frame corroboration.
+        if let corroborating {
+            let agreement = abs(PitchMath.centsBetween(measured: candidate.frequency, reference: corroborating))
+            guard agreement <= spectralAcquisitionAgreementCents else { return nil }
+        }
+
+        guard let nearestMidi = PitchMath.nearestMidi(for: candidate.frequency, a4: config.a4) else { return nil }
+
+        return PitchResult(
+            frequency: candidate.frequency,
+            closestNote: MusicalNote(midiNoteNumber: nearestMidi.midi, referenceA4: config.a4),
+            centsDeviation: nearestMidi.cents,
+            // Salience is not periodicity; keep it out of the tracker's foreground range.
+            confidence: min(0.70, candidate.score / 2.0),
+            amplitudeRMS: rms,
+            isSignalPresent: true,
+            // Tagged recovered: acquisition from spectral evidence is lower-trust than a
+            // YIN acquisition, so it must not complete a guided string or assert in tune.
+            recovered: true
+        )
+    }
+
     /// Decides whether the spectral scorer may replace a failed or implausible YIN
     /// estimate during sustain, and if so substitutes the recovered result.
     ///
@@ -364,6 +569,24 @@ public final class TunerAnalysisSession: @unchecked Sendable {
         guard supporting.count >= Self.spectralRecoveryMinHarmonics else { return }
 
         // Separation from the best candidate outside the search window.
+        //
+        // NOTE: the obvious narrowing here — only compare against octave/subharmonic
+        // competitors — was implemented and measured, and it is wrong. It fixes the
+        // sustain dropout (the vetoing peak is a 55-78 Hz artefact 7-8x below the note,
+        // not a competing pitch) but it lets broadband noise fabricate readings up to
+        // 60 cents off, because the low-frequency artefact that vetoes noise frames is
+        // the very thing vetoing real ones. Four ways of separating "decaying note" from
+        // "broadband noise" on this evidence were tried and all four failed to separate
+        // them: relative salience (noise 0.58-1.12 vs decay 0.40-0.97, noise *better*),
+        // supporting-partial count (median 8 for both), RMS against the tracker's own
+        // ambient floor, and frame-to-frame frequency stability (noise median 29c, decay
+        // 18c). The synthetic noise is 4-5x louder than the decaying note it must be told
+        // apart from, so no level or salience threshold admits one and rejects the other.
+        //
+        // Keeping the wide comparison costs ~1.1s of readout at the very end of a quiet
+        // pluck. Loosening it would cost correctness against noise, which is the worse
+        // failure for a tuner. Held until a discriminator exists that is actually
+        // measured to work.
         if let competitor = candidates.first(where: {
             $0.frequency > 0
                 && abs(PitchMath.centsBetween(measured: $0.frequency, reference: prior.frequency)) > radius
@@ -450,6 +673,16 @@ public final class TunerAnalysisSession: @unchecked Sendable {
 
         guard frame.generation == gen else { return nil }
 
+        // Exposed so the UI can show whether the input is actually delivering signal.
+        let inputRMS = Self.rms(of: frame.samples)
+        var inputPeak: Float = 0
+        vDSP_maxmgv(frame.samples, 1, &inputPeak, vDSP_Length(frame.samples.count))
+        lock.lock()
+        _inputRMS = inputRMS
+        _inputPeak = Double(inputPeak)
+        _inputFrameCount &+= 1
+        lock.unlock()
+
         // 1. Reuse or allocate PitchDetector if sampleRate or bufferSize changed
         let activeDetector: PitchDetector
         if let existing = detector, existing.sampleRate == frame.sampleRate, existing.bufferSize == frame.samples.count {
@@ -476,7 +709,9 @@ public final class TunerAnalysisSession: @unchecked Sendable {
         // 3. Measure pure DSP CPU duration
         let dspStart = CACurrentMediaTime()
 
-        var pitchResult = activeDetector.detectPitch(
+        var pitchResult: PitchResult
+
+        pitchResult = activeDetector.detectPitch(
             in: frame.samples,
             noiseGateRMS: noiseGate,
             yinThreshold: yinThreshold,
@@ -492,6 +727,19 @@ public final class TunerAnalysisSession: @unchecked Sendable {
             && (currentRms >= previousFrameRms * Self.onsetRmsRatio)
             && (currentRms > Self.onsetMinRMS)
         previousFrameRms = currentRms
+        if frame.captureEndSeconds - pendingAcquisitionAt > PitchTracker.maxCandidateGap {
+            pendingAcquisitionFrequency = nil
+        }
+
+        trySpectralAcquisition(
+            pitchResult: &pitchResult,
+            hasPrior: prior != nil,
+            currentRms: currentRms,
+            sampleRate: frame.sampleRate,
+            samples: frame.samples,
+            config: config,
+            at: frame.captureEndSeconds
+        )
 
         if isSpectralRecoveryEnabled,
            let prior = prior,
@@ -508,7 +756,12 @@ public final class TunerAnalysisSession: @unchecked Sendable {
                 yinJumped = false
             }
 
-            if (yinFailed || yinJumped) && currentRms >= Self.spectralRecoveryMinRMS {
+            // Gate against the tracker's *current* noise gate, not a fixed constant. The
+            // ambient floor rises as a note decays, and a constant floor meant that once it
+            // climbed past 0.0003 the recovery branch stopped running at all — dropping
+            // precisely the quiet tail recovery exists to rescue. Measured: quiet_a lost
+            // fresh detection at t=1.109s with RMS still at 0.00064 and the gate at 0.00057.
+            if (yinFailed || yinJumped) && currentRms >= max(Double(Self.spectralRecoveryMinRMS), Double(noiseGate) * 0.9) {
                 if let analysis = spectralScorer.analyzeAudio(
                     samples: frame.samples,
                     sampleRate: frame.sampleRate

@@ -264,14 +264,36 @@ giving lower edge, centre and upper edge in **Hz**. `T_lo[k] = T_ctr[k−1]`,
 `T_hi[k] = T_ctr[k+1]`, so:
 
 * centres 65.00 Hz … 5464.5 Hz
-* ratio per band `10^(0.046804/2)` = **1.055377** → **91.4 cents per band**
 * each band is a **triangle** from `T_ctr[k−1]` up to `T_ctr[k]` and back down to
   `T_ctr[k+1]`, i.e. two-band support, 2× overlap, linearly interpolated in *frequency*
 
-Effective frequency resolution ≈ 183 cents. This is the single most important structural
-fact about the detector: **the pitch decision is made on a ~1.8-semitone-wide grid**, then
-refined. It explains both its robustness (it cannot lock onto a single spurious FFT bin) and
-its weakness (it is coarse where a harmonic sits between two band centres).
+> **Correction (found while porting this to Swift — see [`WEBTUNA_SWIFT.md`](WEBTUNA_SWIFT.md)).**
+> An earlier revision of this section stated "ratio per band `10^(0.046804/2)` = **1.055377**
+> → **91.4 ¢** per band" and "effective frequency resolution ≈ 183 ¢". Both are wrong:
+> `10^(0.046804/2)` is the ratio of the *exponential* term only and drops the `− 1` that
+> the formula subtracts, so it is not the ratio of consecutive entries. The subtraction
+> matters most at small `k`, where `10^x` is closest to 1. The true ratios are **not**
+> constant:
+>
+> | k | ratio | cents |
+> |---|---|---|
+> | 0 | 1.250361 | 386.8 |
+> | 9 | 1.106378 | 175.0 |
+> | 18 | 1.078560 | 130.9 |
+> | 27 | 1.067665 | 113.4 |
+> | 36 | 1.062342 | 104.7 |
+> | 45 | 1.059462 | 100.0 |
+> | 54 | 1.057817 | 97.3 |
+>
+> So the filterbank is 97 ¢ per band at the top and **387 ¢ at the bottom**, averaging about
+> 110 ¢ — coarser than stated, and coarsest exactly where low strings live. The centre-table
+> formula itself is correct and reproduces the documented endpoints exactly (65.00 Hz and
+> 5464.4 Hz). `WebTunaPortTests.testFilterbankGeometry` now pins the true values so this
+> cannot regress.
+
+Because the filterbank is this coarse, it cannot by itself locate a pitch to better than
+~100–390 ¢. The wasm's 0–3 ¢ accuracy (§4.1) must therefore come from a second, finer
+refinement stage that the earlier revision of this document did not identify.
 
 ### 3.4 Salience / loudness compression
 
@@ -573,3 +595,64 @@ node suite3.mjs
 
 Caveat: `wasm-decompile` is absent from wabt ≥ 1.0.42 and from the Homebrew bottle. 1.0.41
 is the last release that has it.
+
+---
+
+## Outcome: the Swift port was removed, this document was kept
+
+The reference port (`StrumKit/Audio/WebTunaPitchDetector.swift`,
+`docs/tuner-reliability/WEBTUNA_SWIFT.md`, and the settings-sheet A/B switch) has been
+**removed from the app**. The production detector is the only detector.
+
+This document and the `webtuna/` analysis tooling are kept deliberately: the
+reverse-engineering is the evidence for the decision, and the decision is the reason this
+project still has its own detector.
+
+### What the comparison established
+
+The A/B was run and it answered the question it was built to answer — **StrumKit's pipeline
+is the better tuner.** Measured on the recorded quiet-pluck fixtures, the production path
+holds a correct reading with 0 wrong notes and 0 string jumps, while the port reported a
+note on only 11–26 of 104–160 frames (8–15% of the sound) despite estimating the correct
+frequency whenever it did fire (439.2 / 262.3 / 328.9 / 391.6 Hz against true
+440 / 261.63 / 329.63 / 392).
+
+### Why it was removed rather than fixed
+
+Three independent gates have to clear before the port names a note, and on real plucks
+almost none of them do:
+
+| fixture | as shipped | continuity off | harmonic-support off | both off |
+|---|---|---|---|---|
+| quiet_a | 16/104 | 24 | 11 | 43 |
+
+Even fully unlocked it reaches only 43/104, because `pickPeak` declines to name a band at
+all. On top of that the engine refuses to name anything for its first 5 hops (~107 ms at
+the 48 kHz hop size), and its band table is built for a guitar's range while the fixtures
+are ukulele.
+
+The honest summary is that this is a *correct but strict* engine: every gate is a faithful
+reading of the wasm, and each one was doing real work. The §3.6 harmonic-support gate in
+particular is not a false-positive filter that can be loosened — turning it off collapses
+quiet_c from 11 frames to 1 and quiet_g from 25 to 1. Fixing the port would have meant
+re-tuning gates that were reverse-engineered correctly, at which point it stops being a
+port of WebTuna and becomes a second, worse detector. The production algorithm was kept.
+
+### Corrections to earlier claims in this document
+
+Two claims made while porting were checked against measurement and are **wrong**:
+
+- The port's `harmonicReference` was documented as defaulting to `.nextBand` while
+  `.secondHarmonic` "handles a harmonically rich steady tone". Measured frames-with-note:
+  `.nextBand` = 16/11/26/25, `.secondHarmonic` = 10/1/6/5. `.nextBand` is better on real
+  plucks, and the steady-tone failure did not reproduce.
+- "GuitarTuna's 0–3 cent accuracy" is largely its own quantisation, not precision.
+  `MeasuredPitchHz` is `floor()`ed to whole Hz, which is ±21 cents at E2 (82.4 Hz), and
+  `TuningErrorCents` is `(measuredMidi − stringMidi) × 100`, a distance in whole semitones
+  rather than a detuning.
+
+That last point is also the answer to "why does GuitarTuna *feel* smoother than ours when
+its algorithm is no better": its detector output is quantised to ~21-cent steps at E2, and
+the calm comes entirely from animating the presentation. Our own detector produces
+continuous cents, and the gauge now eases between readings
+(`HardwareGaugeView`), which is the same trick applied to better data.

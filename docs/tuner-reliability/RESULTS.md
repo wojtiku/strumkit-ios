@@ -216,3 +216,95 @@ requires a buffer pool with real ownership transfer to the worker; doing that in
 would introduce a data race between the tap overwriting a window and the worker reading it,
 which is a worse outcome than the allocation. **The tap is therefore not claimed to be
 real-time safe** — it is measurably better than before and still documented as a risk.
+
+## 11. Sustain continuity — the north star, and what blocks it
+
+The stated north star: for a clean pluck, detect the tone on the pluck and hold that
+detection steady for as long as the sound lasts. `SustainContinuityTests` measures it on the
+four recorded fixtures by establishing the sounding span from raw RMS (independent of the
+detector), then counting fresh vs held readings, wrong notes, string transitions and the
+longest run without a fresh reading.
+
+### 11.1 What already works
+
+| fixture | sounding | correct | wrong | transitions | longest gap |
+|---|---|---|---|---|---|
+| quiet_a | 2.20 s | 37 | **0** | **0** | 0.235 s |
+| quiet_c | 3.29 s | 105 | **0** | **0** | 0.107 s |
+| quiet_e | 2.60 s | 45 | **0** | **0** | 0.213 s |
+| quiet_g | 2.30 s | 34 | **0** | **0** | 0.192 s |
+
+No wrong note, no string jump, no drift, and no gap longer than 235 ms on any fixture. The
+core case is sound. Synthetic plucks are better still: 21 ms to first detection, zero
+transitions, fresh detection held to the end of a 3 s decay.
+
+### 11.2 The two open shortfalls
+
+| fixture | acquisition | trailing held readout |
+|---|---|---|
+| quiet_a | 235 ms | 1131 ms of 2197 ms sounding |
+| quiet_c | 107 ms | 384 ms of 3285 ms sounding |
+| quiet_e | 213 ms | 1195 ms of 2603 ms sounding |
+| quiet_g | 128 ms | 1173 ms of 2304 ms sounding |
+
+**(a) Acquisition latency.** 107–235 ms from first audible sample to first fresh reading.
+The analysis window alone is 98 ms and the tracker then needs further frames to confirm, so
+the structural floor is well below this. Not yet diagnosed.
+
+**(b) End-of-sustain dropout.** Fresh detection stops at ~1.1–1.5 s while the string is
+still audible for another 1–1.2 s, after which the app shows a held, dimmed reading. This is
+the failure the project set out to fix, and it is now localised precisely.
+
+### 11.3 Root cause of (b)
+
+Not the noise gate, not the prior expiry, not YIN's ambiguity test. YIN reports
+`isSignalPresent == true` with `frequency == 0` from t≈0.96 s onward while the string rings
+at RMS 0.0005. Spectral recovery is entered and then **refused by its separation gate**:
+`why=separation` on 4 of the first 6 refused frames, the rest `why=score`.
+
+The vetoing competitor is the top-ranked peak *anywhere* outside the 70-cent search window.
+Measured on quiet_a, t=1.067–1.195, against a correct 437–441 Hz candidate, it was 296.6,
+59.5, 54.9, 62.6, 78.4, 57.1 and 57.4 Hz — ratios of 1.5x and 7–8x below. Not octave errors,
+not plausible subharmonics: low-frequency artefacts. At t=1.195 the 57.4 Hz artefact
+outranked the real note outright.
+
+### 11.4 Why the obvious fix was rejected
+
+Narrowing the comparison to genuine octave/subharmonic confusions (f0/2, /3, /4) fixes the
+dropout — coverage rose on all four fixtures — **and was reverted**, because it let broadband
+noise fabricate readings up to **60 cents** off at amplitudes 0.004 and above. The
+low-frequency artefact that vetoes noise frames is the same one vetoing real frames.
+
+Five ways of separating "decaying note" from "broadband noise" on this evidence were tried.
+**All five failed to separate them:**
+
+| discriminator | real decaying note | broadband noise | verdict |
+|---|---|---|---|
+| relative salience (score / best in window) | 0.40–0.97 | 0.58–1.12 | noise scores *better* |
+| supporting-partial count | median 8 | median 8 | identical |
+| RMS vs tracker's own ambient floor | — | — | does not separate |
+| frame-to-frame frequency stability | median 18c | median 29c | overlapping |
+| harmonic alignment error | median 0.4c | median 1.8c | overlapping (0.2–1.4 vs 0.2–3.1) |
+
+The structural reason: the synthetic noise is **4–5x louder** than the decaying note it must
+be told apart from, so no level or salience threshold admits one and rejects the other.
+
+Keeping the wide comparison costs ~1.1 s of readout at the very end of a quiet pluck.
+Loosening it costs correctness against noise. For a tuner that is the worse trade, so the
+gate is held and the shortfall left open and visible. The `SustainContinuityTests` comment
+records all of this so the next attempt starts from measurement rather than from the same
+four refuted ideas.
+
+## 12. Spectral acquisition — still blocked
+
+`SpectralAcquisitionTests` remains 3 tests failing. Same root cause, one step earlier in the
+chain: the prior-free path needs `spectralAcquisitionSeparationRatio = 1.60` and the measured
+separation for weak fundamentals is 1.15–1.79, degrading smoothly as the fundamental weakens.
+1.60 was an arbitrary pick that excludes exactly the cases the path exists to rescue. The
+score, RMS and harmonic-count gates all pass comfortably, and the winning candidate is the
+correct note at every level tested.
+
+Lowering 1.60 to ~1.20–1.25 is the obvious move and is **not** justified by any evidence
+collected here — §11.4 shows the same tradeoff plays out at the acquisition gate, where
+fabricating a note with no prior to corroborate it is strictly worse. Blocked pending a
+discriminator that is measured to work.
