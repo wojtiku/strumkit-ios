@@ -66,9 +66,32 @@ threshold is changed.
 ### 2.2 The acceptance gate rejects valid detections
 
 `fundamentalMinEnergyRatio = 0.004` and its two siblings are applied at three call sites in
-`PitchDetector`: subharmonic preference (`:229`), ambiguity threshold (`:259`), and final
-acceptance (`:340`). Per §2.1 they reject 6/6 correct detections below 1.89 % fundamental
-energy and prevent no octave errors at any strength tested.
+`PitchDetector`. **Corrected after implementation review:** this section originally claimed all
+three reject the §2.1 detections, and that was wrong. The three sites are not equivalent, and
+the direction of each threshold is not the same.
+
+| Site (post-Task-5 line numbers) | Role | Polarity when the scale falls |
+|---|---|---|
+| `shouldPreferSubharmonic` (`:402`) | accepts a lower candidate | **more permissive** — relaxes an acceptance test |
+| ambiguity threshold (`:321`) | flags a note as ambiguous | **more permissive** — relaxes an acceptance test |
+| `candidateEvidence` bit (`:291`) | **suppresses a veto**, not a preference: the bit sets `isAmbiguous` unless the selected multiplier divides the candidate's | **less permissive** — arms the veto |
+
+So lowering the scale moves two acceptance thresholds and one veto in opposite directions, and
+the optimum is interior. Neither endpoint is "the permissive one". This is why the sweep must
+read the whole table rather than pick an endpoint, and why `net = detected - 4*octave - wrong`
+is a better summary than raw detect count.
+
+**Which site actually causes the §2.1 rejections:** only the ambiguity threshold (`:321`). The
+subharmonic search probes `f0/2`, `f0/3` and `f0/4` — the *sub-octave*, not the second
+harmonic, which is `2*f0` and above. The whole `h1-` axis is built on 82.4069 Hz, so all three
+candidates fall below `TunerConstants.detectorMinHz = 50` and the loop is skipped entirely. The
+§2.1 cells therefore never execute the subharmonic gate at all, and their accept/reject split
+(1.89 % accepted, 0.18 % rejected, straddling the 0.004 floor) is the ambiguity threshold's
+signature. The rejections are real and the thresholds are the cause; the mechanism is not the
+one originally claimed.
+
+Per §2.1 the gates reject 6/6 correct detections below 1.89 % fundamental energy and prevent
+no octave errors at any strength tested.
 
 ### 2.3 The flapping mechanism
 
