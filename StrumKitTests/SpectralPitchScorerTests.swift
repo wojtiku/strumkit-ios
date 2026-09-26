@@ -298,6 +298,41 @@ struct SpectralPitchScorerTests {
     /// for the frames spectral recovery accepts later in the same decay. These
     /// tests compare the two, which is the only accuracy signal available for real
     /// recordings without hand-annotated pitch.
+    ///
+    /// **KNOWN RED since continuation hysteresis (9c186f5), and the cause is a
+    /// naming problem, not a regression in the recovery scorer.** `freshness` is
+    /// what the *display* is, and the display is derived from it, so holding the
+    /// display state necessarily holds `freshness` too — there is no other
+    /// encoding. A frame the gate holds is therefore `freshness: .fresh` without
+    /// having been measured on that frame, and the filter below reads it as an
+    /// independent observation. The honest per-frame predicate is
+    /// `lastFreshAt == at`, which is already the field that exists for this.
+    ///
+    /// Measured on this branch, `quiet_c`, auto, ukulele high-g:
+    ///
+    /// | | anchor n, mean | recovered n, mean | median | min/max |
+    /// |---|---|---|---|---|
+    /// | before the fix | 73, +1.72 ¢ | 45, −1.19 ¢ | −1.23 ¢ | — |
+    /// | now, `freshness == .fresh` | 126, **+8.30 ¢** | 24, **−7.02 ¢** | **−6.87 ¢** | −8.60/−5.21 ¢ |
+    /// | now, `lastFreshAt == at` | 67, **+1.25 ¢** | 11, **−0.19 ¢** | **−0.36 ¢** | −1.55/+1.85 ¢ |
+    ///
+    /// The *anchor* is what moved, by 7.05 ¢, because 48 frames that used to be
+    /// `held` are now `fresh` and they are pinned copies measured up to 3 frames
+    /// earlier. Every recovered frame is then measured against a reference that
+    /// moved, and reads as biased. Under the honest predicate the anchor is at
+    /// +1.25 ¢ — *below* its own pre-fix value of +1.72 ¢ — the recovered spread
+    /// narrows from −8.60/+5.21 ¢ to −1.55/+1.85 ¢, and the 4 ¢ gate passes with
+    /// three orders of magnitude of room. Nothing about the scorer's accuracy
+    /// changed.
+    ///
+    /// This is deliberately **not** re-baselined and the predicate is deliberately
+    /// **not** rewritten here. Both are the same decision and it is a reviewer's:
+    /// re-baselining would hide a real change, and rewriting the predicate in the
+    /// same conversation that invalidated it is exactly the move that makes a gate
+    /// unfalsifiable. The numbers above are the finding; the fix is to say
+    /// "measured" where the code means "measured" — most likely by renaming the
+    /// filter to a `measuredFrames` helper next to `displayState(for:)`, which is
+    /// where the definition belongs.
     @Test("Recovered frames must not bias away from the in-track YIN anchor")
     func testRecoveredFramesHaveNoSystematicBias() {
         let fixtures: [(name: String, reference: Double)] = [

@@ -109,6 +109,33 @@ struct RecordedAudioTests {
             // docs/tuner-reliability/RESULTS.md) rather than a passing condition,
             // so it is bounded and printed here to keep it from regressing
             // silently, but it is not asserted to zero.
+            //
+            // **KNOWN RED on quiet_c since continuation hysteresis (9c186f5): 48
+            // against a bound of 24.** Same naming problem as the recovery-bias
+            // test in `SpectralPitchScorerTests`, and the same conclusion: this
+            // filter reads `freshness == .fresh` as "measured on this frame", and a
+            // frame the display gate holds is `.fresh` with a stale `lastFreshAt`.
+            // Measured on this branch:
+            //
+            // | predicate | fresh | correct | wrong |
+            // |---|---|---|---|
+            // | before the fix | 113 | 93 | **20** |
+            // | now, `freshness == .fresh` | 150 | 102 | **48** |
+            // | now, `lastFreshAt == at` | 96 | 76 | **20** |
+            //
+            // The number the assertion is about — distinct *wrong measurements* —
+            // is 20, unchanged, and the bound of 24 holds. The 28 extra frames are
+            // the same wrong note being held on screen longer, not 28 new wrong
+            // estimates.
+            //
+            // So there are two facts here and they point opposite ways, which is
+            // why this is a finding rather than a re-baseline. The **metric** shift
+            // is an artefact of the predicate. The **behaviour** shift is real and
+            // small: chromatic mode now holds a wrong note for 28 frames longer
+            // than it did, because the display no longer weakens on the first
+            // estimator failure. That is the same mechanism as the 6.1 s of live
+            // needle over room tone measured in `RealStrumStabilityTests`, and it is
+            // the cost side of the trade the hysteresis was made for.
             #expect(chromWrongFresh.count <= 24,
                     "\(fix.name): chromatic wrong-note count \(chromWrongFresh.count) exceeds the recorded bound of 24")
         }
