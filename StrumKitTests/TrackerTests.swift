@@ -98,7 +98,6 @@ struct TrackerTests {
         #expect(freshReading?.note == "E2")
         #expect(tracker.continuityPrior != nil)
 
-        // 2. Momentary silent/unvoiced frame (phase dip or quiet decay) at 1.10s (60ms later)
         let emptyResult = PitchResult(
             frequency: 0,
             closestNote: MusicalNote(midiNoteNumber: 69),
@@ -107,20 +106,70 @@ struct TrackerTests {
             amplitudeRMS: 0.0003,
             isSignalPresent: false
         )
-        let heldReading = tracker.process(pitchResult: emptyResult, at: 1.10, config: config, targets: targets)
 
-        #expect(heldReading != nil)
-        #expect(heldReading?.freshness == .held)
-        #expect(heldReading?.note == "E2")
+        // Two more confirming frames, so the times below are "2 frames after the
+        // last measurement" rather than "1 frame after acquisition".
+        _ = tracker.process(pitchResult: resultE2, at: 1.06, config: config, targets: targets)
+        let lastFresh = tracker.process(pitchResult: resultE2, at: 1.08, config: config, targets: targets)
+        #expect(lastFresh?.freshness == .fresh, "test setup: 1.08 s should be a measured reading")
+
+        // 2. A momentary silent/unvoiced frame (phase dip or quiet decay) at 1.10s.
+        //
+        //    **What this used to assert.** That one silent frame 20 ms after a
+        //    measured one puts `.held` on the display: the display follows the
+        //    estimator's very next verdict.
+        //
+        //    **Why that was wrong.** It is the jitter. Every 2-frame excursion
+        //    costs two visible transitions — in and out — and on the real
+        //    four-strum recording it accounted for 25 of the 73 non-`none` display
+        //    runs that lasted two frames or fewer: 34 % of all runs, median 107 ms.
+        //    Nothing distinguishes "this frame is bad" from "the note stopped", and
+        //    the display was betting on the first interpretation every time.
+        //
+        //    **What it asserts now.** A short dropout is *held through*: the
+        //    display keeps the last measured reading, verbatim, and says so by not
+        //    advancing `lastFreshAt`. The evidence is still counted — one YIN
+        //    failure, and the streak is what decides whether the display may act on
+        //    it.
+        let heldThrough = tracker.process(pitchResult: emptyResult, at: 1.10, config: config, targets: targets)
+        #expect(heldThrough != nil)
+        #expect(heldThrough?.freshness == .fresh,
+                "One silent frame is a held-through dropout, not a weakened display: freshness is \(heldThrough?.freshness.rawValue ?? "no reading")")
+        #expect(heldThrough?.lastFreshAt == 1.08,
+                "A held-through frame must not claim to be a measurement; `lastFreshAt` is the honest signal and it must stay at the last frame YIN actually produced")
+        #expect(heldThrough?.note == "E2")
         #expect(tracker.continuityPrior != nil, "Continuity prior should be retained during sustain hold")
+        #expect(tracker.consecutiveYinFailures == 1)
+        #expect(tracker.shouldHoldThroughDropout)
 
-        // 3. A single continuing frame at 1.14s immediately refreshes without needing 3 new confirmations
-        let refreshedReading = tracker.process(pitchResult: resultE2, at: 1.14, config: config, targets: targets)
+        // 3. A *sustained* dropout does engage the hold. The gate is a streak, not
+        //    a freeze: three consecutive failures are the display's evidence that
+        //    this is a decay rather than a bad frame, and only then does it weaken.
+        let secondFailure = tracker.process(pitchResult: emptyResult, at: 1.12, config: config, targets: targets)
+        #expect(secondFailure?.freshness == .fresh, "Two silent frames are still inside the streak")
+        let weakened = tracker.process(pitchResult: emptyResult, at: 1.14, config: config, targets: targets)
+        #expect(weakened?.freshness == .held,
+                "The third consecutive YIN failure is the display's evidence, and it must weaken: freshness is \(weakened?.freshness.rawValue ?? "no reading")")
+        #expect(weakened?.lastFreshAt == 1.08, "A weakened reading repeats the last measurement and must still date from it")
+        #expect(weakened?.note == "E2")
+        #expect(!tracker.shouldHoldThroughDropout, "test setup: three failures exhaust the streak")
+
+        // 4. Coming back is the prompt direction: two consecutive successes, not
+        //    three. The asymmetry is deliberate — giving up is the failure a player
+        //    notices, so that is the sticky one.
+        let firstSuccess = tracker.process(pitchResult: resultE2, at: 1.16, config: config, targets: targets)
+        #expect(firstSuccess?.freshness == .held, "One confirmed frame is not yet enough to strengthen back to `fresh`")
+        let refreshedReading = tracker.process(pitchResult: resultE2, at: 1.18, config: config, targets: targets)
         #expect(refreshedReading != nil)
         #expect(refreshedReading?.freshness == .fresh)
+        #expect(refreshedReading?.lastFreshAt == 1.18)
         #expect(refreshedReading?.note == "E2")
 
-        // 4. Extended silence past readingHoldDuration (e.g. at 2.20s, > 1.0s after 1.14s) expires cleanly
+        // 5. Extended silence past readingHoldDuration (at 2.20s, 1.02s after the
+        //    1.18s measurement) expires cleanly. The hold is a duration, and the
+        //    continuation streak is not allowed to reach it: a needle that sits
+        //    live over silence for as long as the audio keeps delivering frames
+        //    carrying no pitch is worse than a stale one.
         let expiredReading = tracker.process(pitchResult: emptyResult, at: 2.20, config: config, targets: targets)
         #expect(expiredReading == nil)
         #expect(tracker.continuityPrior == nil, "Continuity prior should be cleared after expiry")
@@ -161,21 +210,46 @@ struct TrackerTests {
             isSignalPresent: false
         )
 
-        // At t=10.10 (elapsed 0.10s <= 0.85s, <= 1.0s): retain display and prior
+        // At t=10.10 (elapsed 0.10s <= 0.85s, <= 1.0s): retain display and prior.
+        //
+        // **What this used to assert.** `freshness == .held` — one silent frame is
+        // enough to put a weakened state on the display.
+        //
+        // **Why that was wrong.** It is the flicker the continuation hysteresis
+        // exists to remove: a display that follows the estimator's next verdict
+        // blinks on every dropout. On the real four-strum recording that produced
+        // 25 of 73 display runs lasting two frames or fewer.
+        //
+        // **What it asserts now.** A one-frame dropout is held *through* — the last
+        // measured reading stays on screen with its own `lastFreshAt` — and the
+        // prior is retained. The decoupling this test exists to prove is now
+        // sharper, not weaker: at 10.90 s the prior has expired while the display
+        // is still live and still asserting the last confirmed in-tune state.
         let reading10_10 = tracker.process(pitchResult: lostResult, at: 10.10, config: config, targets: targets)
         #expect(reading10_10 != nil)
-        #expect(reading10_10?.freshness == .held)
+        #expect(reading10_10?.freshness == .fresh,
+                "One silent frame is a held-through dropout; freshness is \(reading10_10?.freshness.rawValue ?? "no reading")")
         #expect(reading10_10?.lastFreshAt == 10.0)
         #expect(reading10_10?.inTune == true, "Last confirmed in-tune visual state must be preserved during hold")
         #expect(tracker.continuityPrior != nil, "Continuity prior must be retained within 0.85s")
 
-        // At t=10.90 (elapsed 0.90s > 0.85s, <= 1.0s): retain display but expire prior
+        // At t=10.90 (elapsed 0.90s > 0.85s, <= 1.0s): prior gone, display alive.
         let reading10_90 = tracker.process(pitchResult: lostResult, at: 10.90, config: config, targets: targets)
         #expect(reading10_90 != nil)
-        #expect(reading10_90?.freshness == .held)
+        #expect(reading10_90?.freshness == .fresh,
+                "Two silent frames are still inside the continuation streak; freshness is \(reading10_90?.freshness.rawValue ?? "no reading")")
         #expect(reading10_90?.lastFreshAt == 10.0)
         #expect(reading10_90?.inTune == true)
         #expect(tracker.continuityPrior == nil, "Continuity prior must expire after 0.85s")
+
+        // The third failure is where the display earns the right to weaken. Asserting
+        // it here keeps the test covering the display hold at all: without it, the
+        // `held` state would have no assertion anywhere in this file for this path.
+        let reading10_92 = tracker.process(pitchResult: lostResult, at: 10.92, config: config, targets: targets)
+        #expect(reading10_92?.freshness == .held,
+                "A third consecutive YIN failure must weaken the display to a hold; freshness is \(reading10_92?.freshness.rawValue ?? "no reading")")
+        #expect(reading10_92?.lastFreshAt == 10.0)
+        #expect(reading10_92?.inTune == true)
 
         // At t=11.01 (elapsed 1.01s > 1.0s): return no active reading
         let reading11_01 = tracker.process(pitchResult: lostResult, at: 11.01, config: config, targets: targets)
@@ -222,14 +296,31 @@ struct TrackerTests {
         }
         #expect(tracker.guidedProgress[0] == false, "0.8s of fresh hold is not enough to complete 1.0s requirement")
 
-        // 2. Stream 0.3 seconds of lost signal (10.86 to 11.20), producing held readings
+        // 1. Stream 0.3 seconds of lost signal (10.86 to 11.20). The first two
+        //    frames are held *through* — the display is not yet entitled to move —
+        //    and the third exhausts `continuationYinFailuresToWeaken` and weakens
+        //    it. The time the display weakens is asserted, not a per-frame label:
+        //    a per-frame label is exactly what the gate makes untrue, and a test
+        //    that pins one is a test of the defect.
+        var weakenedAt: TimeInterval?
+        var claimedFresh: [TimeInterval] = []
         for t in stride(from: 10.86, through: 11.20, by: 0.02) {
             let r = tracker.process(pitchResult: lostResult, at: t, config: config, targets: targets)
-            #expect(r?.freshness == .held)
+            if r?.freshness == .held, weakenedAt == nil { weakenedAt = t }
+            // The honest per-frame predicate is `lastFreshAt == at`, not
+            // `freshness == .fresh`: a held-through frame is `.fresh` without
+            // having been measured on it. No frame in this block may claim to be
+            // a measurement, and that is the property guided progression rests on.
+            if let r, r.lastFreshAt == r.at { claimedFresh.append(t) }
         }
 
-        // Even though 10.0 to 11.20 is 1.2s total, the 0.3s held frames must NOT advance guided tuning!
-        #expect(tracker.guidedProgress[0] == false, "Held readings must NEVER count toward guided completion")
+        #expect(weakenedAt.map { abs($0 - 10.90) < 0.005 } == true,
+                "The display weakened at \(weakenedAt.map { String(format: "%.2f", $0) } ?? "never")s; it must hold through a two-frame dropout and weaken on the third")
+        #expect(claimedFresh.isEmpty,
+                "Frames \(claimedFresh.map { String(format: "%.2f", $0) }) over a lost-signal block reported themselves as freshly measured; held-through frames must keep the old `lastFreshAt` so a consumer can tell a measurement from a repeat")
+
+        // Even though 10.0 to 11.20 is 1.2s total, the lost frames must NOT advance guided tuning!
+        #expect(tracker.guidedProgress[0] == false, "Held and held-through readings must NEVER count toward guided completion")
         #expect(tracker.guidedTargetIndex == 0)
     }
 
@@ -256,10 +347,29 @@ struct TrackerTests {
         #expect(readingE2?.note == "E2")
         #expect(readingE2?.freshness == .fresh)
 
-        // 2. Drop into hold at t=10.30
+        // 2. Drop into a dropout at t=10.30.
+        //
+        //    **What this used to assert.** That the single silent frame at 10.30
+        //    reads `.held`.
+        //    **Why that was wrong.** Same reason as everywhere else in this file:
+        //    a one-frame dropout is not evidence that the note stopped, and letting
+        //    it change the display is the flicker. It is also the *weakest* version
+        //    of this test's real claim, which is that a new pluck is acquired
+        //    promptly out of a dropout — the frame's label is a side observation.
+        //    **What it asserts now.** The dropout is held through (the display keeps
+        //    E2 with its own `lastFreshAt`), and a sustained dropout does reach a
+        //    genuine hold, so step 3 really is a replacement *out of a hold*.
         let emptyResult = PitchResult(frequency: 0, closestNote: MusicalNote(midiNoteNumber: 40), centsDeviation: 0, confidence: 0, amplitudeRMS: 0.0001, isSignalPresent: false)
-        let held = tracker.process(pitchResult: emptyResult, at: 10.30, config: config, targets: targets)
-        #expect(held?.freshness == .held)
+        let through = tracker.process(pitchResult: emptyResult, at: 10.30, config: config, targets: targets)
+        #expect(through?.freshness == .fresh,
+                "One silent frame is a held-through dropout; freshness is \(through?.freshness.rawValue ?? "no reading")")
+        #expect(through?.note == "E2")
+        #expect(through?.lastFreshAt == 10.04, "A held-through frame must not claim to be a measurement")
+
+        _ = tracker.process(pitchResult: emptyResult, at: 10.32, config: config, targets: targets)
+        let held = tracker.process(pitchResult: emptyResult, at: 10.34, config: config, targets: targets)
+        #expect(held?.freshness == .held,
+                "Three consecutive failures must weaken the display to a hold; freshness is \(held?.freshness.rawValue ?? "no reading")")
         #expect(held?.note == "E2")
 
         // 3. New pluck on String 5 (A2, 110.0 Hz) at t=10.40 with onset RMS
@@ -454,7 +564,6 @@ struct TrackerTests {
         }
         #expect(confirmedReading?.inTune == true, "A YIN-confirmed in-tune frame must report inTune")
 
-        // The identical frequency arriving as a recovered estimate must not.
         let recovered = PitchResult(
             frequency: 82.41,
             closestNote: MusicalNote(midiNoteNumber: 40),
@@ -464,13 +573,51 @@ struct TrackerTests {
             isSignalPresent: true,
             recovered: true
         )
-        let recoveredReading = tracker.process(pitchResult: recovered, at: 10.52, config: config, targets: targets)
-        #expect(recoveredReading?.recovered == true)
+
+        // The identical frequency arriving as a recovered estimate must not.
+        //
+        // **What this used to assert.** That ONE recovered frame at 10.52 is
+        // published with `recovered == true` and `inTune == false` — that the trust
+        // boundary is enforced by *labelling* the frame.
+        //
+        // **Why that was wrong.** Not because the boundary is wrong — it is
+        // absolute, and `inTuneMayBeAsserted` reads `pitchResult.recovered` rather
+        // than the published flag, so the verdict was never assertable. But a
+        // single recovered frame is not evidence that YIN has failed either, and
+        // letting it change the display is the same flicker as a silent frame. The
+        // assertion was also arithmetically impossible to keep: `AudioTestHelpers`
+        // (and `TunerViewModel`) derive the display state from exactly those two
+        // fields, so "stayed `fresh`" and "`recovered == true`" on the same reading
+        // is a contradiction.
+        //
+        // **What it asserts now.** The boundary is enforced by *suppression*: a
+        // lone recovered frame never reaches the screen at all, and once the streak
+        // justifies showing it, the frame that does reach the screen asserts
+        // nothing. Both halves are asserted, because the first is what makes the
+        // second a real statement about the display and not a flag check.
+        let heldThrough = tracker.process(pitchResult: recovered, at: 10.52, config: config, targets: targets)
+        #expect(heldThrough?.recovered == false,
+                "One recovered frame must not reach the display; the display is still showing the last YIN-confirmed reading")
+        #expect(heldThrough?.freshness == .fresh)
+        #expect(heldThrough?.inTune == true,
+                "A held-through frame is still the last YIN-confirmed measurement, so its in-tune verdict is honest and must survive")
+        #expect(tracker.consecutiveYinFailures == 1)
+
+        _ = tracker.process(pitchResult: recovered, at: 10.54, config: config, targets: targets)
+        let recoveredReading = tracker.process(pitchResult: recovered, at: 10.56, config: config, targets: targets)
+        #expect(recoveredReading?.recovered == true,
+                "A third consecutive recovery-sourced frame must reach the display; recovered is \(recoveredReading?.recovered ?? false)")
         #expect(recoveredReading?.inTune == false,
                 "Recovery must not assert in tune, even at zero cents error")
 
         // Suppressing the verdict must not corrupt the hysteresis state machine.
-        let stillConfirmed = tracker.process(pitchResult: confirmed, at: 10.54, config: config, targets: targets)
+        // Two confirmed frames, not one: strengthening back to a YIN reading is the
+        // prompt direction and takes two consecutive successes.
+        let firstBack = tracker.process(pitchResult: confirmed, at: 10.58, config: config, targets: targets)
+        #expect(firstBack?.inTune == false,
+                "One confirmed frame is not enough to hand the display back; test setup for the next assertion")
+        let stillConfirmed = tracker.process(pitchResult: confirmed, at: 10.60, config: config, targets: targets)
+        #expect(stillConfirmed?.recovered == false)
         #expect(stillConfirmed?.inTune == true,
                 "In-tune hysteresis must survive a recovered frame without resetting")
     }

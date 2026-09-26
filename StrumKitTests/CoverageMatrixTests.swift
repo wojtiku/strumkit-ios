@@ -225,9 +225,32 @@ struct DisplayTransitionTests {
 @Suite("Decay with injected YIN dropout")
 struct DecayWithDropoutTests {
 
-    @Test("injected dropout raises the transition count above the uninjected control")
-    func dropoutReproducesTheSymptom() throws {
+    /// What this test used to assert, and why it has been inverted.
+    ///
+    /// It was written as a **reproduction**: the same synthetic guitar decay
+    /// replayed at four injected YIN dropout rates, with the assertion that the
+    /// dropout *raises* the display transition count above the uninjected control.
+    ///
+    /// - **Old invariant.** `injected > control`, and `atThirty >= control + 5`.
+    /// - **Why it was wrong.** It asserted the defect. Measured, on the same 172
+    ///   frames with the same seed and the same signal, transitions scaled
+    ///   linearly with the dropout rate — **35 / 69 / 93 at 0.1 / 0.3 / 0.5** against
+    ///   a control of 1, with 18 / 47 / 83 `held` frames. That linearity *was* the
+    ///   "super jittery all over the place" complaint, and a test that requires it
+    ///   can only ever be made to pass by removing the jitter.
+    /// - **What it asserts now.** The opposite, and the stronger claim: an injected
+    ///   per-frame YIN dropout changes *nothing* the player can see. Continuation
+    ///   hysteresis (`PitchTracker.continuationYinFailuresToWeaken` = 3) removed
+    ///   the mechanism, so 0.1, 0.3 and 0.5 each produce the control's single
+    ///   transition and a byte-identical state histogram.
+    ///
+    /// This is the most valuable test in the suite for that reason. Its only
+    /// variable is the dropout rate, so it is the one place where "the fix works"
+    /// is a controlled comparison rather than a story told about a real recording.
+    @Test("an injected YIN dropout does not move the display at all")
+    func dropoutDoesNotReachTheDisplay() throws {
         var counts: [Double: Int] = [:]
+        var histograms: [Double: [String: Int]] = [:]
         for rate in CoverageMatrix.dropoutRates {
             let c = CoverageMatrix.decayWithDropout(rate: rate, seed: CoverageMatrix.SEED_A)
             let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .auto)
@@ -236,19 +259,26 @@ struct DecayWithDropoutTests {
                 sampleRate: 44100, config: config,
                 yinDropoutRate: rate, dropoutSeed: CoverageMatrix.SEED_A)
             let t = AudioTestHelpers.countDisplayTransitions(frames)
+            let histogram = AudioTestHelpers.stateHistogram(frames)
             counts[rate] = t
-            print("DROPOUT-BASELINE rate=\(rate) transitions=\(t) frames=\(frames.count) states=\(AudioTestHelpers.stateHistogram(frames))")
+            histograms[rate] = histogram
+            print("DROPOUT-GATE rate=\(rate) transitions=\(t) frames=\(frames.count) states=\(histogram)")
         }
+
         let control = try #require(counts[0.0], "dropoutRates must contain the 0.0 control")
         #expect(control <= 3, "uninjected control made \(control) transitions; expected the natural decay tail only")
+
         for rate in CoverageMatrix.dropoutRates where rate > 0 {
             let injected = try #require(counts[rate])
-            #expect(injected > control,
-                    "rate \(rate) made \(injected) transitions, control made \(control) — the injection is not reproducing the symptom")
+            #expect(injected <= control,
+                    "rate \(rate) made \(injected) transitions against a control of \(control) — a per-frame YIN dropout must not reach the display")
+            // Byte-identical, not merely no worse. The old test could only ever
+            // have been satisfied by "fewer transitions than the bug", which is
+            // also true of a needle that has simply stopped moving. This pins the
+            // state the player sees, frame for frame.
+            #expect(histograms[rate] == histograms[0.0],
+                    "rate \(rate) states \(histograms[rate] ?? [:]) differ from the control's \(histograms[0.0] ?? [:])")
         }
-        let atThirty = try #require(counts[0.3], "dropoutRates must contain 0.3")
-        #expect(atThirty >= control + 5,
-                "rate 0.3 should reproduce the symptom substantially; got \(atThirty)")
     }
 
     @Test("dropout frame selection is deterministic per seed and differs between seeds")
