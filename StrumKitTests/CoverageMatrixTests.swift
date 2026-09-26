@@ -322,13 +322,16 @@ struct FundamentalEnergyScaleTests {
         // A zero scale does not switch the gate off, it inverts it, and on this
         // case that costs the detection. The first call site is
         // `candidatePowerRatio >= fundamentalMinEnergyRatio`; the 2x candidate of
-        // a 110 Hz case carries a power ratio of 6.0e-13, thirteen orders of
-        // magnitude under today's 0.004, so the gate is shut at scale 1.0 and
-        // wide open at scale 0. Open, that bit arms `candidateEvidence`, which is
-        // a veto and not a preference: it sets `isAmbiguous` unless the selected
-        // multiplier divides the candidate's, and 1 does not divide 2. The
-        // measured readings: 110.00008 Hz at every scale from 1.0 down to 0.01,
-        // and an abstention at 0.0 alone.
+        // a 110 Hz case carries a power ratio of 6.0e-13, which today's 0.004
+        // floor clears by about ten orders of magnitude, so the gate is shut at
+        // scale 1.0 and wide open at scale 0. (The subharmonic search probes
+        // f0/2, not the 2nd harmonic at 2*f0, which is why that ratio is so
+        // small here and is not evidence about weak fundamentals.) Open, that
+        // bit arms `candidateEvidence`, which is a veto and not a preference: it
+        // sets `isAmbiguous` unless the selected multiplier divides the
+        // candidate's, and 1 does not divide 2. The measured readings:
+        // 110.00008 Hz at every scale from 1.0 down to 0.01, and an abstention
+        // at 0.0 alone.
         //
         // That veto is the only route to the abstention. The other ambiguity
         // path, the check that the accepted note's own fundamental clears

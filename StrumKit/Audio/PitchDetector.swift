@@ -26,9 +26,12 @@ public final class PitchDetector: @unchecked Sendable {
     /// `fundamentalEnergyScale`, so at the shipped scale of 1.0 the applied
     /// thresholds are these two numbers unchanged.
     ///
-    /// The high-note base is deliberately half the standard one: a note above
-    /// 300 Hz is held to a weaker absolute floor than a low note, and the two
-    /// keep that 2:1 ratio at every scale.
+    /// The high-note base is deliberately half the standard one, and the 300 Hz
+    /// split that chooses between them exists at the ambiguity threshold *only*.
+    /// The subharmonic loop and `shouldPreferSubharmonic` both apply
+    /// `fundamentalMinEnergyRatio` at every frequency, high notes included, so
+    /// "high notes get a weaker floor" is true of one site out of three. The two
+    /// bases keep their 2:1 ratio at every scale.
     public static let fundamentalEnergyBase: Double = 0.004
     public static let highNoteEnergyBase: Double = 0.002
 
@@ -58,31 +61,43 @@ public final class PitchDetector: @unchecked Sendable {
     /// detector *less* permissive at that one site and *more* permissive at the
     /// other two:
     ///
-    /// - `candidatePowerRatio >= fundamentalMinEnergyRatio`, in the subharmonic
-    ///   loop of `detectPitch`: arms `candidateEvidence` for more candidates,
-    ///   and that bit is a veto rather than a preference — it sets
+    /// - `candidatePowerRatio >= fundamentalMinEnergyRatio` (`:291`), in the
+    ///   subharmonic loop of `detectPitch`: arms `candidateEvidence` for more
+    ///   candidates, and that bit is a veto rather than a preference — it sets
     ///   `isAmbiguous` unless the selected multiplier divides the candidate's.
     ///   Lowering the scale here rejects *more*. (The design spec §2.2 labels
     ///   this site "subharmonic preference"; the subharmonic-preference site is
-    ///   `shouldPreferSubharmonic`. This comment follows the code.)
-    /// - `highNoteAmbiguityMinEnergyRatio` / `standardAmbiguityMinEnergyRatio` in
-    ///   the ambiguity check, and `evidence.candidateEnergy / power <
-    ///   fundamentalMinEnergyRatio` in `shouldPreferSubharmonic`: both acceptance
-    ///   floors, so lowering the scale accepts more. The ambiguity gate is the
-    ///   one measured rejecting 6/6 correct YIN detections whose fundamentals
-    ///   carry as little as 0.00 % of the window's energy, where 0.18 % is
-    ///   already enough for YIN alone to report the right f0 with zero octave
-    ///   errors. See
-    ///   docs/superpowers/specs/2026-09-25-tuner-detection-layer-design.md §2.2.
+    ///   `shouldPreferSubharmonic`. This comment follows the code. The line
+    ///   numbers are the spec §2.2 table's, which names the same three sites.)
+    /// - `highNoteAmbiguityMinEnergyRatio` / `standardAmbiguityMinEnergyRatio`
+    ///   (`:321`) in the ambiguity check, and `evidence.candidateEnergy / power <
+    ///   fundamentalMinEnergyRatio` (`:402`) in `shouldPreferSubharmonic`: both
+    ///   acceptance floors, so lowering the scale accepts more. The ambiguity
+    ///   threshold is the one doing the rejecting — spec §2.1 has it accepting
+    ///   0/12 of 12 in each of the three weakest cells (0.18 %, 0.02 % and 0.00 %
+    ///   fundamental energy, 12 trials each) while YIN named the right f0 with
+    ///   zero octave errors in all 36. (The spec's §1 and the webtuna README
+    ///   state the same finding as "6/6"; §2.1 is primary because it carries the
+    ///   trial count.) See
+    ///   docs/superpowers/specs/2026-09-25-tuner-detection-layer-design.md §2.1.
     ///
     /// Which of the two effects dominates is empirical, not derivable, which is
-    /// why the value gets swept rather than reasoned out. Do not assume the
-    /// loop's gate is inert across the sweep: its floor is 0.004 at the shipped
-    /// scale, and a *clean* 110 Hz case measures 6e-13 for its 2x candidate, but
-    /// a real weak-fundamental note carries much more energy down there and the
-    /// floor only has to fall as far as that ratio for the veto to start firing.
-    /// And a scale of exactly 0 does not disable the gates — it inverts the
-    /// loop's comparison and arms that veto outright, at every signal level.
+    /// why the value gets swept rather than reasoned out. The loop's gate should
+    /// not be assumed inert across that sweep, because no cell that *reaches* it
+    /// has been measured at a swept floor. The subharmonic search probes f0/2,
+    /// f0/3 and f0/4 — the sub-octave, not the second harmonic, which is 2*f0
+    /// and above it — and every low-E cell sits at 82.4 Hz, where all three
+    /// candidates fall below `TunerConstants.detectorMinHz` and the loop is
+    /// skipped before the gate is read at all. Lowering a fundamental's own
+    /// strength does not load f0/2, so the `h1-` axis says nothing about this
+    /// site. The gate only runs for f0 >= 100 Hz: the high-string cells reach it
+    /// (246.9 Hz probes 123.5, 329.6 Hz probes 164.8) and no seed-A number exists
+    /// for them. A sweep over the low-E cells has not tested this site at all.
+    ///
+    /// A scale of exactly 0 does not disable the gates — it makes the loop's
+    /// ratio test vacuously true, so that veto arms strictly more often than at
+    /// any positive scale. Its other two conjuncts still apply, so "more often"
+    /// is not "always", and nothing here claims which signals those are.
     public let fundamentalEnergyScale: Double
 
     // `fundamentalMinEnergyRatio` and `standardAmbiguityMinEnergyRatio` are the
