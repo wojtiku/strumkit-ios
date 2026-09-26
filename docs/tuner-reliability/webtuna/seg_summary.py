@@ -131,7 +131,10 @@ def modal_target_frequency(frames):
             counts[f["tf"]] = counts.get(f["tf"], 0) + 1
     if not counts:
         return float("nan")
-    # Ties broken by the higher frequency, so the choice is deterministic.
+    # Ties go to the lower frequency: iteration is over `sorted(counts)`, so `max`
+    # keeps the first maximal element. A tie means the segment spent equal time on
+    # two targets, which is itself a finding, and `target_changes` in the table is
+    # where it surfaces.
     return max(sorted(counts), key=lambda tf: counts[tf])
 
 

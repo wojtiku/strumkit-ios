@@ -11,15 +11,26 @@ import Testing
 /// (`docs/tuner-reliability/webtuna/realfile.mjs`), which is what makes the two
 /// comparable despite their different update cadences.
 ///
-/// Three configurations are run over the identical audio:
+/// The recording is a **ukulele**, not a guitar: the four strums are
+/// `Presets.ukulele` `high-g`, midi `[67, 60, 64, 69]` = G4 C4 E4 A4 = 391.995 /
+/// 261.626 / 329.628 / 440.0 Hz. `uke+rec` and `uke-norec` are the runs that answer
+/// the question. The guitar-auto runs are kept deliberately, and labelled
+/// `auto+rec` / `auto-norec`, for the contrast: auto mode is a *closed* vocabulary
+/// and correctly abstains outside it, so pointing it at guitar standard on a
+/// ukulele recording should produce `targetMismatch` on every frame whose note is
+/// far from an open guitar string. That is a feature of the design, and the guitar
+/// rows are the control that shows it behaving that way.
 ///
-/// - `auto+rec`  production: auto string assignment, spectral recovery on.
-/// - `auto-norec` auto string assignment, spectral recovery off. Isolates what
-///   the recovery path contributes to the trace.
-/// - `chroma+rec` chromatic mode, recovery on. Auto mode has to both measure
-///   pitch *and* decide which of six strings a hit is; chromatic measures the
-///   pitch alone, so a divergence between `auto+rec` and `chroma+rec` localises
-///   the fault to string assignment rather than to the estimator.
+/// Configurations, all over the identical audio:
+///
+/// - `uke+rec`   ukulele high-g, auto string assignment, recovery on.  **The run.**
+/// - `uke-norec` the same with recovery off, isolating the recovery path.
+/// - `auto+rec`  guitar standard, auto, recovery on.  Control: wrong vocabulary.
+/// - `auto-norec` guitar standard, auto, recovery off.
+/// - `chroma+rec` chromatic, recovery on. Auto mode has to both measure pitch *and*
+///   decide which string a hit is; chromatic measures the pitch alone, so a
+///   divergence between `uke+rec` and `chroma+rec` localises the fault to string
+///   assignment rather than to the estimator.
 ///
 /// The sample rate is read from the WAV header, never assumed, so this file also
 /// exercises the 48 kHz resample path rather than the 44.1 kHz identity path.
@@ -29,22 +40,32 @@ struct RealStrumMeasurementTests {
     /// Configurations under test, in print order.
     ///
     /// `label` is the `cfg` token in every emitted line, and the summariser groups
-    /// on it, so these strings are load-bearing.
+    /// on it, so these strings are load-bearing. The three guitar-era labels are
+    /// unchanged so previously published numbers stay directly comparable.
     private struct Configuration {
         let label: String
+        let instrument: InstrumentCategory
+        let tuningId: String
         let mode: TunerMode
         let enableSpectralRecovery: Bool
     }
 
     private static let configurations: [Configuration] = [
-        Configuration(label: "auto+rec", mode: .auto, enableSpectralRecovery: true),
-        Configuration(label: "auto-norec", mode: .auto, enableSpectralRecovery: false),
-        Configuration(label: "chroma+rec", mode: .chromatic, enableSpectralRecovery: true)
+        Configuration(label: "uke+rec", instrument: .ukulele, tuningId: "high-g",
+                      mode: .auto, enableSpectralRecovery: true),
+        Configuration(label: "uke-norec", instrument: .ukulele, tuningId: "high-g",
+                      mode: .auto, enableSpectralRecovery: false),
+        Configuration(label: "auto+rec", instrument: .guitar, tuningId: "standard",
+                      mode: .auto, enableSpectralRecovery: true),
+        Configuration(label: "auto-norec", instrument: .guitar, tuningId: "standard",
+                      mode: .auto, enableSpectralRecovery: false),
+        Configuration(label: "chroma+rec", instrument: .guitar, tuningId: "standard",
+                      mode: .chromatic, enableSpectralRecovery: true)
     ]
 
     private static let fixtureName = "all-4-with-noise"
 
-    @Test("emits a per-frame trace of a real four-strum recording in three configurations")
+    @Test("emits a per-frame trace of a real four-strum recording in five configurations")
     func measureRealStrumSequence() {
         guard let wav = AudioTestHelpers.loadWav(name: Self.fixtureName) else {
             Issue.record("Failed to load fixture \(Self.fixtureName).wav from StrumKitTests/Fixtures")
@@ -68,8 +89,8 @@ struct RealStrumMeasurementTests {
 
         for configuration in Self.configurations {
             let config = TunerConfig(
-                instrument: .guitar,
-                tuningId: "standard",
+                instrument: configuration.instrument,
+                tuningId: configuration.tuningId,
                 mode: configuration.mode
             )
 

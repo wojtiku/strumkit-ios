@@ -135,7 +135,9 @@ the two tables are read against each other rather than compared by eye:
 
 ```bash
 # 1. WebTuna side. Run from THIS directory: iso.mjs reads ./WebTuna.wasm from the cwd.
-node realfile.mjs ../../StrumKitTests/Fixtures/all-4-with-noise.wav
+#    -2 is chromatic; it is the only mode that can cover a non-guitar instrument,
+#    because the engine's string table is compiled in as six guitar strings.
+node realfile.mjs ../../../StrumKitTests/Fixtures/all-4-with-noise.wav -2
 
 # 2. StrumKit side. Three configurations; -O so the scalar YIN loop is not the bottleneck.
 xcodebuild test -project ../../StrumKit.xcodeproj -scheme StrumKit \
