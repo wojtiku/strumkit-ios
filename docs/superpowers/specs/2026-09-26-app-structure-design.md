@@ -1,7 +1,24 @@
 # App structure — seams and module design
 
+> **SUPERSEDED for execution — 2026-09-27.** The reasoning and evidence below are kept as the
+> record of *why* the seams sit where they do, and the vocabulary decisions from the grilling
+> that produced it. **Some of it no longer describes the code, and the execution plan is the
+> document to work from:**
+> `docs/superpowers/plans/2026-09-27-structure-work-execution-plan.md`
+>
+> What changed after this document was written:
+> - **§2.1's headline finding is fixed.** Spectral acquisition was dropped at the merge of the
+>   detection branch (`RESULTS.md` §13 — its own measurement recorded it as blocked). There is
+>   no longer duplicated acceptance logic, because there is only recovery.
+> - **§5's `clock` parameter is gone.** The grilling chose `TimelineView` for the hold fade, so
+>   the ViewModel takes no clock.
+> - **§7's phase list is superseded.** Phases 1–3 now precede the detection plan's remaining
+>   Tasks 11–12; this document predates that ordering.
+> - **§9's open question is answered.** No Swift Package Manager split. Growth is not a goal.
+> - **Every `file:line` reference in §2 is stale** — they point at the pre-merge coordinator.
+
 **Date:** 2026-09-26
-**Status:** design, no code written yet
+**Status:** superseded for execution; retained as design rationale
 **Relates to:** `2026-09-25-tuner-detection-layer-design.md` (algorithm) and
 `2026-09-25-detection-layer-phases-0-3.md` (its implementation plan).
 

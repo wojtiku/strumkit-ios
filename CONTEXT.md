@@ -75,22 +75,24 @@ _Avoid_: (for the Chromatic-mode case) Target, Detected target
 ### How much a Reading can be trusted
 
 **Evidence**:
-Where a **Reading** came from, graded in three levels. **Measured** evidence is periodicity
+Where a **Reading** came from, graded in two levels. **Measured** evidence is periodicity
 found in the audio itself. **Sustained** evidence extends a **Note** already being tracked,
-when fresh detection has gone quiet but the **Note** has not. **Acquired** evidence names a
-**Note** nothing else has confirmed. Only **Measured** evidence may declare a **String** in
-tune; **Sustained** and **Acquired** may show a reading and nothing more.
+when fresh detection has gone quiet but the **Note** has not. Only **Measured** evidence may
+declare a **String** in tune; **Sustained** evidence may show a reading and nothing more.
 _Avoid_: Confidence, Score, Trust, Certainty, Quality
 
 Only **Measured** evidence completes a **Tuning** sequence, and only **Measured** evidence is
 presented without de-emphasis.
 
-**Sustained** and **Acquired** evidence are treated alike today. That is a decision to wait
-on measurement, not a claim that they are equivalent: their failures differ in kind
-(**Sustained** gets the cents wrong on a **Note** that is genuinely sounding; **Acquired**
-names a **Note** that is not there at all), and whether the second warrants a weaker rule
-than the first is open. See
-`docs/superpowers/plans/2026-09-25-detection-layer-phases-0-3.md`, which is measuring it.
+A third grade — **Acquired**, naming a **Note** nothing else has confirmed — was defined here
+and then withdrawn. The path that produced it was measured and found blocked: its gate
+rejected exactly the weak fundamentals it existed to rescue, and no discriminator separating a
+real quiet **Note** from broadband noise was found. The finding is kept in
+`docs/tuner-reliability/RESULTS.md` §13. It is named here because the concept is the obvious
+next one to reach for, and reaching for it without that finding is how it gets rebuilt wrong.
+Its failure mode is worth keeping: **Acquired** would be the one grade that can name a **Note**
+that is not sounding at all, which is worse than naming the cents of a **Note** that is.
+_Avoid_ (as a grade): Recovered, Salient
 
 ### Over time
 
@@ -106,7 +108,7 @@ _Avoid_: Stale, Cached, Last seen
 **Sustain**:
 A **Note** still ringing after the pluck, too quiet for fresh detection but still
 identifiable because it is the same **Note** as before.
-_Avoid_: Decay, Ring, Tail
+_Avoid_: Decay, Ring, Tail, Continuity prior, Prior
 
 ## Deliberately not domain terms
 
