@@ -61,6 +61,40 @@ struct RealStrumStabilityTests {
         Burst(label: "B5", start: 15.300, end: 15.850, targetIndex: 3, note: "A4")
     ]
 
+    /// `AudioTestHelpers.freshCoverageSeconds` restricted to frames the estimator
+    /// actually measured on, over the whole trace.
+    ///
+    /// The companion to that function rather than a replacement for it: the
+    /// difference between the two is how much of the needle's time on a note is
+    /// republish rather than confirmation, which is a finding to be read off the
+    /// print, not a bound to be gated on. See the note on
+    /// `levelQualifiedForegroundKeepsQuietPlucks`.
+    private static func measuredCorrectCoverageSeconds(
+        frames: [AudioTestHelpers.ReplayFrame],
+        reference: Double
+    ) -> Double {
+        let intervalEnd = frames.last?.captureEndSeconds ?? 0
+        var coverage: Double = 0.0
+        var previousTime: Double = 0.0
+
+        for frame in frames {
+            let t = frame.captureEndSeconds
+            guard t <= intervalEnd else { continue }
+            if let reading = frame.reading,
+               AudioTestHelpers.wasMeasuredThisFrame(reading),
+               AudioTestHelpers.isCorrectRecordedPitch(reading.frequency, reference: reference) {
+                // `previousTime` advances on every frame, not only on qualifying
+                // ones, so a frame that is not a fresh measurement contributes no
+                // duration and the frames either side of it are not bridged. Same
+                // accumulation as `freshCoverageSeconds` with one filter swapped,
+                // which is what makes the two numbers comparable.
+                coverage += max(0.0, t - max(0.0, previousTime))
+            }
+            previousTime = t
+        }
+        return coverage
+    }
+
     /// Longest and shortest lengths, in frames, of every maximal run of
     /// consecutive frames sharing one non-`none` display state.
     ///
@@ -402,6 +436,37 @@ struct RealStrumStabilityTests {
     /// The 1.00 s floor here is roughly twice that gate, so there is room to absorb a
     /// little drift without the test going blind, and it still fails within one step
     /// of the shipped value.
+    ///
+    /// **The floor is a display-duration gate, and that is deliberate.** Coverage
+    /// here is `AudioTestHelpers.freshCoverageSeconds`, which filters on
+    /// `freshness == .fresh` and therefore measures how long the *needle* was up,
+    /// not how long the estimator confirmed the note. Switching it to
+    /// `wasMeasuredThisFrame` was measured and rejected: it takes the shipped value
+    /// on `quiet_a` from 1.835 s to 0.747 s, `quiet_e` to 0.789 s and `quiet_g` to
+    /// 0.768 s, so three of the four fixtures fall below this 1.00 s floor, and
+    /// 0.747 s all but collides with the 0.62 s the comment above attributes to
+    /// `foregroundLevelMultiple = 2.5`. The gate would then no longer distinguish
+    /// the shipped value from the regression it exists to catch, and lowering the
+    /// floor to fit would be both a weakened bound and a blind one. The split is
+    /// printed instead, as `measuredCoverage`:
+    ///
+    /// | fixture | display coverage | measured coverage | measured frames |
+    /// |---|---|---|---|
+    /// | quiet_a | 1.835 s | 0.747 s | 35 of 86 fresh |
+    /// | quiet_c | 3.200 s | 1.643 s | 77 of 150 fresh |
+    /// | quiet_e | 2.197 s | 0.789 s | 37 of 103 fresh |
+    /// | quiet_g | 2.112 s | 0.768 s | 36 of 99 fresh |
+    ///
+    /// **That table is a finding, not a footnote: on every quiet pluck the
+    /// estimator only re-confirms the note on roughly a third of the frames the
+    /// needle is up, and on `quiet_a` the needle is up for 2.5× as long as the
+    /// note was last measured.** Continuation hysteresis is the direct cause —
+    /// re-strengthening a held reading into a new measurement now takes two
+    /// consecutive successes instead of one, and every frame in between is a
+    /// republish. It is the same mechanism as the room-tone tail ratcheted in
+    /// `realStrumDisplayDoesNotBelieveTheRoom` above, on audio that has a real
+    /// note in it, and it is not fixed here: it is a production-code question
+    /// and this file is the right place to look, not the right place to answer.
     @Test("The level-qualified foreground test does not cost the quiet plucks their decay")
     func levelQualifiedForegroundKeepsQuietPlucks() {
         let fixtures: [(name: String, midi: Int)] = [
@@ -418,17 +483,22 @@ struct RealStrumStabilityTests {
                 samples: wav.samples, sampleRate: wav.sampleRate, config: config
             ).frames
             let reference = PitchMath.midiFrequency(midi, a4: config.a4)
-            let fresh = frames.compactMap { $0.reading }.filter { $0.freshness == .fresh }
-            let wrong = fresh.filter { !AudioTestHelpers.isCorrectRecordedPitch($0.frequency, reference: reference) }
+            let measured = frames.compactMap { $0.reading }.filter(AudioTestHelpers.wasMeasuredThisFrame)
+            let wrong = measured.filter { !AudioTestHelpers.isCorrectRecordedPitch($0.frequency, reference: reference) }
             let coverage = AudioTestHelpers.freshCoverageSeconds(
                 frames: frames, reference: reference,
                 intervalStart: 0, intervalEnd: frames.last?.captureEndSeconds ?? 0
             )
+            // The same duration counted over measurements only, which is a
+            // different and much smaller number. It is printed rather than gated
+            // — see the note on the doc comment above.
+            let measuredCoverage = Self.measuredCorrectCoverageSeconds(frames: frames, reference: reference)
 
-            print(String(format: "QUIETPLUCK|%@|fresh=%d|wrongFresh=%d|coverage=%.3fs", name, fresh.count, wrong.count, coverage))
+            print(String(format: "QUIETPLUCK|%@|measured=%d|wrong=%d|coverage=%.3fs|measuredCoverage=%.3fs",
+                         name, measured.count, wrong.count, coverage, measuredCoverage))
 
             #expect(wrong.isEmpty,
-                    "\(name): the display named \(wrong.count) wrong fresh notes; suppressing room tone must not have made it more willing to guess")
+                    "\(name): the estimator named \(wrong.count) wrong notes; suppressing room tone must not have made it more willing to guess")
             #expect(coverage >= 1.00,
                     "\(name): fresh coverage over its own length fell to \(String(format: "%.3f", coverage))s. `RecordedAudioTests` gates 0.40 s over a shorter window; this is roughly twice that, and it is the number that moves when `PitchTracker.foregroundLevelMultiple` is raised — it is 1.83 s at the shipped 2.0 and 0.62 s at 2.5.")
         }

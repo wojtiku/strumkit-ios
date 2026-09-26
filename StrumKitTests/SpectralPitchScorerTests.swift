@@ -299,40 +299,35 @@ struct SpectralPitchScorerTests {
     /// tests compare the two, which is the only accuracy signal available for real
     /// recordings without hand-annotated pitch.
     ///
-    /// **KNOWN RED since continuation hysteresis (9c186f5), and the cause is a
-    /// naming problem, not a regression in the recovery scorer.** `freshness` is
-    /// what the *display* is, and the display is derived from it, so holding the
-    /// display state necessarily holds `freshness` too — there is no other
-    /// encoding. A frame the gate holds is therefore `freshness: .fresh` without
-    /// having been measured on that frame, and the filter below reads it as an
-    /// independent observation. The honest per-frame predicate is
-    /// `lastFreshAt == at`, which is already the field that exists for this.
+    /// **The frame filter is `AudioTestHelpers.wasMeasuredThisFrame`, and it is
+    /// load-bearing, not cosmetic.** Both sets have to be sets of *independent
+    /// measurements*: the anchor is a reference the recovered frames are compared
+    /// against, so a frame that merely republishes an earlier measurement changes
+    /// the reference without adding evidence, and any pinned copy that is not
+    /// identical to its source drags the mean. `freshness == .fresh` cannot
+    /// express this, because the display state is derived from `freshness` and
+    /// holding the display necessarily holds it — a held-through frame is
+    /// `fresh` with a stale `lastFreshAt`.
     ///
-    /// Measured on this branch, `quiet_c`, auto, ukulele high-g:
+    /// Measured on this branch, `quiet_c`, auto, ukulele high-g, under the
+    /// display predicate and then under `wasMeasuredThisFrame`:
     ///
     /// | | anchor n, mean | recovered n, mean | median | min/max |
     /// |---|---|---|---|---|
-    /// | before the fix | 73, +1.72 ¢ | 45, −1.19 ¢ | −1.23 ¢ | — |
-    /// | now, `freshness == .fresh` | 126, **+8.30 ¢** | 24, **−7.02 ¢** | **−6.87 ¢** | −8.60/−5.21 ¢ |
-    /// | now, `lastFreshAt == at` | 67, **+1.25 ¢** | 11, **−0.19 ¢** | **−0.36 ¢** | −1.55/+1.85 ¢ |
+    /// | before continuation hysteresis (9c186f5) | 73, +1.72 ¢ | 45, −1.19 ¢ | −1.23 ¢ | — |
+    /// | `freshness == .fresh` (the wrong filter) | 126, **+8.30 ¢** | 24, **−7.02 ¢** | **−6.87 ¢** | −8.60/−5.21 ¢ |
+    /// | `wasMeasuredThisFrame` (below) | 67, **+1.25 ¢** | 11, **−0.19 ¢** | **−0.36 ¢** | −1.55/+1.85 ¢ |
     ///
-    /// The *anchor* is what moved, by 7.05 ¢, because 48 frames that used to be
+    /// The *anchor* was what moved, by 7.05 ¢, because 48 frames that used to be
     /// `held` are now `fresh` and they are pinned copies measured up to 3 frames
-    /// earlier. Every recovered frame is then measured against a reference that
-    /// moved, and reads as biased. Under the honest predicate the anchor is at
-    /// +1.25 ¢ — *below* its own pre-fix value of +1.72 ¢ — the recovered spread
-    /// narrows from −8.60/+5.21 ¢ to −1.55/+1.85 ¢, and the 4 ¢ gate passes with
-    /// three orders of magnitude of room. Nothing about the scorer's accuracy
-    /// changed.
-    ///
-    /// This is deliberately **not** re-baselined and the predicate is deliberately
-    /// **not** rewritten here. Both are the same decision and it is a reviewer's:
-    /// re-baselining would hide a real change, and rewriting the predicate in the
-    /// same conversation that invalidated it is exactly the move that makes a gate
-    /// unfalsifiable. The numbers above are the finding; the fix is to say
-    /// "measured" where the code means "measured" — most likely by renaming the
-    /// filter to a `measuredFrames` helper next to `displayState(for:)`, which is
-    /// where the definition belongs.
+    /// earlier. Every recovered frame was then measured against a reference that
+    /// had moved, and read as biased. Under the honest predicate the anchor sits
+    /// at +1.25 ¢ — *below* its own pre-fix value of +1.72 ¢ — and the recovered
+    /// spread narrows from −8.60/+5.21 ¢ to −1.55/+1.85 ¢. Nothing about the
+    /// scorer's accuracy changed, and **the 4 ¢ gate below did not move**: it was
+    /// always about measurements, and only the filter was reading a display
+    /// label. The recovered set also shrinks 24 → 11, because pinned copies are
+    /// no longer counted as independent observations.
     @Test("Recovered frames must not bias away from the in-track YIN anchor")
     func testRecoveredFramesHaveNoSystematicBias() {
         let fixtures: [(name: String, reference: Double)] = [
@@ -355,10 +350,10 @@ struct SpectralPitchScorerTests {
                 config: config
             )
 
-            let fresh = frames.compactMap { $0.reading }.filter { $0.freshness == .fresh }
-            let anchor = fresh.filter { !$0.recovered }
+            let measured = frames.compactMap { $0.reading }.filter(AudioTestHelpers.wasMeasuredThisFrame)
+            let anchor = measured.filter { !$0.recovered }
                 .map { PitchMath.centsBetween(measured: $0.frequency, reference: fixture.reference) }
-            let recovered = fresh.filter { $0.recovered }
+            let recovered = measured.filter { $0.recovered }
 
             #expect(anchor.count >= 2, "\(fixture.name): need at least 2 YIN frames to anchor against")
             #expect(recovered.count >= 5, "\(fixture.name): expected spectral recovery to engage during the decay")
@@ -411,9 +406,13 @@ struct SpectralPitchScorerTests {
                 config: config
             )
 
-            let fresh = frames.compactMap { $0.reading }.filter { $0.freshness == .fresh }
-            let recovered = fresh.filter { $0.recovered }
-            let confirmed = fresh.filter { !$0.recovered }
+            // The trust-boundary checks below are about *measurements* the recovery
+            // path made, so they run over measured frames only. A republish of an
+            // earlier reading is not a second chance to over-claim; counting it as
+            // one would make this test a test of the display gate.
+            let measured = frames.compactMap { $0.reading }.filter(AudioTestHelpers.wasMeasuredThisFrame)
+            let recovered = measured.filter { $0.recovered }
+            let confirmed = measured.filter { !$0.recovered }
             guard !recovered.isEmpty else { continue }
 
             // 1. Recovery must never assert that a string is in tune. Its cents error
@@ -474,7 +473,7 @@ struct SpectralPitchScorerTests {
 
             let afterTone = frames.filter { $0.captureEndSeconds > 0.4 }
             let recovered = afterTone.compactMap { $0.reading }
-                .filter { $0.freshness == .fresh && $0.recovered }
+                .filter { AudioTestHelpers.wasMeasuredThisFrame($0) && $0.recovered }
 
             let drifted = recovered.filter {
                 abs(PitchMath.centsBetween(measured: $0.frequency, reference: 440.0)) > 20.0
@@ -545,11 +544,11 @@ struct SpectralPitchScorerTests {
                 config: config
             )
 
-            let fresh = frames.compactMap { $0.reading }.filter { $0.freshness == .fresh }
-            let correct = fresh.filter {
+            let measured = frames.compactMap { $0.reading }.filter(AudioTestHelpers.wasMeasuredThisFrame)
+            let correct = measured.filter {
                 AudioTestHelpers.isCorrectRecordedPitch($0.frequency, reference: testCase.fundamental)
             }
-            let wrong = fresh.filter {
+            let wrong = measured.filter {
                 !AudioTestHelpers.isCorrectRecordedPitch($0.frequency, reference: testCase.fundamental)
             }
             let coverage = AudioTestHelpers.freshCoverageSeconds(
@@ -559,9 +558,9 @@ struct SpectralPitchScorerTests {
                 intervalEnd: 1.30
             )
 
-            print(String(format: "WEAK-FUNDAMENTAL %@: frames=%lld fresh=%lld correct=%lld wrong=%lld coverage=%.3fs last=%.3f",
-                         testCase.name, frames.count, fresh.count, correct.count, wrong.count,
-                         coverage, fresh.last?.at ?? 0))
+            print(String(format: "WEAK-FUNDAMENTAL %@: frames=%lld measured=%lld correct=%lld wrong=%lld coverage=%.3fs last=%.3f",
+                         testCase.name, frames.count, measured.count, correct.count, wrong.count,
+                         coverage, measured.last?.at ?? 0))
 
             // The analysis window is ~96 ms, so the window centred at t is dominated
             // by the onset. Acquisition must be essentially immediate.

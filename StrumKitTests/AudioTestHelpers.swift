@@ -229,6 +229,43 @@ public enum AudioTestHelpers {
         return reading.freshness == .fresh ? "fresh" : "held"
     }
 
+    /// Whether this frame's estimate came from a measurement taken on this frame,
+    /// as opposed to being a copy of an earlier one that the display is still
+    /// republishing.
+    ///
+    /// **`freshness == .fresh` is a different question and must not be used as
+    /// one.** `freshness` is a *state the display is in*, and the display state
+    /// is derived from it — here, in `TunerPresentation`, and in `TunerViewModel`,
+    /// which dims on `freshness == .held`. Continuation hysteresis republishes
+    /// the last measured reading verbatim to hold the display through a dropout
+    /// shorter than `PitchTracker.continuationYinFailuresToWeaken`: `at`
+    /// advanced, `lastFreshAt` unchanged, `freshness: .fresh`. There is no other
+    /// way to say "still fresh, not re-measured" in the current encoding, so a
+    /// held-through frame is indistinguishable from a fresh one by `freshness`
+    /// alone. That is a deliberate property of the display contract, not a
+    /// defect; it just means `freshness` answers "what is on screen?" and not
+    /// "what did the estimator just measure?".
+    ///
+    /// The distinction matters the moment a filter counts observations. A
+    /// held-through frame carries the *same* frequency, note and cents as the
+    /// frame it copies, up to 3 frames earlier, so treating it as an
+    /// independent observation inflates counts and — worse — moves the
+    /// reference that an accuracy metric compares against. Measured on
+    /// `quiet_c` in auto mode, switching this filter moved the YIN anchor from
+    /// +8.30 ¢ to +1.25 ¢ and a recovered-frame bias metric from −7.02 ¢ to
+    /// −0.19 ¢, with no change in the scorer, purely by reweighting pinned
+    /// copies against themselves. `lastFreshAt` is the field `TunerReading`
+    /// exists to carry for exactly this question.
+    ///
+    /// So: use `freshness` / `displayState(for:)` when the claim is about the
+    /// display — transition counts, state histograms, hold and `held` contracts.
+    /// Use this when the claim is about the estimator — detection counts,
+    /// correct/wrong-note tallies, cent error percentiles, bias, and "what was
+    /// the last time we actually measured this note?".
+    public static func wasMeasuredThisFrame(_ reading: TunerReading) -> Bool {
+        reading.lastFreshAt == reading.at
+    }
+
     /// Number of times the display state changed, ignoring consecutive repeats.
     ///
     /// This is the primary gate for goal G1: a note that is read continuously
@@ -256,7 +293,26 @@ public enum AudioTestHelpers {
         frames.reduce(into: [:]) { $0[$1.displayState, default: 0] += 1 }
     }
 
-    /// Computes fresh coverage duration in seconds over an evaluation interval.
+    /// How long, in seconds, a **correct** note was on the display inside an
+    /// evaluation interval.
+    ///
+    /// **This is a display-duration measure, and it is deliberately not the
+    /// honest per-frame predicate.** It filters on `freshness == .fresh`, not on
+    /// `wasMeasuredThisFrame`, because a coverage figure answers "how long did
+    /// the needle sit on the right note?" and continuation hysteresis
+    /// deliberately keeps the needle up through short dropouts by republishing
+    /// the last measurement. That is the display behaving as specified, and a
+    /// duration that excluded it would understate what a player sees.
+    ///
+    /// It is also not a measure of how often the estimator *measured* the note,
+    /// and the gap is large enough to matter: on `quiet_a` in auto mode this
+    /// returns 1.835 s while the measured coverage is 0.747 s, i.e. 59 % of the
+    /// needle's time on that pluck is display hold rather than confirmation. For
+    /// the measurement question, count `wasMeasuredThisFrame` over the interval
+    /// instead. Two callers gate on this number (`RecordedAudioTests` 0.40 s,
+    /// `RealStrumStabilityTests` 1.00 s) and both were calibrated against it as a
+    /// display measure, so its contract is stated here rather than changed under
+    /// them.
     public static func freshCoverageSeconds(
         frames: [ReplayFrame],
         reference: Double,
