@@ -1,0 +1,11 @@
+# Build products. The wasm itself is Yousician's IP and lives one directory up;
+# it must never be committed from here either.
+.build/
+.swiftpm/
+# Node, if the tools are ever run with a local install.
+node_modules/
+# The oracle trace and the intermediate dump are *derived from* the wasm. They
+# contain only output numbers — no samples and no engine code — and they are
+# committed on purpose: `swift test` needs neither node nor the wasm to run, and a
+# conformance suite that cannot run without Yousician's binary is not a
+# conformance suite. See README.md §Regenerating.
