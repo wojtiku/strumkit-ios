@@ -108,6 +108,22 @@ public struct PitchResult: Sendable, Equatable {
     /// abstention independently of level.
     public let isClipped: Bool
 
+    /// Whether a recovered estimate may assert that a String is in tune. `false`.
+    ///
+    /// The rule is a property of the Evidence it governs, so it is stated here rather
+    /// than on whatever module happens to schedule the frames. Sustained evidence
+    /// extends a Note that is already being tracked; it may show a Reading and nothing
+    /// more. Recovery is less certain than YIN's autocorrelation and a wrong recovered
+    /// cents value is directly actionable advice ("turn the peg"), so a recovered
+    /// Reading may move the needle and update the Hold but must never become tuning
+    /// advice. The cents readout is kept, de-emphasised, so the value stays
+    /// inspectable.
+    ///
+    /// Only Measured evidence may assert it, so this gates the flag `recovered` sets
+    /// rather than any per-frame judgement — there is nothing left to decide at the
+    /// call site.
+    public static let recoveredMayAssertInTune: Bool = false
+
     public init(
         frequency: Double,
         closestNote: MusicalNote,

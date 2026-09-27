@@ -93,7 +93,7 @@ a 50 ms display EMA (`displayEmaTimeConstant`) the right smoothing constant — 
 
 ### 3.4 A real trust boundary
 
-`recoveredFramesMayAssertInTune = false` is a genuinely good product decision, and it is
+`recoveredMayAssertInTune = false` is a genuinely good product decision, and it is
 evidenced rather than asserted: 101 recovered frames across four fixtures, **0 over-claimed
 in-tune, 0 advice emissions**, and the recovered value is rendered at 0.55 opacity so the
 user can see it is inferred. WebTuna cannot make this distinction at all — a decaying pluck

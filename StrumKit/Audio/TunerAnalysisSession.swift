@@ -82,15 +82,6 @@ public final class TunerAnalysisSession: @unchecked Sendable {
     /// *acceptance* still depends on the score, RMS and competitor evidence below.
     public static let spectralSearchRadiusCents: Double = 70.0
 
-    /// Recovered readings may update the display and the continuity prior, but
-    /// must not assert that a string is in tune.
-    ///
-    /// Recovery is less certain than YIN's autocorrelation, and a wrong recovered
-    /// cents value is directly actionable advice ("turn the peg"), so the needle
-    /// and the in-tune verdict are reserved for YIN-confirmed evidence. The cents
-    /// readout is retained at reduced opacity so the value is still inspectable.
-    public static let recoveredFramesMayAssertInTune: Bool = false
-
     private var previousFrameRms: Double = 0.0
 
     /// Controls whether spectral harmonic recovery is active during sustain.
@@ -522,6 +513,23 @@ public final class TunerAnalysisSession: @unchecked Sendable {
         yinThreshold = tracker.recommendedYinThreshold(isSustaining: isSustaining)
         lock.unlock()
 
+        // How long a prior stays live is tracker state, so it is settled here, once,
+        // with the same clock everything else in this frame is measured against. Both
+        // consumers below need that answer — the estimator's subharmonic arbitration
+        // and this module's own recovery branch — and both need it before the frame is
+        // analysed, so a prior crosses into the detector only when it is already known
+        // to be live. `frame.captureEndSeconds` is the capture edge, which is the
+        // tracker's own clock; the replay seam's `resultAgeReference` deliberately is
+        // not (see `processFrameSync`).
+        let livePrior: (frequency: Double, at: TimeInterval)?
+        if let prior,
+           frame.captureEndSeconds >= prior.at,
+           (frame.captureEndSeconds - prior.at) <= PitchTracker.priorGraceDuration {
+            livePrior = prior
+        } else {
+            livePrior = nil
+        }
+
         // 3. Measure pure DSP CPU duration
         let dspStart = CACurrentMediaTime()
 
@@ -530,9 +538,7 @@ public final class TunerAnalysisSession: @unchecked Sendable {
             noiseGateRMS: noiseGate,
             yinThreshold: yinThreshold,
             referenceA4: config.a4,
-            priorFrequency: prior?.frequency,
-            priorAt: prior?.at,
-            now: frame.captureEndSeconds
+            livePriorFrequency: livePrior?.frequency
         )
 
         // 3b. Spectral Recovery Fallback (Task 5)
@@ -543,10 +549,8 @@ public final class TunerAnalysisSession: @unchecked Sendable {
         previousFrameRms = currentRms
 
         if isSpectralRecoveryEnabled,
-           let prior = prior,
-           !isOnset,
-           (frame.captureEndSeconds >= prior.at),
-           (frame.captureEndSeconds - prior.at) <= PitchTracker.priorGraceDuration {
+           let prior = livePrior,
+           !isOnset {
 
             let yinFailed = !pitchResult.isSignalPresent || pitchResult.frequency <= 0
             let yinJumped: Bool

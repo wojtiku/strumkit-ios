@@ -124,14 +124,19 @@ public final class PitchDetector: @unchecked Sendable {
     }
 
     /// Full window analysis matching analyzeWindow from chorder/src/audio/tuner/pitch.ts
+    ///
+    /// - Parameter livePriorFrequency: the frequency of a prior the caller has already
+    ///   established is still within its grace window, or `nil` when there is no such
+    ///   prior. How long a prior survives is state-machine policy and the caller already
+    ///   has to answer it — with the right clock — because it branches on the answer.
+    ///   This entry point states only what it cannot infer, so `nil` means "no live
+    ///   prior" and never "a prior I forgot to qualify".
     public func detectPitch(
         in buffer: [Float],
         noiseGateRMS: Float = 0.0001,
         yinThreshold: Float = 0.15,
         referenceA4: Double = TunerConstants.defaultA4Hz,
-        priorFrequency: Double? = nil,
-        priorAt: TimeInterval? = nil,
-        now: TimeInterval = 0
+        livePriorFrequency: Double? = nil
     ) -> PitchResult {
         guard !buffer.isEmpty else { return .idle }
 
@@ -272,16 +277,13 @@ public final class PitchDetector: @unchecked Sendable {
 
         // 7. Multiplier Candidate Arbitration (2x, 3x, 4x subharmonic search)
         //
-        // Shares the tracker's continuity grace window rather than repeating the
-        // value: a stale subharmonic prior is the same failure in both places, and
-        // two literals would drift apart the first time one was tuned.
-        let priorWindow = PitchTracker.priorGraceDuration
-        let hasPrior: Bool
-        if let priorAt, let priorFrequency {
-            hasPrior = (now >= priorAt) && (now - priorAt <= priorWindow) && priorFrequency.isFinite
-        } else {
-            hasPrior = false
-        }
+        // A prior is a prior or it is nothing: the caller has already decided whether
+        // this one is still live, so there is no window to re-derive here and no
+        // dependency on the state machine that owns it. A non-finite frequency is not
+        // a prior — it is an unusable number, and it is the one case where "live" is
+        // not enough on its own.
+        let prior = livePriorFrequency.flatMap { $0.isFinite ? $0 : nil }
+        let hasPrior = prior != nil
 
         for multiplier in Self.candidateMultipliers {
             let candidateFreq = initial.frequency / Double(multiplier)
@@ -297,8 +299,8 @@ public final class PitchDetector: @unchecked Sendable {
             let candidatePowerRatio = evidence.candidateEnergy / (rmsDouble * rmsDouble)
 
             let priorMatches: Bool
-            if hasPrior, let priorFrequency {
-                priorMatches = abs(1200.0 * log2(candidate.frequency / priorFrequency)) <= Self.priorSubharmonicMaxDistanceCents
+            if let prior {
+                priorMatches = abs(1200.0 * log2(candidate.frequency / prior)) <= Self.priorSubharmonicMaxDistanceCents
             } else {
                 priorMatches = false
             }

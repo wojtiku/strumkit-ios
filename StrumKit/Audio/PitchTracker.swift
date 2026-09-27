@@ -450,8 +450,9 @@ public final class PitchTracker: @unchecked Sendable {
         // must not assert that a string is in tune. Cents error on recovery is
         // noisier than YIN's, and "you are flat" is directly actionable advice, so
         // a wrong recovered value must never be able to tell the player to move a
-        // peg. The tracker records the true `inTune` state for later YIN frames.
-        let inTuneMayBeAsserted = !pitchResult.recovered || TunerAnalysisSession.recoveredFramesMayAssertInTune
+        // peg. The rule itself lives on the estimate it governs, `PitchResult`.
+        // The tracker records the true `inTune` state for later YIN frames.
+        let inTuneMayBeAsserted = !pitchResult.recovered || PitchResult.recoveredMayAssertInTune
 
         let inTune: Bool
         if lastInTuneState {
