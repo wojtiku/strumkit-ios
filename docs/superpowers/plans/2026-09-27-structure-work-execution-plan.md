@@ -405,6 +405,20 @@ conflict with Tasks 11–12.
 
 ---
 
+## Known flaky test
+
+`PreferencesTests.testAcousticStringSynthesizerPluck()` drives real audio hardware through the
+simulator. `playString` synthesises ~123k samples and starts an `AVAudioEngine` on a
+background queue, and only then sets the state the test polls for; the test allows 1 second.
+Under load, or if the engine fails to start, that budget can expire and the state stays `nil`,
+behind a `print` nobody reads.
+
+Observed once, immediately after a run killed mid-audio-teardown. Passed 3/3 full-suite runs
+and 6/6 in isolation afterwards. **Re-run the full suite once before treating it as a real
+failure, and never fix it by loosening an assertion.** Fixing it properly means making the
+engine-start failure observable and waiting on a real precondition instead of a time budget —
+which is its own ticket, not a drive-by.
+
 ## Gates
 
 1. **120 tests / 21 suites green after every phase.** No phase may reduce coverage.
