@@ -234,8 +234,6 @@ public struct CapturedWindow: Sendable {
     /// Host monotonic time of the window's *trailing edge*. The DSP's age maths
     /// (`resultAgeMs`) is measured from here, so it must not be a media timeline.
     public let captureEnd: TimeInterval
-    /// How many samples at the end of `samples` arrived since the previous window.
-    public let newSampleCount: Int
 }
 ```
 
