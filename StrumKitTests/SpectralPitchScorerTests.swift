@@ -194,7 +194,7 @@ struct SpectralPitchScorerTests {
                 continue
             }
 
-            let windowSamples = AudioCaptureService.requiredInputSamples(for: audio.sampleRate)
+            let windowSamples = Resampler.requiredInputSamples(for: audio.sampleRate)
             let detector = PitchDetector(sampleRate: audio.sampleRate, bufferSize: windowSamples)
             let scorerRaw = SpectralPitchScorer()
             scorerRaw.isWhiteningEnabled = false
@@ -260,7 +260,7 @@ struct SpectralPitchScorerTests {
     func testHarmonicEvidenceLog() {
         for (name, reference) in [("quiet_a", 440.0), ("quiet_c", 261.63)] {
             guard let wav = AudioTestHelpers.loadWav(name: name) else { continue }
-            let win = AudioCaptureService.requiredInputSamples(for: wav.sampleRate)
+            let win = Resampler.requiredInputSamples(for: wav.sampleRate)
             let scorer = SpectralPitchScorer()
             let hop = 2048
             var offset = hop

@@ -56,7 +56,7 @@ struct SustainContinuityTests {
 
         // Establish the sounding span from the raw RMS, independent of the detector: the
         // window is 96 ms, so the first audible moment is roughly one window in.
-        let window = AudioCaptureService.requiredInputSamples(for: wav.sampleRate)
+        let window = Resampler.requiredInputSamples(for: wav.sampleRate)
         var rms: [Double] = []
         rms.reserveCapacity(frames.count)
         for frame in frames {

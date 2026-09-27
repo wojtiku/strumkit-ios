@@ -83,8 +83,8 @@ struct RealStrumMeasurementTests {
             format: "META|fixture=%@|frames=%d|rate=%.1f|dur=%.3f|hop=%d|hopms=%.2f|window=%d|windowms=%.1f",
             Self.fixtureName, wav.samples.count, sampleRate, duration, hop,
             1000.0 * Double(hop) / sampleRate,
-            AudioCaptureService.requiredInputSamples(for: sampleRate),
-            1000.0 * Double(AudioCaptureService.requiredInputSamples(for: sampleRate)) / sampleRate
+            Resampler.requiredInputSamples(for: sampleRate),
+            1000.0 * Double(Resampler.requiredInputSamples(for: sampleRate)) / sampleRate
         ))
 
         for configuration in Self.configurations {

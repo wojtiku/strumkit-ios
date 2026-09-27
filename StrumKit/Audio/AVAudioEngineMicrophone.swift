@@ -3,25 +3,34 @@ import Foundation
 
 /// The live microphone: `AVAudioEngine` behind the `MicrophoneSource` seam.
 ///
-/// Two things happen here and nowhere else. The tap size becomes *this* type's
-/// decision rather than a parameter a caller has to know, and AVFoundation's two
-/// separate notification callbacks become one event type. Everything device-specific
-/// underneath — the `AVAudioSession` configuration, the ring buffer, the
-/// capture-edge clock — stays behind the seam, where a caller cannot depend on it.
+/// Three things happen here and nowhere else. The tap size is *this* type's
+/// decision rather than a parameter a caller has to know, AVFoundation's two
+/// separate notification callbacks become one event type, and captured audio
+/// becomes one typed window rather than a positional closure. Everything
+/// device-specific underneath — the `AVAudioSession` configuration, the ring
+/// buffer, the capture-edge clock — is a collaborator this file names and a
+/// caller cannot, in `AudioSessionConfiguration` and `AudioRingBuffer`.
 public final class AVAudioEngineMicrophone: @unchecked Sendable {
-    private let capture: AudioCaptureService
-    private let tapBufferSize: AVAudioFrameCount
+    /// Frames the engine is asked for per callback.
+    ///
+    /// A request, not a guarantee: the OS may deliver larger buffers, and nothing
+    /// above the seam can act on the difference. So it is not an argument.
+    private static let tapBufferSize: AVAudioFrameCount = 1024
+
+    private let engine = AVAudioEngine()
+    private var isRunningInternal = false
+    private let queue = DispatchQueue(label: "com.strumkit.audiocapture", qos: .userInteractive)
+
+    /// The hardware's rate, which satisfies the seam's requirement and is not
+    /// knowable until capture has started.
+    public private(set) var sampleRate: Double = 44100.0
+    private var ringBuffer: AudioRingBuffer? = nil
+    private let sessionConfiguration = AudioSessionConfiguration()
 
     private let eventLock = NSLock()
     private var _onEvent: (@Sendable (MicrophoneEvent) -> Void)?
 
-    public init(
-        capture: AudioCaptureService = AudioCaptureService(),
-        tapBufferSize: AVAudioFrameCount = 1024
-    ) {
-        self.capture = capture
-        self.tapBufferSize = tapBufferSize
-    }
+    public init() {}
 }
 
 extension AVAudioEngineMicrophone: MicrophoneSource {
@@ -36,38 +45,160 @@ extension AVAudioEngineMicrophone: MicrophoneSource {
             _onEvent = newValue
             eventLock.unlock()
 
-            // The capture service reports the raw notifications; the seam reports
-            // what the tuner has to absorb. An interruption beginning and one ending
-            // are the same fact with different answers to "may I resume?".
-            capture.onInterruption = { [weak self] began, shouldResume in
+            // The session configuration reports the raw notifications; the seam
+            // reports what the tuner has to absorb. An interruption beginning and
+            // one ending are the same fact with different answers to "may I
+            // resume?".
+            sessionConfiguration.onInterruption = { [weak self] began, shouldResume in
                 self?.emit(.interrupted(resumable: !began && shouldResume))
             }
-            capture.onRouteChange = { [weak self] _ in
+            sessionConfiguration.onRouteChange = { [weak self] _ in
                 self?.emit(.routeChanged)
             }
         }
     }
 
-    public var sampleRate: Double { capture.sampleRate }
-
-    public var permissionStatus: AudioPermissionStatus { capture.checkPermissionStatus() }
+    public var permissionStatus: AudioPermissionStatus { checkPermissionStatus() }
 
     public func requestPermission() async -> Bool {
-        await capture.requestPermission()
+        await requestMicrophonePermission()
     }
 
-    public func start(delivering: @escaping @Sendable (CapturedWindow) -> Void) throws {
-        try capture.startCapture(bufferSize: tapBufferSize) { samples, sampleRate, captureEnd, _ in
-            delivering(CapturedWindow(
-                samples: samples,
-                sampleRate: sampleRate,
-                captureEnd: captureEnd
-            ))
+    /// Checks current microphone recording authorization status.
+    private func checkPermissionStatus() -> AudioPermissionStatus {
+        if #available(iOS 17.0, *) {
+            switch AVAudioApplication.shared.recordPermission {
+            case .granted: return .authorized
+            case .denied: return .denied
+            case .undetermined: return .notDetermined
+            @unknown default: return .denied
+            }
+        } else {
+            switch AVAudioSession.sharedInstance().recordPermission {
+            case .granted: return .authorized
+            case .denied: return .denied
+            case .undetermined: return .notDetermined
+            @unknown default: return .denied
+            }
         }
     }
 
+    /// Requests recording permission asynchronously.
+    private func requestMicrophonePermission() async -> Bool {
+        if #available(iOS 17.0, *) {
+            return await AVAudioApplication.requestRecordPermission()
+        } else {
+            return await withCheckedContinuation { continuation in
+                AVAudioSession.sharedInstance().requestRecordPermission { granted in
+                    continuation.resume(returning: granted)
+                }
+            }
+        }
+    }
+
+    /// Starts capturing audio, delivering each window as a `CapturedWindow`.
+    ///
+    /// The tap's own frame length is a fact about the real-time thread, not
+    /// something the caller is given: nothing above the seam can use it, and the
+    /// window's trailing-edge timestamp already carries what the analysis needs.
+    public func start(delivering: @escaping @Sendable (CapturedWindow) -> Void) throws {
+        try queue.sync {
+            guard !self.isRunningInternal else { return }
+
+            try self.sessionConfiguration.activate()
+
+            let inputNode = self.engine.inputNode
+            let inputFormat = inputNode.inputFormat(forBus: 0)
+
+            guard inputFormat.channelCount > 0 else {
+                print("[StrumKit] Audio input format has 0 channels.")
+                throw AudioCaptureError.noInputChannelsAvailable
+            }
+
+            self.sampleRate = inputFormat.sampleRate > 0 ? inputFormat.sampleRate : 44100.0
+            let neededSamples = Resampler.requiredInputSamples(for: self.sampleRate)
+            let ring = AudioRingBuffer(capacity: max(16384, neededSamples * 2))
+            self.ringBuffer = ring
+
+            // Scratch buffer for the tap, allocated once at setup rather than per
+            // callback. Sized for the largest window the startup partial-window path
+            // can request, so the hot path never allocates for buffering.
+            //
+            // Only the tap thread ever touches it, and the tap is serialised by the
+            // engine, so it needs no further synchronisation.
+            let windowScratchBox = ScratchBuffer(size: max(neededSamples, 16384))
+
+            inputNode.removeTap(onBus: 0)
+            inputNode.installTap(onBus: 0, bufferSize: Self.tapBufferSize, format: inputFormat) { buffer, when in
+                guard let channelData = buffer.floatChannelData else { return }
+                let frameLength = Int(buffer.frameLength)
+                let scratch = windowScratchBox
+                guard frameLength > 0, frameLength <= scratch.size else { return }
+
+                // Determine capture-end timestamp using AVAudioTime.
+                // Denotes buffer trailing edge (end) on the monotonic host timeline (CACurrentMediaTime / mach_absolute_time).
+                let captureEndSeconds: TimeInterval
+                if when.isHostTimeValid && when.hostTime > 0 {
+                    let startSeconds = AVAudioTime.seconds(forHostTime: when.hostTime)
+                    captureEndSeconds = startSeconds + (Double(frameLength) / inputFormat.sampleRate)
+                } else {
+                    captureEndSeconds = CACurrentMediaTime()
+                }
+
+                // Write channel 0 straight from the engine's buffer: no intermediate
+                // array is materialised on the real-time thread.
+                ring.write(unsafeBufferPointer: channelData[0], count: frameLength)
+
+                if ring.copyTrailing(count: neededSamples, into: &scratch.samples) {
+                    delivering(CapturedWindow(
+                        samples: Array(scratch.samples[0..<neededSamples]),
+                        sampleRate: inputFormat.sampleRate,
+                        captureEnd: captureEndSeconds
+                    ))
+                } else {
+                    // Startup only: emit a shorter window until the ring has enough
+                    // history. The detector is rebuilt for each distinct window
+                    // length until the full window becomes available.
+                    let available = min(ring.availableCount, scratch.size)
+                    if available >= 512, ring.copyTrailing(count: available, into: &scratch.samples) {
+                        delivering(CapturedWindow(
+                            samples: Array(scratch.samples[0..<available]),
+                            sampleRate: inputFormat.sampleRate,
+                            captureEnd: captureEndSeconds
+                        ))
+                    }
+                }
+            }
+
+            do {
+                self.engine.prepare()
+                try self.engine.start()
+                self.isRunningInternal = true
+            } catch {
+                print("[StrumKit] Failed to start AVAudioEngine: \(error.localizedDescription)")
+                inputNode.removeTap(onBus: 0)
+                throw AudioCaptureError.engineFailed(error.localizedDescription)
+            }
+        }
+    }
+
+    /// Stops audio capture and removes the tap.
+    ///
+    /// The session's observers deliberately outlive the tap — see
+    /// `AudioSessionConfiguration`, which is where the reasoning lives. Unhooking
+    /// them here would mean the notification that invites a resume had nowhere to
+    /// go, because stopping the tap is what the interruption caused.
     public func stop() {
-        capture.stopCapture()
+        queue.sync {
+            guard self.isRunningInternal else { return }
+            self.engine.inputNode.removeTap(onBus: 0)
+            self.engine.stop()
+            self.ringBuffer?.reset()
+            self.ringBuffer = nil
+            self.isRunningInternal = false
+
+            self.sessionConfiguration.deactivate()
+        }
     }
 
     private func emit(_ event: MicrophoneEvent) {
@@ -75,5 +206,21 @@ extension AVAudioEngineMicrophone: MicrophoneSource {
         let sink = _onEvent
         eventLock.unlock()
         sink?(event)
+    }
+}
+
+/// Mutable storage the capture tap reuses across callbacks.
+///
+/// Lives here rather than beside `AudioRingBuffer` because it is not a module: it
+/// has exactly one user, its size is chosen for the tap, and it exists so the
+/// real-time thread can hand a freshly filled window to a `let` binding while
+/// still writing into preallocated memory.
+private final class ScratchBuffer: @unchecked Sendable {
+    let size: Int
+    var samples: [Float]
+
+    init(size: Int) {
+        self.size = size
+        self.samples = [Float](repeating: 0, count: size)
     }
 }

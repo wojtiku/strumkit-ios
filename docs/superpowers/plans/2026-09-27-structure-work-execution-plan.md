@@ -428,6 +428,17 @@ change it was suspected in.
 means waiting on real preconditions instead of time budgets — which is its own ticket, not a
 drive-by, and not something to do while a refactor is in flight.
 
+## Reach-throughs to record, not accommodate
+
+Ticket 11's criterion is that a test needing a widened visibility is reaching past an
+interface. Record it rather than accommodating it. One is already known:
+
+- `PitchDetectionTests.testAudioRingBufferAccumulation` reaches the ring buffer directly
+  through `@testable`, rather than crossing the microphone seam. It tests the ring buffer's
+  own contract — accumulation across writes — which no seam test would exercise, so it is a
+  legitimate direct test of a module that now sits behind the audio edge. Ticket 11 should
+  record it as a deliberate exception rather than move or delete it, and say why.
+
 ## Gates
 
 1. **The suite stays green after every phase.** No phase may reduce coverage.

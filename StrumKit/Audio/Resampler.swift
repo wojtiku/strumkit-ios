@@ -13,6 +13,21 @@ public final class Resampler: @unchecked Sendable {
 
     public init() {}
 
+    /// Trailing input samples needed to resample a window at `sampleRate` down to
+    /// `analysisRate`.
+    ///
+    /// How much history the polyphase sinc filter has to reach back over, plus one
+    /// full output window at the input rate. Lives here rather than at the audio
+    /// edge: it is a property of the filter, and every caller of it — the capture
+    /// tap, the spectral scorer, the replay helpers — is asking the same question.
+    public static func requiredInputSamples(for sampleRate: Double) -> Int {
+        if sampleRate <= analysisRate {
+            return windowSize
+        }
+        let ratio = sampleRate / analysisRate
+        return Int(ceil(Double(2 * resamplerRadius + 1) + Double(windowSize - 1) * ratio))
+    }
+
     /// Calculates or retrieves precomputed polyphase sinc filter coefficients for a given sample rate.
     private func getCoefficients(for rate: Double) -> [[Float]] {
         let roundedRate = Int(round(rate))

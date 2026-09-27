@@ -239,7 +239,7 @@ public final class SpectralPitchScorer: @unchecked Sendable {
         if abs(sampleRate - Self.analysisRate) < 1.0 {
             return analyzeWindow(samples)
         }
-        let req = AudioCaptureService.requiredInputSamples(for: sampleRate)
+        let req = Resampler.requiredInputSamples(for: sampleRate)
         let input: [Float]
         if samples.count < req {
             var padded = [Float](repeating: 0, count: req)

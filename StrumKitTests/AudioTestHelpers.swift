@@ -452,7 +452,7 @@ public enum AudioTestHelpers {
         session.isSpectralRecoveryEnabled = enableSpectralRecovery
 
         var frames: [ReplayFrame] = []
-        let windowLength = AudioCaptureService.requiredInputSamples(for: sampleRate)
+        let windowLength = Resampler.requiredInputSamples(for: sampleRate)
         var sequence: UInt64 = 0
 
         let frameCount = samples.count >= hopSamples

@@ -107,7 +107,7 @@ struct PitchDetectionTests {
 
     @Test("AudioRingBuffer accumulates chunks and preserves trailing sample sequence")
     func testAudioRingBufferAccumulation() {
-        let required = AudioCaptureService.requiredInputSamples(for: 44100.0)
+        let required = Resampler.requiredInputSamples(for: 44100.0)
         #expect(required == 4328)
 
         let ring = AudioRingBuffer(capacity: 8192)

@@ -375,11 +375,15 @@ public final class TunerAnalysisSession: @unchecked Sendable {
     /// If an analysis job is currently running on the worker queue, this frame is placed into
     /// the pending slot. If another frame arrives before the current job finishes, the older
     /// pending frame is replaced (mailbox capacity = 1).
+    ///
+    /// The tap's frame count is not a parameter. It is a fact about the audio
+    /// engine's delivery, it does not cross the microphone seam, and nothing here
+    /// can act on it — so the live diagnostic stays at its zero default and only
+    /// replay, which knows its own hop size, stamps a real one.
     public func submitLiveAudio(
         window: [Float],
         sampleRate: Double,
-        captureEndSeconds: TimeInterval,
-        callbackFrameCount: Int = 0
+        captureEndSeconds: TimeInterval
     ) {
         let enqueuedAt = CACurrentMediaTime()
         lock.lock()
@@ -389,8 +393,7 @@ public final class TunerAnalysisSession: @unchecked Sendable {
             sampleRate: sampleRate,
             captureEndSeconds: captureEndSeconds,
             sequence: sequenceNumber,
-            generation: activeGeneration,
-            callbackFrameCount: callbackFrameCount
+            generation: activeGeneration
         )
 
         if pendingFrame != nil {
