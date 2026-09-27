@@ -1,6 +1,5 @@
 import Foundation
 import Observation
-import QuartzCore
 
 @MainActor
 @Observable
@@ -21,7 +20,6 @@ public final class TunerViewModel {
     public var lastTone: ToneMemory? = nil
     public var feedbackState: SignalFeedbackState = .inactive
     public var diagnostics: TunerDiagnostics = TunerDiagnostics()
-    public private(set) var holdOpacity: Double = 1.0
 
     /// Measured level of the audio the capture tap is actually delivering.
     ///
@@ -32,20 +30,32 @@ public final class TunerViewModel {
         session.inputLevel
     }
 
-    /// Opacity the gauge needle should render at.
+    /// Opacity the gauge needle should render at, given the hold fade.
     ///
-    /// Combines the hold fade with the de-emphasis applied to Sustained evidence, so
-    /// inferred readings never look as authoritative as measured ones.
-    public var needleOpacity: Double {
+    /// The fade itself is the display's: it is derived from the Reading's last-fresh
+    /// time and the display's own timeline, which is why this takes it as an argument
+    /// rather than reading a clock. What is decided here is how the fade and the
+    /// de-emphasis applied to Sustained evidence combine, so an inferred Reading never
+    /// looks as authoritative as a measured one however far through the hold it is.
+    public func needleOpacity(holdFade: Double) -> Double {
         if currentReading?.evidence == .sustained {
-            return min(holdOpacity, TunerPresentation.recoveredOpacity)
+            return min(holdFade, TunerPresentation.recoveredOpacity)
         }
-        return holdOpacity
+        return holdFade
     }
 
-    // Hold Presentation
-    private var holdPresentationTask: Task<Void, Never>? = nil
-    private var activeHoldFreshAt: TimeInterval? = nil
+    // Hold Expiry
+    //
+    // Clearing a Held Reading is a state transition and therefore belongs here, but the
+    // fade that leads up to it is a rendering concern and belongs to the display. So
+    // there is one scheduled task per Held Reading, not a poll: it wakes once, at the
+    // moment the hold expires, and the Reading's own age is read off the Reading.
+    private struct HoldExpiry {
+        let lastFreshAt: TimeInterval
+        let task: Task<Void, Never>
+    }
+
+    private var holdExpiry: HoldExpiry? = nil
 
     // Guided Mode
     public var guidedProgress: [Bool] = []
@@ -215,10 +225,7 @@ public final class TunerViewModel {
         // left for this layer to remember.
         session.stop()
         stopReferenceTone()
-        holdPresentationTask?.cancel()
-        holdPresentationTask = nil
-        activeHoldFreshAt = nil
-        holdOpacity = 1.0
+        cancelHoldExpiry()
         self.engineStatus = .paused
         self.currentReading = nil
         self.feedbackState = .inactive
@@ -236,20 +243,17 @@ public final class TunerViewModel {
     internal func handleSnapshot(_ snapshot: AnalysisSnapshot) {
         guard snapshot.generation == session.generation else { return }
         self.diagnostics = snapshot.diagnostics
-        self.applyReadingUpdate(snapshot.reading, at: snapshot.reading?.at ?? CACurrentMediaTime())
+        self.applyReadingUpdate(snapshot.reading)
         self.feedbackState = snapshot.feedbackState
         self.guidedProgress = snapshot.guidedProgress
         self.guidedTargetIndex = snapshot.guidedTargetIndex
     }
 
-    private func applyReadingUpdate(_ reading: TunerReading?, at now: TimeInterval) {
+    private func applyReadingUpdate(_ reading: TunerReading?) {
         if let reading {
             self.currentReading = reading
             if reading.freshness == .fresh {
-                holdPresentationTask?.cancel()
-                holdPresentationTask = nil
-                activeHoldFreshAt = nil
-                holdOpacity = 1.0
+                cancelHoldExpiry()
                 self.lastTone = ToneMemory(
                     note: reading.note,
                     frequency: reading.frequency,
@@ -258,44 +262,47 @@ public final class TunerViewModel {
                 )
             } else {
                 // reading.freshness == .held
-                holdOpacity = TunerPresentation.holdOpacity(for: reading, now: now)
-                startHoldPresentationTimerIfNeeded(for: reading)
+                scheduleHoldExpiryIfNeeded(for: reading)
             }
         } else {
             // Signal expired or no reading
-            holdPresentationTask?.cancel()
-            holdPresentationTask = nil
-            activeHoldFreshAt = nil
-            holdOpacity = 1.0
+            cancelHoldExpiry()
             self.currentReading = nil
         }
     }
 
-    private func startHoldPresentationTimerIfNeeded(for reading: TunerReading) {
-        guard activeHoldFreshAt != reading.lastFreshAt else { return }
-        holdPresentationTask?.cancel()
-        let holdFreshAt = reading.lastFreshAt
-        activeHoldFreshAt = holdFreshAt
-
-        holdPresentationTask = Task { @MainActor [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 33_000_000) // ~30 fps
-                guard let self else { break }
-                guard self.activeHoldFreshAt == holdFreshAt else { break }
-                guard let current = self.currentReading, current.freshness == .held, current.lastFreshAt == holdFreshAt else { break }
-                let currentTime = CACurrentMediaTime()
-                let elapsed = currentTime - holdFreshAt
-                if elapsed >= TunerPresentation.displayHoldDuration {
-                    self.currentReading = nil
-                    self.holdOpacity = 1.0
-                    self.activeHoldFreshAt = nil
-                    self.holdPresentationTask = nil
-                    break
-                } else {
-                    self.holdOpacity = TunerPresentation.holdOpacity(for: current, now: currentTime)
-                }
+    /// Arms the single wake-up that takes this Held Reading off the display.
+    ///
+    /// One task per Reading rather than one per frame: the frames that repeat the same
+    /// Held Reading all name the same `lastFreshAt`, so they re-arm nothing. The delay is
+    /// the display hold less the Reading's own age, both read off the Reading, which is
+    /// why scheduling it needs no clock here. The task fires a frame or so after the
+    /// deadline rather than on it — a Reading that is still the same Reading when it
+    /// fires is a Reading that has genuinely reached the end of its hold, and the state
+    /// transition happens in the same place in the hold it always did.
+    private func scheduleHoldExpiryIfNeeded(for reading: TunerReading) {
+        guard holdExpiry?.lastFreshAt != reading.lastFreshAt else { return }
+        cancelHoldExpiry()
+        let lastFreshAt = reading.lastFreshAt
+        let remaining = TunerPresentation.displayHoldDuration - (reading.at - reading.lastFreshAt)
+        let task = Task { @MainActor [weak self] in
+            if remaining > 0 {
+                try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
             }
+            guard !Task.isCancelled, let self else { return }
+            guard let current = self.currentReading,
+                  current.freshness == .held,
+                  current.lastFreshAt == lastFreshAt
+            else { return }
+            self.holdExpiry = nil
+            self.currentReading = nil
         }
+        holdExpiry = HoldExpiry(lastFreshAt: lastFreshAt, task: task)
+    }
+
+    private func cancelHoldExpiry() {
+        holdExpiry?.task.cancel()
+        holdExpiry = nil
     }
 
     /// Re-resolves the player's tuning choice, after `edit` adjusts the parts of the
@@ -344,10 +351,7 @@ public final class TunerViewModel {
     private func resetTrackerAndHold() {
         session.updateConfiguration(config)
         session.updateTargets(targets)
-        holdPresentationTask?.cancel()
-        holdPresentationTask = nil
-        activeHoldFreshAt = nil
-        holdOpacity = 1.0
+        cancelHoldExpiry()
         currentReading = nil
     }
 
@@ -423,10 +427,7 @@ public final class TunerViewModel {
 
     public func resetGuidedSession() {
         session.resetGuidedSession()
-        holdPresentationTask?.cancel()
-        holdPresentationTask = nil
-        activeHoldFreshAt = nil
-        holdOpacity = 1.0
+        cancelHoldExpiry()
         currentReading = nil
         self.guidedProgress = session.guidedProgress
         self.guidedTargetIndex = session.guidedTargetIndex

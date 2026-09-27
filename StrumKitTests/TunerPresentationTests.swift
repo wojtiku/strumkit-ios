@@ -272,10 +272,12 @@ struct TunerPresentationTests {
 
         vm.handleSnapshot(snap)
         #expect(vm.currentReading?.evidence == .sustained)
-        #expect(vm.needleOpacity == TunerPresentation.recoveredOpacity)
+        // The Reading is Fresh, so the fade the display derives is 1.0 and the only
+        // thing dimming the needle is the Evidence behind it.
+        #expect(vm.needleOpacity(holdFade: 1.0) == TunerPresentation.recoveredOpacity)
     }
 
-    @Test("TunerViewModel hold presentation retains reading across timer tick without premature expiration")
+    @Test("TunerViewModel hold presentation retains reading without premature expiration")
     @MainActor
     func testViewModelHoldPresentationRetainsReadingWithoutPrematureExpiration() async throws {
         let session = TunerAnalysisSession()
@@ -307,7 +309,10 @@ struct TunerPresentationTests {
         vm.handleSnapshot(freshSnap)
         #expect(vm.currentReading != nil)
         #expect(vm.currentReading?.freshness == .fresh)
-        #expect(vm.holdOpacity == 1.0)
+        // The fade is the display's to derive now, from the timeline. What is asserted
+        // here is the value the display will derive, which is the same policy the
+        // presentation layer has always been asked for.
+        #expect(TunerPresentation.holdOpacity(for: vm.currentReading, now: CACurrentMediaTime()) == 1.0)
 
         // Now deliver a held reading with fresh timestamp right at the start of hold
         let heldNow = CACurrentMediaTime()
@@ -336,7 +341,7 @@ struct TunerPresentationTests {
         vm.handleSnapshot(heldSnap)
         #expect(vm.currentReading != nil, "Current reading must be retained on held update")
 
-        // Wait for ~50ms (covering at least one 33ms timer tick)
+        // Wait for ~50ms (covering at least one tick of the hold window)
         try await Task.sleep(nanoseconds: 50_000_000)
 
         let elapsedReal = CACurrentMediaTime() - heldNow
@@ -344,7 +349,7 @@ struct TunerPresentationTests {
             // Reading must STILL be present and held — NOT prematurely erased by a timebase mismatch!
             #expect(vm.currentReading != nil, "Current reading must NOT be wiped out by timer prematurely (elapsed: \(elapsedReal)s)")
             #expect(vm.currentReading?.freshness == .held)
-            #expect(vm.holdOpacity >= TunerPresentation.minHoldOpacity)
+            #expect(TunerPresentation.holdOpacity(for: vm.currentReading, now: CACurrentMediaTime()) >= TunerPresentation.minHoldOpacity)
         }
     }
 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import QuartzCore
 
 /// Master Tuner view implementing the complete chorder native instrument tuner.
 public struct TunerView: View {
@@ -48,6 +49,17 @@ public struct TunerView: View {
     /// tell anyone about.
     private var showsInTuneVerdict: Bool {
         viewModel.currentReading?.inTune ?? false
+    }
+
+    /// When the display recomputes the hold fade.
+    ///
+    /// Only a Held reading fades, so that is the only time the timeline needs to run:
+    /// paused whenever the Reading is Fresh or absent, there is nothing to recompute and
+    /// nothing running to recompute it with. The floor on the interval is the rate the
+    /// fade was previously polled at, so a given moment of the hold still looks the
+    /// same — the ticks now belong to the display rather than to the ViewModel.
+    private var holdFadeSchedule: AnimationTimelineSchedule {
+        .animation(minimumInterval: 1.0 / 30.0, paused: viewModel.currentReading?.freshness != .held)
     }
 
     public var body: some View {
@@ -233,26 +245,42 @@ public struct TunerView: View {
             .padding(.horizontal, 16)
             .padding(.top, 10)
 
-            // Hardware 21-tick Gauge
-            HardwareGaugeView(
-                cents: viewModel.currentReading?.displayCents ?? 0,
-                visible: viewModel.currentReading != nil,
-                inTune: showsInTuneVerdict,
-                needleOpacity: viewModel.needleOpacity
-            )
-            .padding(.horizontal, 12)
+            // Hardware 21-tick Gauge and the readout fade together, off one timeline, so
+            // the two halves of the display never disagree about how far through the
+            // hold they are. A Held reading is a memory of a Fresh one, and how faded it
+            // is belongs to the display's own lifetime: the fade is a function of the
+            // Reading's last-fresh time and the timeline's date, so nothing has to wake
+            // up to recompute it.
+            TimelineView(holdFadeSchedule) { _ in
+                // CACurrentMediaTime, not the timeline's `Date`, because that is the clock
+                // a Reading's `lastFreshAt` is stamped on. Comparing the two would make
+                // the fade a function of how far apart the clocks happen to read.
+                let holdFade = TunerPresentation.holdOpacity(
+                    for: viewModel.currentReading,
+                    now: CACurrentMediaTime()
+                )
 
-            // Readout (Note, Superscript, Formatted Cents, Guidance, Frequencies)
-            HardwareReadoutView(
-                reading: viewModel.currentReading,
-                lastTone: viewModel.lastTone,
-                feedback: viewModel.feedbackState,
-                precision: viewModel.config.precision,
-                selectedTarget: activeTarget,
-                mode: viewModel.config.mode,
-                holdOpacity: viewModel.holdOpacity
-            )
-            .padding(.bottom, viewModel.engineStatus.guidanceError == nil ? 14 : 2)
+                VStack(spacing: 12) {
+                    HardwareGaugeView(
+                        cents: viewModel.currentReading?.displayCents ?? 0,
+                        visible: viewModel.currentReading != nil,
+                        inTune: showsInTuneVerdict,
+                        needleOpacity: viewModel.needleOpacity(holdFade: holdFade)
+                    )
+                    .padding(.horizontal, 12)
+
+                    HardwareReadoutView(
+                        reading: viewModel.currentReading,
+                        lastTone: viewModel.lastTone,
+                        feedback: viewModel.feedbackState,
+                        precision: viewModel.config.precision,
+                        selectedTarget: activeTarget,
+                        mode: viewModel.config.mode,
+                        holdOpacity: holdFade
+                    )
+                    .padding(.bottom, viewModel.engineStatus.guidanceError == nil ? 14 : 2)
+                }
+            }
 
             // Error Message (if permission denied or audio interrupted)
             if let errorMsg = viewModel.engineStatus.guidanceError {
