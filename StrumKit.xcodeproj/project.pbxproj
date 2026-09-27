@@ -25,6 +25,7 @@
 		4A9E2CEE6D2F8EA79D890DE6 /* AcousticStringSynthesizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6512DD441666CEA8C2E341E1 /* AcousticStringSynthesizer.swift */; };
 		4B83FC613F1B5F0B671AF77D /* ReplayMetricsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E53CEB0A21776415C63A53D /* ReplayMetricsTests.swift */; };
 		4EE77286015A4D3CC63D8649 /* all-4-with-noise.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 5FF6D36DA6C69606D2B24DF7 /* all-4-with-noise.m4a */; };
+		5207CD6269A616B1EC54848B /* Tuning.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8A79BC3EDA6DC83004F0D12 /* Tuning.swift */; };
 		561FAAA4A0EDA3DE91286A8B /* guitar-chord.wav in Resources */ = {isa = PBXBuildFile; fileRef = F58ECD875441BEB0C580378D /* guitar-chord.wav */; };
 		5D4B6B708CF2CBC57D4DFC8A /* TunerPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1983192D1D424FA02D8381F4 /* TunerPreferences.swift */; };
 		5D8AFF8F71E51B5C754295C7 /* SpectralNoiseFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3E1AA330EA39CA4EC7E83C2 /* SpectralNoiseFilter.swift */; };
@@ -132,6 +133,7 @@
 		BF9B7515D46B65D7111B714A /* PitchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PitchTests.swift; sourceTree = "<group>"; };
 		C1DCA1991583528B0D02353F /* PitchDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PitchDetector.swift; sourceTree = "<group>"; };
 		C28EE502C08CF315B4AFC869 /* Resampler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Resampler.swift; sourceTree = "<group>"; };
+		C8A79BC3EDA6DC83004F0D12 /* Tuning.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tuning.swift; sourceTree = "<group>"; };
 		C9BB5D4634DBC2D10A645DD2 /* TunerPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunerPresentation.swift; sourceTree = "<group>"; };
 		CADC48A2F52FE2D23DC527F7 /* SpectralPitchScorerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectralPitchScorerTests.swift; sourceTree = "<group>"; };
 		CB2976033828B4418762AF99 /* TunerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunerViewModel.swift; sourceTree = "<group>"; };
@@ -155,6 +157,7 @@
 				1983192D1D424FA02D8381F4 /* TunerPreferences.swift */,
 				C9BB5D4634DBC2D10A645DD2 /* TunerPresentation.swift */,
 				346448E9449E7C1E9948B6E4 /* TunerTypes.swift */,
+				C8A79BC3EDA6DC83004F0D12 /* Tuning.swift */,
 				101C65F96B631078935C6C58 /* TuningPresets.swift */,
 			);
 			path = Models;
@@ -447,6 +450,7 @@
 				0FEE411C8114698ABF7B1CAD /* TunerTypes.swift in Sources */,
 				0100F3AC35A36130215DB765 /* TunerView.swift in Sources */,
 				F1EB20448D31D6ABB6A84302 /* TunerViewModel.swift in Sources */,
+				5207CD6269A616B1EC54848B /* Tuning.swift in Sources */,
 				A3D86ECC1BF966D0DE9B989E /* TuningPresets.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

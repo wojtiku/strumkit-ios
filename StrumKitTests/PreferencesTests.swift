@@ -171,6 +171,50 @@ struct PreferencesTests {
         #expect(reloaded.guitarCustomMidi[0] == 36)
     }
 
+    @Test("A custom tuning with too few strings resolves to the instrument's default")
+    @MainActor
+    func testCustomTuningOfWrongLengthFallsBackToDefault() {
+        let (store, _) = makeIsolatedStore()
+        // Three strings on a six-string guitar: a save written by a build that
+        // offered a different string count, not something the player can enter.
+        var saved = TunerPreferences()
+        saved.guitarTuningId = "custom"
+        saved.guitarCustomMidi = [40, 45, 50]
+        store.save(saved)
+
+        let viewModel = TunerViewModel(preferencesStore: store)
+
+        #expect(viewModel.config.tuningId == "custom")
+        #expect(viewModel.config.customMidi == TunerPreferences.defaultGuitarMidi)
+        #expect(viewModel.targets.map(\.midi) == TunerPreferences.defaultGuitarMidi)
+    }
+
+    @Test("A custom note outside the tunable range resolves to the instrument's default")
+    @MainActor
+    func testOutOfRangeCustomNoteFallsBackToDefault() {
+        let (store, _) = makeIsolatedStore()
+        let viewModel = TunerViewModel(preferencesStore: store)
+
+        viewModel.updateCustomMidi(stringIndex: 0, midi: TunerConstants.customMidiMax + 17)
+
+        #expect(viewModel.config.tuningId == "custom")
+        #expect(viewModel.config.customMidi == TunerPreferences.defaultGuitarMidi)
+        #expect(viewModel.targets.map(\.midi) == TunerPreferences.defaultGuitarMidi)
+    }
+
+    @Test("An unknown tuning preset id resolves to the instrument's default preset")
+    @MainActor
+    func testUnknownTuningPresetFallsBackToDefault() {
+        let (store, _) = makeIsolatedStore()
+        let viewModel = TunerViewModel(preferencesStore: store)
+
+        viewModel.setTuningPreset(id: "no-such-preset")
+
+        #expect(viewModel.config.tuningId == "standard")
+        #expect(viewModel.config.customMidi == Presets.guitar[0].midi)
+        #expect(viewModel.targets.map(\.midi) == Presets.guitar[0].midi)
+    }
+
     @Test("AcousticStringSynthesizer can synthesize string pluck tones without channel mismatch")
     func testAcousticStringSynthesizerPluck() async {
         let synth = AcousticStringSynthesizer()

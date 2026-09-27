@@ -427,12 +427,19 @@ public enum AudioTestHelpers {
         yinDropoutRate: Double = 0.0,
         dropoutSeed: UInt64 = 1
     ) -> (frames: [ReplayFrame], tracker: PitchTracker) {
-        let available = Presets.presets(for: config.instrument)
-        let preset = available.first(where: { $0.id == config.tuningId }) ?? available[0]
-        let midiList = config.tuningId == "custom" ? config.customMidi : preset.midi
-        let targets = midiList.enumerated().map { index, midi in
-            StringTarget(note: PitchMath.midiNoteName(midi), midi: midi, frequency: PitchMath.midiFrequency(midi, a4: config.a4), number: midiList.count - index)
-        }
+        // A config handed to the replay path has already been through the resolution
+        // once, and resolution is idempotent, so re-resolving here yields the same
+        // Targets the app would build — from the one place that knows how.
+        let targets = Tuning.resolve(
+            instrument: config.instrument,
+            tuningId: config.tuningId,
+            customMidi: config.customMidi,
+            mode: config.mode,
+            a4: config.a4,
+            precision: config.precision,
+            guided: config.guided,
+            selectedString: config.selectedString
+        ).targets
 
         let tracker = PitchTracker()
         tracker.reset(targetCount: targets.count)

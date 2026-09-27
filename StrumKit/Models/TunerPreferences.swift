@@ -34,48 +34,65 @@ public struct TunerPreferences: Sendable, Equatable, Codable {
         self.guitarCustomMidi = guitarCustomMidi
         self.ukuleleCustomMidi = ukuleleCustomMidi
         self.a4 = max(TunerConstants.minCalibrationHz, min(TunerConstants.maxCalibrationHz, a4))
-        self.mode = mode == .manual ? .auto : mode
         self.precision = precision
+
+        // `guided` is the flag; the mode is what the player is shown. They cannot disagree
+        // across a save, because a saved **String** lock names an index into a **Tuning**
+        // that may not be loaded yet. A lock is live state, not a preference, so a stored
+        // `.manual` never survives a launch — but `.manual` set while the app is running
+        // does, and that path never comes through here.
         self.guided = guided && mode != .chromatic
+        self.mode = Self.storableMode(mode, guided: self.guided)
     }
 
-    /// Derives the active TunerConfig for the currently selected instrument.
-    public func activeConfig() -> TunerConfig {
-        let instrument = selectedInstrument
-        let rawTuningId = instrument == .guitar ? guitarTuningId : ukuleleTuningId
-        let availablePresets = Presets.presets(for: instrument)
+    /// The mode a **Tuning** choice is stored under: Chromatic, Guided, or Auto. Anything
+    /// else — a lock, or a mode that disagrees with `guided` — is not a durable choice.
+    private static func storableMode(_ mode: TunerMode, guided: Bool) -> TunerMode {
+        if mode == .chromatic { return .chromatic }
+        return guided ? .guided : .auto
+    }
 
-        let tuningId: String
-        let midi: [Int]
-        if rawTuningId == "custom" {
-            tuningId = "custom"
-            let customMidi = instrument == .guitar ? guitarCustomMidi : ukuleleCustomMidi
-            let expectedCount = instrument == .guitar ? 6 : 4
-            let isValid = customMidi.count == expectedCount && customMidi.allSatisfy {
-                $0 >= TunerConstants.customMidiMin && $0 <= TunerConstants.customMidiMax
-            }
-            midi = isValid ? customMidi : (instrument == .guitar ? Self.defaultGuitarMidi : Self.defaultUkuleleMidi)
-        } else if let matched = availablePresets.first(where: { $0.id == rawTuningId }) {
-            tuningId = matched.id
-            midi = matched.midi
-        } else {
-            let fallback = availablePresets.first ?? Presets.guitar[0]
-            tuningId = fallback.id
-            midi = fallback.midi
+    /// The **Tuning** stored for one **Instrument**: a **Preset** id, or `Tuning.customTuningId`.
+    public func tuningId(for instrument: InstrumentCategory) -> String {
+        switch instrument {
+        case .guitar: guitarTuningId
+        case .ukulele: ukuleleTuningId
         }
+    }
 
-        let safeMode: TunerMode = (mode == .chromatic) ? .chromatic : (guided ? .guided : .auto)
+    /// The **Note** numbers entered for a **Custom tuning** on one **Instrument**.
+    ///
+    /// As stored, unvalidated: whether they name a tuning the player can play is
+    /// `Tuning`'s decision, not this struct's.
+    public func customMidi(for instrument: InstrumentCategory) -> [Int] {
+        switch instrument {
+        case .guitar: guitarCustomMidi
+        case .ukulele: ukuleleCustomMidi
+        }
+    }
 
-        return TunerConfig(
-            instrument: instrument,
-            tuningId: tuningId,
-            customMidi: midi,
-            a4: a4,
-            mode: safeMode,
-            selectedString: 0,
-            precision: precision,
-            guided: guided && safeMode != .chromatic
-        )
+    /// Records a **Tuning** choice for one **Instrument**, leaving the other one alone.
+    ///
+    /// - Parameter customMidi: the **Note** numbers of a **Custom tuning**. Left as it was
+    ///   when omitted, so choosing a shipped **Preset** does not disturb a **Custom tuning**
+    ///   the player may still want back.
+    public mutating func setTuning(_ tuningId: String, customMidi: [Int]? = nil, for instrument: InstrumentCategory) {
+        switch instrument {
+        case .guitar:
+            guitarTuningId = tuningId
+            if let customMidi { guitarCustomMidi = customMidi }
+        case .ukulele:
+            ukuleleTuningId = tuningId
+            if let customMidi { ukuleleCustomMidi = customMidi }
+        }
+    }
+
+    /// The configuration the tuner will run under for the stored choices.
+    ///
+    /// A read of the one resolution in `Tuning` — the same resolution the **Targets** come
+    /// from, so the two cannot describe different tunings.
+    public func activeConfig() -> TunerConfig {
+        Tuning.resolve(self).config
     }
 }
 
