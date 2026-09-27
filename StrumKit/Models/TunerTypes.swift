@@ -53,14 +53,6 @@ public enum EngineStatus: String, Sendable {
     }
 }
 
-public enum SignalCondition: String, Sendable {
-    case ready
-    case quiet
-    case noisy
-    case clipping
-    case ambiguous
-}
-
 public enum SignalFeedbackState: String, Sendable {
     case ready
     case inactive
@@ -201,13 +193,12 @@ public struct TunerConfig: Sendable, Equatable, Codable {
     }
 }
 
-/// Selects which detector advances the tracker.
-///
-/// An internal experiment switch with no settings UI, mirroring the way
-/// `SpectralPitchScorer.isWhiteningEnabled` was exposed. `.yinPlusSpectral` is the
-/// shipping strategy and must remain the default; the alternate exists so the
-/// reverse-engineered WebTuna pipeline can be run and diffed against it, never as a
-/// silent substitution.
+/// One window of audio offered to the analysis session, with the capture metadata
+/// needed to place it in time and to judge whether it is still wanted: the rate it
+/// was captured at, the timestamp of its *trailing* edge, the tap callback it
+/// arrived in, and the generation it belongs to. `TunerAnalysisSession` drops a
+/// frame whose `generation` is no longer current rather than analysing it, which
+/// is what makes a configuration change safe while audio is in flight.
 public struct AnalysisFrame: Sendable {
     public let samples: [Float]
     public let sampleRate: Double
@@ -216,15 +207,6 @@ public struct AnalysisFrame: Sendable {
     public let sequence: UInt64
     public let generation: UInt64
     public let callbackFrameCount: Int
-    /// How many samples at the *end* of `samples` are new since the previous frame.
-    ///
-    /// `samples` is a trailing window, so consecutive frames overlap by design — the YIN
-    /// detector is stateless per window and does not care. The WebTuna port, like the
-    /// original wasm, is a *stateful* ring that must receive each captured sample exactly
-    /// once; handing it an overlapping window makes it re-analyse old audio and corrupts
-    /// its time history. Defaults to the whole window, which is correct for replay and for
-    /// callers that only ever present new samples.
-    public let newSampleCount: Int
 
     public init(
         samples: [Float],
@@ -232,8 +214,7 @@ public struct AnalysisFrame: Sendable {
         captureEndSeconds: TimeInterval,
         sequence: UInt64,
         generation: UInt64,
-        callbackFrameCount: Int = 0,
-        newSampleCount: Int? = nil
+        callbackFrameCount: Int = 0
     ) {
         self.samples = samples
         self.sampleRate = sampleRate
@@ -241,7 +222,6 @@ public struct AnalysisFrame: Sendable {
         self.sequence = sequence
         self.generation = generation
         self.callbackFrameCount = callbackFrameCount
-        self.newSampleCount = min(newSampleCount ?? samples.count, samples.count)
     }
 }
 

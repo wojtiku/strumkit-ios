@@ -156,7 +156,7 @@ public final class TunerViewModel {
             // callback. `TunerAnalysisSession` is `Sendable`, so this is safe.
             let analysisSession = session
             NSLog("[VM] starting capture")
-            try captureService.startCapture(bufferSize: 1024) { window, sampleRate, captureEndSeconds, callbackFrameCount, _ in
+            try captureService.startCapture(bufferSize: 1024) { window, sampleRate, captureEndSeconds, callbackFrameCount in
                 analysisSession.submitLiveAudio(
                     window: window,
                     sampleRate: sampleRate,

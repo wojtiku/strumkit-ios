@@ -66,7 +66,6 @@ public final class SpectralPitchScorer: @unchecked Sendable {
 
     // MARK: - Options & Switches
     public var isWhiteningEnabled: Bool = true
-    public var isScoringEnabled: Bool = true
 
     // MARK: - Precomputed Tables & Buffers
     private let lock = NSLock()
@@ -276,7 +275,7 @@ public final class SpectralPitchScorer: @unchecked Sendable {
     /// Scores a window and returns candidates plus the per-harmonic evidence
     /// behind them. `scoreWindow` is the projection of this.
     func analyzeWindow(_ samples: [Float]) -> WindowAnalysis? {
-        guard isScoringEnabled, !samples.isEmpty else { return nil }
+        guard !samples.isEmpty else { return nil }
 
         lock.lock()
         defer { lock.unlock() }

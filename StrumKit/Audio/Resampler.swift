@@ -14,7 +14,7 @@ public final class Resampler: @unchecked Sendable {
     public init() {}
 
     /// Calculates or retrieves precomputed polyphase sinc filter coefficients for a given sample rate.
-    public func getCoefficients(for rate: Double) -> [[Float]] {
+    private func getCoefficients(for rate: Double) -> [[Float]] {
         let roundedRate = Int(round(rate))
         lock.lock()
         defer { lock.unlock() }

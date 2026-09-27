@@ -47,9 +47,12 @@ public final class TunerAnalysisSession: @unchecked Sendable {
 
     /// Minimum pre-whitening RMS for a recovered candidate.
     ///
-    /// Deliberately above `PitchDetector.minAnalysisRMS` (0.00006): recovery is
-    /// allowed to reach further into a decay than fresh acquisition is, but not into
-    /// effectively silent audio.
+    /// Deliberately above `PitchDetector.minAnalysisRMS` (0.00006) — five times as
+    /// loud, not lower. Recovery runs only against a live prior, on a frame that is
+    /// not an onset and where YIN has failed or jumped, so it can only ever extend a
+    /// Note already heard, never name one. That Note is carried in the prior, not
+    /// necessarily in this window, so the window itself still has to hold real
+    /// energy from it — which is why the floor sits above the fresh path's.
     public static let spectralRecoveryMinRMS: Double = 0.0003
 
     /// A recovered candidate must beat the best candidate outside the prior's

@@ -72,8 +72,7 @@ public final class AudioCaptureService: @unchecked Sendable {
             _ window: [Float],
             _ sampleRate: Double,
             _ captureEndSeconds: TimeInterval,
-            _ callbackFrameCount: Int,
-            _ newSampleCount: Int
+            _ callbackFrameCount: Int
         ) -> Void
     ) throws {
         try queue.sync {
@@ -204,7 +203,6 @@ public final class AudioCaptureService: @unchecked Sendable {
                         Array(scratch.samples[0..<neededSamples]),
                         inputFormat.sampleRate,
                         captureEndSeconds,
-                        frameLength,
                         frameLength
                     )
                 } else {
@@ -217,7 +215,6 @@ public final class AudioCaptureService: @unchecked Sendable {
                             Array(scratch.samples[0..<available]),
                             inputFormat.sampleRate,
                             captureEndSeconds,
-                            frameLength,
                             frameLength
                         )
                     }
@@ -241,8 +238,8 @@ public final class AudioCaptureService: @unchecked Sendable {
         bufferSize: AVAudioFrameCount = 1024,
         onBufferReceived: @escaping @Sendable ([Float], Double) -> Void
     ) throws {
-        try startCapture(bufferSize: bufferSize) { window, sampleRate, _, _, newSamples in
-            onBufferReceived(Array(window.prefix(newSamples)), sampleRate)
+        try startCapture(bufferSize: bufferSize) { window, sampleRate, _, _ in
+            onBufferReceived(window, sampleRate)
         }
     }
 

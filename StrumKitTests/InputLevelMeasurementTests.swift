@@ -12,8 +12,7 @@ struct InputLevelMeasurementTests {
         for i in 0..<40 {
             _ = session.processFrameSync(AnalysisFrame(
                 samples: window, sampleRate: 48000, captureEndSeconds: Double(i) * 0.021,
-                sequence: UInt64(i), generation: session.generation, callbackFrameCount: 1024,
-                newSampleCount: 1024
+                sequence: UInt64(i), generation: session.generation, callbackFrameCount: 1024
             ))
         }
         let level = session.inputLevel
@@ -32,8 +31,7 @@ struct InputLevelMeasurementTests {
         for i in 0..<40 {
             _ = session.processFrameSync(AnalysisFrame(
                 samples: window, sampleRate: 48000, captureEndSeconds: Double(i) * 0.021,
-                sequence: UInt64(i), generation: session.generation, callbackFrameCount: 1024,
-                newSampleCount: 1024
+                sequence: UInt64(i), generation: session.generation, callbackFrameCount: 1024
             ))
         }
         let level = session.inputLevel
