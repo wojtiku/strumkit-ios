@@ -129,7 +129,7 @@ struct RealStrumMeasurementTests {
                 let note = reading?.note ?? "-"
                 let displayCents = reading?.displayCents ?? Double.nan
                 let targetFrequency = reading?.target.frequency ?? 0
-                let recovered = (reading?.recovered ?? false) ? 1 : 0
+                let sustained = (reading?.evidence == .sustained) ? 1 : 0
 
                 lines.append(String(
                     format: "SEG|%@|t=%.4f|hz=%.4f|state=%@|tgt=%d|cents=%.3f|conf=%.4f|rej=%@|raw=%.4f|note=%@|tf=%.4f|dcents=%.3f|rec=%d|rms=%.6f",
@@ -145,7 +145,7 @@ struct RealStrumMeasurementTests {
                     note,
                     targetFrequency,
                     displayCents,
-                    recovered,
+                    sustained,
                     frame.rawRMS
                 ))
             }

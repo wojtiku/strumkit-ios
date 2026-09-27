@@ -148,7 +148,8 @@ struct MicrophoneSeamTests {
                     cents: 0.0,
                     displayCents: 0.0,
                     freshness: .fresh,
-                    inTune: true
+                    inTune: true,
+                    evidence: .measured
                 ),
                 pitchResult: PitchResult(
                     frequency: guitarLowE.frequency,
@@ -156,7 +157,8 @@ struct MicrophoneSeamTests {
                     centsDeviation: 0.0,
                     confidence: 0.9,
                     amplitudeRMS: 0.05,
-                    isSignalPresent: true
+                    isSignalPresent: true,
+                    evidence: .measured
                 ),
                 feedbackState: .tracking,
                 guidedProgress: [],

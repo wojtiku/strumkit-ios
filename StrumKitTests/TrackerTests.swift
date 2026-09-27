@@ -20,7 +20,8 @@ struct TrackerTests {
             centsDeviation: 1.8,
             confidence: 0.9,
             amplitudeRMS: 0.05,
-            isSignalPresent: true
+            isSignalPresent: true,
+            evidence: .measured
         )
 
         // Feed 3 consecutive observations (40ms total) to confirm target acquisition
@@ -53,7 +54,8 @@ struct TrackerTests {
             centsDeviation: 0.0,
             confidence: 0.95,
             amplitudeRMS: 0.05,
-            isSignalPresent: true
+            isSignalPresent: true,
+            evidence: .measured
         )
 
         // Stream 20ms hops for 0.5 seconds: hold in progress, not yet completed
@@ -85,7 +87,8 @@ struct TrackerTests {
             centsDeviation: 0.0,
             confidence: 0.9,
             amplitudeRMS: 0.03,
-            isSignalPresent: true
+            isSignalPresent: true,
+            evidence: .measured
         )
 
         // 1. Initial 3 frames to acquire String 6 (E2)
@@ -104,7 +107,8 @@ struct TrackerTests {
             centsDeviation: 0,
             confidence: 0,
             amplitudeRMS: 0.0003,
-            isSignalPresent: false
+            isSignalPresent: false,
+            evidence: .measured
         )
 
         // Two more confirming frames, so the times below are "2 frames after the
@@ -190,7 +194,8 @@ struct TrackerTests {
             centsDeviation: 0.0,
             confidence: 0.95,
             amplitudeRMS: 0.05,
-            isSignalPresent: true
+            isSignalPresent: true,
+            evidence: .measured
         )
 
         // Acquire in-tune manual A4 reading at t=10.0
@@ -207,7 +212,8 @@ struct TrackerTests {
             centsDeviation: 0,
             confidence: 0,
             amplitudeRMS: 0.0001,
-            isSignalPresent: false
+            isSignalPresent: false,
+            evidence: .measured
         )
 
         // At t=10.10 (elapsed 0.10s <= 0.85s, <= 1.0s): retain display and prior.
@@ -275,7 +281,8 @@ struct TrackerTests {
             centsDeviation: 0.0,
             confidence: 0.95,
             amplitudeRMS: 0.05,
-            isSignalPresent: true
+            isSignalPresent: true,
+            evidence: .measured
         )
 
         let lostResult = PitchResult(
@@ -284,7 +291,8 @@ struct TrackerTests {
             centsDeviation: 0.0,
             confidence: 0.0,
             amplitudeRMS: 0.0001,
-            isSignalPresent: false
+            isSignalPresent: false,
+            evidence: .measured
         )
 
         // 1. Stream 0.8 seconds of fresh in-tune frames (10.0 to 10.84, confirming at 10.04)
@@ -339,7 +347,8 @@ struct TrackerTests {
             centsDeviation: 0.0,
             confidence: 0.9,
             amplitudeRMS: 0.04,
-            isSignalPresent: true
+            isSignalPresent: true,
+            evidence: .measured
         )
         _ = tracker.process(pitchResult: resultE2, at: 10.00, config: config, targets: targets)
         _ = tracker.process(pitchResult: resultE2, at: 10.02, config: config, targets: targets)
@@ -359,7 +368,7 @@ struct TrackerTests {
         //    **What it asserts now.** The dropout is held through (the display keeps
         //    E2 with its own `lastFreshAt`), and a sustained dropout does reach a
         //    genuine hold, so step 3 really is a replacement *out of a hold*.
-        let emptyResult = PitchResult(frequency: 0, closestNote: MusicalNote(midiNoteNumber: 40), centsDeviation: 0, confidence: 0, amplitudeRMS: 0.0001, isSignalPresent: false)
+        let emptyResult = PitchResult(frequency: 0, closestNote: MusicalNote(midiNoteNumber: 40), centsDeviation: 0, confidence: 0, amplitudeRMS: 0.0001, isSignalPresent: false, evidence: .measured)
         let through = tracker.process(pitchResult: emptyResult, at: 10.30, config: config, targets: targets)
         #expect(through?.freshness == .fresh,
                 "One silent frame is a held-through dropout; freshness is \(through?.freshness.rawValue ?? "no reading")")
@@ -379,7 +388,8 @@ struct TrackerTests {
             centsDeviation: 0.0,
             confidence: 0.95,
             amplitudeRMS: 0.08,
-            isSignalPresent: true
+            isSignalPresent: true,
+            evidence: .measured
         )
         // Onset requires 2 acquire readings
         _ = tracker.process(pitchResult: resultA2, at: 10.40, config: config, targets: targets)
@@ -409,14 +419,14 @@ struct TrackerTests {
             let tracker = PitchTracker()
             // Settle tracker on E4 at +40 cents
             for t in stride(from: 0.0, through: 0.50, by: 0.02) {
-                let r = PitchResult(frequency: freqPlus40, closestNote: MusicalNote(midiNoteNumber: 64), centsDeviation: 40.0, confidence: 0.95, amplitudeRMS: 0.05, isSignalPresent: true)
+                let r = PitchResult(frequency: freqPlus40, closestNote: MusicalNote(midiNoteNumber: 64), centsDeviation: 40.0, confidence: 0.95, amplitudeRMS: 0.05, isSignalPresent: true, evidence: .measured)
                 _ = tracker.process(pitchResult: r, at: t, config: config, targets: targets)
             }
 
             // Step to -40 cents at t = 0.52 (first changed estimate)
             var lastReading: TunerReading? = nil
             for t in stride(from: 0.52, through: 0.52 + 0.150, by: 0.02) {
-                let r = PitchResult(frequency: freqMinus40, closestNote: MusicalNote(midiNoteNumber: 64), centsDeviation: -40.0, confidence: 0.95, amplitudeRMS: 0.05, isSignalPresent: true)
+                let r = PitchResult(frequency: freqMinus40, closestNote: MusicalNote(midiNoteNumber: 64), centsDeviation: -40.0, confidence: 0.95, amplitudeRMS: 0.05, isSignalPresent: true, evidence: .measured)
                 lastReading = tracker.process(pitchResult: r, at: t, config: config, targets: targets)
             }
 
@@ -429,13 +439,13 @@ struct TrackerTests {
         do {
             let tracker = PitchTracker()
             for t in stride(from: 0.0, through: 0.50, by: 0.043) {
-                let r = PitchResult(frequency: freqPlus40, closestNote: MusicalNote(midiNoteNumber: 64), centsDeviation: 40.0, confidence: 0.95, amplitudeRMS: 0.05, isSignalPresent: true)
+                let r = PitchResult(frequency: freqPlus40, closestNote: MusicalNote(midiNoteNumber: 64), centsDeviation: 40.0, confidence: 0.95, amplitudeRMS: 0.05, isSignalPresent: true, evidence: .measured)
                 _ = tracker.process(pitchResult: r, at: t, config: config, targets: targets)
             }
 
             var lastReading: TunerReading? = nil
             for t in stride(from: 0.543, through: 0.543 + 0.150, by: 0.043) {
-                let r = PitchResult(frequency: freqMinus40, closestNote: MusicalNote(midiNoteNumber: 64), centsDeviation: -40.0, confidence: 0.95, amplitudeRMS: 0.05, isSignalPresent: true)
+                let r = PitchResult(frequency: freqMinus40, closestNote: MusicalNote(midiNoteNumber: 64), centsDeviation: -40.0, confidence: 0.95, amplitudeRMS: 0.05, isSignalPresent: true, evidence: .measured)
                 lastReading = tracker.process(pitchResult: r, at: t, config: config, targets: targets)
             }
 
@@ -466,7 +476,8 @@ struct TrackerTests {
                 centsDeviation: jitterCents,
                 confidence: 0.95,
                 amplitudeRMS: 0.05,
-                isSignalPresent: true
+                isSignalPresent: true,
+                evidence: .measured
             )
             if let reading = tracker.process(pitchResult: result, at: t, config: config, targets: targets) {
                 readings.append(reading)
@@ -503,7 +514,8 @@ struct TrackerTests {
             centsDeviation: 30.0,
             confidence: 0.95,
             amplitudeRMS: 0.05,
-            isSignalPresent: true
+            isSignalPresent: true,
+            evidence: .measured
         )
 
         // Elapsed confirmation: 0.00, 0.02, 0.04 (span = 0.040s)
@@ -523,7 +535,8 @@ struct TrackerTests {
             centsDeviation: -25.0,
             confidence: 0.95,
             amplitudeRMS: 0.20, // onset RMS (4x c4Result)
-            isSignalPresent: true
+            isSignalPresent: true,
+            evidence: .measured
         )
 
         // Onset requires 20ms span (0.10 to 0.12)
@@ -541,8 +554,8 @@ struct TrackerTests {
 
     // MARK: - Recovery Trust Boundary
 
-    @Test("A recovered estimate may not assert in tune, but a confirmed one still does")
-    func testRecoveredFramesCannotAssertInTune() {
+    @Test("A Sustained estimate may not assert in tune, but a Measured one still does")
+    func testSustainedFramesCannotAssertInTune() {
         let tracker = PitchTracker()
         let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .auto)
         let targets = Presets.guitar[0].midi.enumerated().map { index, midi in
@@ -556,7 +569,8 @@ struct TrackerTests {
             centsDeviation: 0.0,
             confidence: 0.95,
             amplitudeRMS: 0.05,
-            isSignalPresent: true
+            isSignalPresent: true,
+            evidence: .measured
         )
         var confirmedReading: TunerReading?
         for t in stride(from: 10.0, through: 10.5, by: 0.02) {
@@ -564,51 +578,51 @@ struct TrackerTests {
         }
         #expect(confirmedReading?.inTune == true, "A YIN-confirmed in-tune frame must report inTune")
 
-        let recovered = PitchResult(
+        let sustained = PitchResult(
             frequency: 82.41,
             closestNote: MusicalNote(midiNoteNumber: 40),
             centsDeviation: 0.0,
             confidence: 0.20,
             amplitudeRMS: 0.001,
             isSignalPresent: true,
-            recovered: true
+            evidence: .sustained
         )
 
-        // The identical frequency arriving as a recovered estimate must not.
+        // The identical frequency arriving as a Sustained estimate must not.
         //
         // **What this used to assert.** That ONE recovered frame at 10.52 is
-        // published with `recovered == true` and `inTune == false` — that the trust
+        // published flagged as recovered, with `inTune == false` — that the trust
         // boundary is enforced by *labelling* the frame.
         //
         // **Why that was wrong.** Not because the boundary is wrong — it is
-        // absolute, and `inTuneMayBeAsserted` reads `pitchResult.recovered` rather
-        // than the published flag, so the verdict was never assertable. But a
-        // single recovered frame is not evidence that YIN has failed either, and
+        // absolute, and `inTuneMayBeAsserted` reads the grade the frame carries
+        // rather than the published flag, so the verdict was never assertable. But
+        // a single recovered frame is not evidence that YIN has failed either, and
         // letting it change the display is the same flicker as a silent frame. The
         // assertion was also arithmetically impossible to keep: `AudioTestHelpers`
         // (and `TunerViewModel`) derive the display state from exactly those two
-        // fields, so "stayed `fresh`" and "`recovered == true`" on the same reading
+        // facts, so "stayed `fresh`" and "flagged as recovered" on the same reading
         // is a contradiction.
         //
         // **What it asserts now.** The boundary is enforced by *suppression*: a
-        // lone recovered frame never reaches the screen at all, and once the streak
+        // lone Sustained frame never reaches the screen at all, and once the streak
         // justifies showing it, the frame that does reach the screen asserts
         // nothing. Both halves are asserted, because the first is what makes the
-        // second a real statement about the display and not a flag check.
-        let heldThrough = tracker.process(pitchResult: recovered, at: 10.52, config: config, targets: targets)
-        #expect(heldThrough?.recovered == false,
-                "One recovered frame must not reach the display; the display is still showing the last YIN-confirmed reading")
+        // second a real statement about the display and not a grade check.
+        let heldThrough = tracker.process(pitchResult: sustained, at: 10.52, config: config, targets: targets)
+        #expect(heldThrough?.evidence == .measured,
+                "One Sustained frame must not reach the display; the display is still showing the last YIN-confirmed reading")
         #expect(heldThrough?.freshness == .fresh)
         #expect(heldThrough?.inTune == true,
                 "A held-through frame is still the last YIN-confirmed measurement, so its in-tune verdict is honest and must survive")
         #expect(tracker.consecutiveYinFailures == 1)
 
-        _ = tracker.process(pitchResult: recovered, at: 10.54, config: config, targets: targets)
-        let recoveredReading = tracker.process(pitchResult: recovered, at: 10.56, config: config, targets: targets)
-        #expect(recoveredReading?.recovered == true,
-                "A third consecutive recovery-sourced frame must reach the display; recovered is \(recoveredReading?.recovered ?? false)")
-        #expect(recoveredReading?.inTune == false,
-                "Recovery must not assert in tune, even at zero cents error")
+        _ = tracker.process(pitchResult: sustained, at: 10.54, config: config, targets: targets)
+        let sustainedReading = tracker.process(pitchResult: sustained, at: 10.56, config: config, targets: targets)
+        #expect(sustainedReading?.evidence == .sustained,
+                "A third consecutive recovery-sourced frame must reach the display; its grade is \(String(describing: sustainedReading?.evidence))")
+        #expect(sustainedReading?.inTune == false,
+                "Sustained evidence must not assert in tune, even at zero cents error")
 
         // Suppressing the verdict must not corrupt the hysteresis state machine.
         // Two confirmed frames, not one: strengthening back to a YIN reading is the
@@ -617,13 +631,13 @@ struct TrackerTests {
         #expect(firstBack?.inTune == false,
                 "One confirmed frame is not enough to hand the display back; test setup for the next assertion")
         let stillConfirmed = tracker.process(pitchResult: confirmed, at: 10.60, config: config, targets: targets)
-        #expect(stillConfirmed?.recovered == false)
+        #expect(stillConfirmed?.evidence == .measured)
         #expect(stillConfirmed?.inTune == true,
-                "In-tune hysteresis must survive a recovered frame without resetting")
+                "In-tune hysteresis must survive a Sustained frame without resetting")
     }
 
-    @Test("Recovered frames never complete a guided string")
-    func testRecoveredFramesCannotCompleteGuidedString() {
+    @Test("Sustained frames never complete a guided string")
+    func testSustainedFramesCannotCompleteGuidedString() {
         let tracker = PitchTracker()
         let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .guided, guided: true)
         let targets = Presets.guitar[0].midi.enumerated().map { index, midi in
@@ -631,20 +645,20 @@ struct TrackerTests {
         }
         tracker.reset(targetCount: targets.count)
 
-        let recovered = PitchResult(
+        let sustained = PitchResult(
             frequency: 82.41,
             closestNote: MusicalNote(midiNoteNumber: 40),
             centsDeviation: 0.0,
             confidence: 0.30,
             amplitudeRMS: 0.001,
             isSignalPresent: true,
-            recovered: true
+            evidence: .sustained
         )
         for t in stride(from: 10.0, through: 12.5, by: 0.02) {
-            _ = tracker.process(pitchResult: recovered, at: t, config: config, targets: targets)
+            _ = tracker.process(pitchResult: sustained, at: t, config: config, targets: targets)
         }
         #expect(tracker.guidedProgress[0] == false,
-                "2.5s of recovered in-tune frames must not complete a guided string")
+                "2.5s of Sustained in-tune frames must not complete a guided string")
     }
 
     // MARK: - Guided Progress Preservation
@@ -670,7 +684,8 @@ struct TrackerTests {
                 centsDeviation: 0.0,
                 confidence: 0.95,
                 amplitudeRMS: 0.05,
-                isSignalPresent: true
+                isSignalPresent: true,
+                evidence: .measured
             )
             // 1.3s of continuous in-tune evidence clears the 1.0s guided hold.
             for step in 0..<65 {
@@ -712,8 +727,8 @@ struct TrackerTests {
             StringTarget(note: PitchMath.midiNoteName(midi), midi: midi, frequency: PitchMath.midiFrequency(midi), number: 6 - index)
         }
 
-        let resultE2 = PitchResult(frequency: 82.41, closestNote: MusicalNote(midiNoteNumber: 40), centsDeviation: 0.0, confidence: 0.9, amplitudeRMS: 0.03, isSignalPresent: true)
-        let empty = PitchResult(frequency: 0, closestNote: MusicalNote(midiNoteNumber: 40), centsDeviation: 0, confidence: 0, amplitudeRMS: 0.0001, isSignalPresent: false)
+        let resultE2 = PitchResult(frequency: 82.41, closestNote: MusicalNote(midiNoteNumber: 40), centsDeviation: 0.0, confidence: 0.9, amplitudeRMS: 0.03, isSignalPresent: true, evidence: .measured)
+        let empty = PitchResult(frequency: 0, closestNote: MusicalNote(midiNoteNumber: 40), centsDeviation: 0, confidence: 0, amplitudeRMS: 0.0001, isSignalPresent: false, evidence: .measured)
 
         // Observation 1 at t = 0.00
         let r1 = tracker.process(pitchResult: resultE2, at: 0.00, config: config, targets: targets)
@@ -744,13 +759,14 @@ struct TrackerTests {
             centsDeviation: 0.0,
             confidence: 0.9,
             amplitudeRMS: rms,
-            isSignalPresent: true
+            isSignalPresent: true,
+            evidence: .measured
         )
     }
 
-    /// The identical reading arriving from spectral recovery: a success for the
+    /// The identical reading arriving as Sustained evidence: a success for the
     /// pipeline, a failure for YIN.
-    private static func recoveredE2() -> PitchResult {
+    private static func sustainedE2() -> PitchResult {
         PitchResult(
             frequency: 82.41,
             closestNote: MusicalNote(midiNoteNumber: 40),
@@ -758,7 +774,7 @@ struct TrackerTests {
             confidence: 0.30,
             amplitudeRMS: 0.002,
             isSignalPresent: true,
-            recovered: true
+            evidence: .sustained
         )
     }
 
@@ -771,7 +787,8 @@ struct TrackerTests {
             centsDeviation: 0,
             confidence: 0,
             amplitudeRMS: 0.0003,
-            isSignalPresent: false
+            isSignalPresent: false,
+            evidence: .measured
         )
     }
 
@@ -790,8 +807,8 @@ struct TrackerTests {
         for reading in readings {
             let state: String
             if let reading {
-                state = reading.recovered
-                    ? "recovered"
+                state = reading.evidence == .sustained
+                    ? "sustained"
                     : (reading.freshness == .fresh ? "fresh" : "held")
             } else {
                 state = "none"
@@ -832,7 +849,7 @@ struct TrackerTests {
         let trace = readings.map { reading -> String in
             guard let reading else { return "none" }
             if reading.freshness != .fresh { return "held" }
-            return reading.recovered ? "recovered" : "fresh"
+            return reading.evidence == .sustained ? "sustained" : "fresh"
         }.joined(separator: " ")
         #expect(transitions <= 1,
                 "A dropout on every third frame produced \(transitions) visible transitions; the estimator never went three frames without a pitch, so the display never earned the right to change. Trace: \(trace)")
@@ -859,7 +876,8 @@ struct TrackerTests {
             centsDeviation: 0.0,
             confidence: 0.95,
             amplitudeRMS: 0.08,
-            isSignalPresent: true
+            isSignalPresent: true,
+            evidence: .measured
         )
         _ = tracker.process(pitchResult: a2, at: 10.10, config: config, targets: targets)
         let replaced = tracker.process(pitchResult: a2, at: 10.12, config: config, targets: targets)
@@ -933,8 +951,8 @@ struct TrackerTests {
                 "The note should be re-acquired once 40 ms of evidence exists")
     }
 
-    @Test("A recovery-sourced reading is a failure for YIN, not a weaker success")
-    func testRecoveredFrameCountsAsYinFailure() {
+    @Test("A Sustained reading is a failure for YIN, not a weaker success")
+    func testSustainedFrameCountsAsYinFailure() {
         let tracker = PitchTracker()
         let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .auto)
         let targets = Self.guitarTargets()
@@ -947,12 +965,12 @@ struct TrackerTests {
         #expect(tracker.consecutiveYinSuccesses == 5)
         #expect(tracker.consecutiveYinFailures == 0)
 
-        // One recovery frame: signal present, so the pipeline succeeded, but the
+        // One Sustained frame: signal present, so the pipeline succeeded, but the
         // pitch came from the spectral scorer, so YIN did not produce it.
-        let recovered = tracker.process(pitchResult: Self.recoveredE2(), at: 10.10,
+        let sustained = tracker.process(pitchResult: Self.sustainedE2(), at: 10.10,
                                         config: config, targets: targets)
-        #expect(recovered != nil, "a recovered reading is still a reading")
-        #expect(recovered?.freshness == .fresh)
+        #expect(sustained != nil, "a Sustained reading is still a reading")
+        #expect(sustained?.freshness == .fresh)
         #expect(tracker.consecutiveYinFailures == 1)
         #expect(tracker.consecutiveYinSuccesses == 0)
         #expect(tracker.shouldHoldThroughDropout)

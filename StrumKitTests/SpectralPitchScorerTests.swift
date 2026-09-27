@@ -351,17 +351,17 @@ struct SpectralPitchScorerTests {
             )
 
             let measured = frames.compactMap { $0.reading }.filter(AudioTestHelpers.wasMeasuredThisFrame)
-            let anchor = measured.filter { !$0.recovered }
+            let anchor = measured.filter { $0.evidence == .measured }
                 .map { PitchMath.centsBetween(measured: $0.frequency, reference: fixture.reference) }
-            let recovered = measured.filter { $0.recovered }
+            let sustained = measured.filter { $0.evidence == .sustained }
 
             #expect(anchor.count >= 2, "\(fixture.name): need at least 2 YIN frames to anchor against")
-            #expect(recovered.count >= 5, "\(fixture.name): expected spectral recovery to engage during the decay")
+            #expect(sustained.count >= 5, "\(fixture.name): expected spectral recovery to engage during the decay")
 
-            guard !anchor.isEmpty, !recovered.isEmpty else { continue }
+            guard !anchor.isEmpty, !sustained.isEmpty else { continue }
 
             let anchorMean = anchor.reduce(0, +) / Double(anchor.count)
-            let offsets = recovered
+            let offsets = sustained
                 .map { PitchMath.centsBetween(measured: $0.frequency, reference: fixture.reference) - anchorMean }
                 .sorted()
 
@@ -372,20 +372,20 @@ struct SpectralPitchScorerTests {
 
             print(String(format: "RECOVERY-BIAS [%@]: anchor n=%lld mean=%+.2fc | recovered n=%lld mean=%+.2fc median=%+.2fc p95=%+.2fc min=%+.2fc max=%+.2fc",
                          fixture.name, anchor.count, anchorMean,
-                         recovered.count, mean, median, p95, offsets.first!, offsets.last!))
+                         sustained.count, mean, median, p95, offsets.first!, offsets.last!))
 
             // Gate calibrated from measurement, not chosen to pass. The pre-fix
             // implementation measured a +8.0 cent mean / +7.6 cent median bias on
             // quiet_c; the fixed implementation's worst fixture is quiet_a at
             // -3.1/-3.1. A 4 cent gate therefore sits clear of the defect it exists
             // to catch while still bounding residual error. See RESULTS.md.
-            #expect(abs(mean) <= 4.0, "\(fixture.name): recovered mean bias \(mean)c must be within 4c of the in-track anchor")
-            #expect(abs(median) <= 4.0, "\(fixture.name): recovered median bias \(median)c must be within 4c of the in-track anchor")
+            #expect(abs(mean) <= 4.0, "\(fixture.name): Sustained mean bias \(mean)c must be within 4c of the in-track anchor")
+            #expect(abs(median) <= 4.0, "\(fixture.name): Sustained median bias \(median)c must be within 4c of the in-track anchor")
         }
     }
 
-    @Test("Recovered frames neither over-claim in tune nor drive tuning advice")
-    func testRecoveredFramesNeitherOverClaimNorAdvise() {
+    @Test("Sustained frames neither over-claim in tune nor drive tuning advice")
+    func testSustainedFramesNeitherOverClaimNorAdvise() {
         let fixtures: [(name: String, reference: Double)] = [
             ("quiet_a", 440.0),
             ("quiet_c", 261.63),
@@ -411,31 +411,31 @@ struct SpectralPitchScorerTests {
             // earlier reading is not a second chance to over-claim; counting it as
             // one would make this test a test of the display gate.
             let measured = frames.compactMap { $0.reading }.filter(AudioTestHelpers.wasMeasuredThisFrame)
-            let recovered = measured.filter { $0.recovered }
-            let confirmed = measured.filter { !$0.recovered }
-            guard !recovered.isEmpty else { continue }
+            let sustained = measured.filter { $0.evidence == .sustained }
+            let confirmed = measured.filter { $0.evidence == .measured }
+            guard !sustained.isEmpty else { continue }
 
-            // 1. Recovery must never assert that a string is in tune. Its cents error
-            //    is larger than YIN's, so an in-tune verdict from it is a claim the
-            //    evidence does not support.
-            let overClaimed = recovered.filter { $0.inTune }
-            #expect(overClaimed.isEmpty, "\(fixture.name): \(overClaimed.count) recovered frames asserted in-tune")
+            // 1. Sustained evidence must never assert that a string is in tune. Its
+            //    cents error is larger than YIN's, so an in-tune verdict from it is a
+            //    claim the evidence does not support.
+            let overClaimed = sustained.filter { $0.inTune }
+            #expect(overClaimed.isEmpty, "\(fixture.name): \(overClaimed.count) Sustained frames asserted in-tune")
 
-            // 2. Recovery must never produce directional advice. This is the user
-            //    facing consequence of (1): a wrong cents value must not be able to
-            //    tell the player to move a tuning peg.
-            let advice = recovered
+            // 2. Sustained evidence must never produce directional advice. This is
+            //    the user facing consequence of (1): a wrong cents value must not be
+            //    able to tell the player to move a tuning peg.
+            let advice = sustained
                 .map { TunerPresentation.guidanceText(for: $0, feedback: .tracking) }
                 .filter { $0 == "Tune up" || $0 == "Tune down" }
-            #expect(advice.isEmpty, "\(fixture.name): \(advice.count) recovered frames produced tuning advice")
+            #expect(advice.isEmpty, "\(fixture.name): \(advice.count) Sustained frames produced tuning advice")
 
-            // 3. No single recovered frame may be far enough off to look absurd.
+            // 3. No single Sustained frame may be far enough off to look absurd.
             //    (Measured worst case is ~18 cents on the deepest frame of the
             //    quietest decay; see docs/tuner-reliability/RESULTS.md.)
-            let worst = recovered.map { abs($0.cents) }.max() ?? 0
-            #expect(worst <= 20.0, "\(fixture.name): worst recovered frame error \(worst)c exceeds 20c")
+            let worst = sustained.map { abs($0.cents) }.max() ?? 0
+            #expect(worst <= 20.0, "\(fixture.name): worst Sustained frame error \(worst)c exceeds 20c")
 
-            print("RECOVERY-CONTRACT [\(fixture.name)]: recovered=\(recovered.count) overClaimed=\(overClaimed.count) advice=\(advice.count) worstErr=\(String(format: "%.1f", worst))c confirmed=\(confirmed.count)")
+            print("RECOVERY-CONTRACT [\(fixture.name)]: recovered=\(sustained.count) overClaimed=\(overClaimed.count) advice=\(advice.count) worstErr=\(String(format: "%.1f", worst))c confirmed=\(confirmed.count)")
 
             // 4. The suppression must not disable the normal YIN path: frames YIN
             //    confirmed still assert in tune when the string is in tune.
@@ -472,15 +472,15 @@ struct SpectralPitchScorerTests {
             )
 
             let afterTone = frames.filter { $0.captureEndSeconds > 0.4 }
-            let recovered = afterTone.compactMap { $0.reading }
-                .filter { AudioTestHelpers.wasMeasuredThisFrame($0) && $0.recovered }
+            let sustained = afterTone.compactMap { $0.reading }
+                .filter { AudioTestHelpers.wasMeasuredThisFrame($0) && $0.evidence == .sustained }
 
-            let drifted = recovered.filter {
+            let drifted = sustained.filter {
                 abs(PitchMath.centsBetween(measured: $0.frequency, reference: 440.0)) > 20.0
             }
 
             print(String(format: "RECOVERY-NOISE amp=%.4f: framesAfterTone=%lld recovered=%lld driftedOver20c=%lld",
-                         amplitude, afterTone.count, recovered.count, drifted.count))
+                         amplitude, afterTone.count, sustained.count, drifted.count))
 
             #expect(drifted.isEmpty, "Noise at amplitude \(amplitude) fabricated \(drifted.count) drifted readings; first: \(drifted.first?.frequency ?? 0) Hz")
         }

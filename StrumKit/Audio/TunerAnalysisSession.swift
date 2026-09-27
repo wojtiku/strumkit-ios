@@ -476,7 +476,7 @@ public final class TunerAnalysisSession: @unchecked Sendable {
     }
 
     /// Decides whether the spectral scorer may replace a failed or implausible YIN
-    /// estimate during sustain, and if so substitutes the recovered result.
+    /// estimate during sustain, and if so substitutes a Sustained result.
     ///
     /// Acceptance requires all of: a candidate inside the prior's local search
     /// window, absolute evidence, at least `spectralRecoveryMinHarmonics`
@@ -531,7 +531,10 @@ public final class TunerAnalysisSession: @unchecked Sendable {
             confidence: min(0.70, candidate.score / 2.0),
             amplitudeRMS: currentRms,
             isSignalPresent: true,
-            recovered: true
+            // The candidate was found in a search window around a Note already
+            // being tracked, which is what makes it safe to extend: Sustained
+            // evidence names nothing fresh.
+            evidence: .sustained
         )
     }
 

@@ -424,9 +424,18 @@ being replaced, and `replacedFrames` comes back 1 where 2 is expected. Observed 
 times while the machine was busy; 5/6 and 5/5 full-suite runs green before and after the
 change it was suspected in.
 
-**Re-run the full suite once before treating either as a real failure.** Fixing them properly
-means waiting on real preconditions instead of time budgets — which is its own ticket, not a
-drive-by, and not something to do while a refactor is in flight.
+**Two tests in the analysis-session suite are load-sensitive, and share one cause.**
+`testBoundedMailboxAndReplacement()` and `testFrameAccountingCountsDrops()` both need the
+background analysis worker not to have dequeued a frame before the next one arrives, because
+the coordinator only counts a replacement while a frame is still sitting in the mailbox. They
+race a 10 ms sleep against a worker that then sleeps 60 ms in the analysis hook, so under load
+the worker wins and a replacement is never counted. Observed twice and once respectively, all
+while the machine was busy; 5/6 and 5/5 full-suite runs green before and after the changes
+they were suspected in. If either fails, re-run the full suite once before concluding anything.
+
+**Re-run the full suite once before treating any of these as a real failure.** Fixing them
+properly means waiting on real preconditions instead of time budgets — which is its own ticket,
+not a drive-by, and not something to do while a refactor is in flight.
 
 ## Reach-throughs to record, not accommodate
 

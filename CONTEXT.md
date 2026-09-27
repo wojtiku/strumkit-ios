@@ -41,7 +41,7 @@ _Avoid_: String, Target
 
 **Reading**:
 One observation of what is sounding: the **Note** heard, how far it is from where it should
-be, and how much the tuner trusts it.
+be, and the grade of **Evidence** behind it.
 _Avoid_: Detection, Result, Frame, Pitch result
 
 **Level**:
@@ -79,6 +79,8 @@ Where a **Reading** came from, graded in two levels. **Measured** evidence is pe
 found in the audio itself. **Sustained** evidence extends a **Note** already being tracked,
 when fresh detection has gone quiet but the **Note** has not. Only **Measured** evidence may
 declare a **String** in tune; **Sustained** evidence may show a reading and nothing more.
+A **Reading** always states its grade and there is no default one, so a path that produces a
+**Reading** has to choose a level rather than inherit whichever the last path happened to use.
 _Avoid_: Confidence, Score, Trust, Certainty, Quality
 
 Only **Measured** evidence completes a **Tuning** sequence, and only **Measured** evidence is

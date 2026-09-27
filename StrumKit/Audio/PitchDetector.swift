@@ -182,6 +182,7 @@ public final class PitchDetector: @unchecked Sendable {
                 confidence: 0,
                 amplitudeRMS: rmsDouble,
                 isSignalPresent: false,
+                evidence: .measured,
                 isClipped: isClipping
             )
         }
@@ -243,7 +244,8 @@ public final class PitchDetector: @unchecked Sendable {
                 centsDeviation: 0,
                 confidence: 0,
                 amplitudeRMS: rmsDouble,
-                isSignalPresent: true
+                isSignalPresent: true,
+                evidence: .measured
             )
         }
 
@@ -351,7 +353,8 @@ public final class PitchDetector: @unchecked Sendable {
                 centsDeviation: 0,
                 confidence: periodicity,
                 amplitudeRMS: rmsDouble,
-                isSignalPresent: true
+                isSignalPresent: true,
+                evidence: .measured
             )
         }
 
@@ -361,7 +364,8 @@ public final class PitchDetector: @unchecked Sendable {
             centsDeviation: nearest.cents,
             confidence: periodicity,
             amplitudeRMS: rmsDouble,
-            isSignalPresent: true
+            isSignalPresent: true,
+            evidence: .measured
         )
     }
 

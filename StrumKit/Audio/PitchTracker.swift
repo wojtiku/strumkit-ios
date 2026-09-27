@@ -92,22 +92,33 @@ public final class PitchTracker: @unchecked Sendable {
     /// How much the reading currently on screen is worth, which is the only thing
     /// the continuation hysteresis reasons about.
     ///
+    /// This is a display precedence, not a trust grade: it answers "how big a move
+    /// is it for the screen", and its cases are the display's own four states. It
+    /// is deliberately not `Evidence` — trust and precedence are different
+    /// questions, and merging them would let a change to one silently reorder the
+    /// other. `Evidence` decides what a Reading may claim; this decides whether the
+    /// display is allowed to act on a frame yet.
+    ///
     /// Ordered so `>` reads as "better evidence for the display to move to".
-    /// `recovery` sits above `held` because a spectrally recovered estimate is a
-    /// fresh measurement of something real, while a held reading is the absence of
+    /// `sustained` sits above `held` because a spectrally recovered estimate is a
+    /// fresh observation of something real, while a held reading is the absence of
     /// one; the display already treats them as different states, so the gate can
     /// too, and ordering them makes "weakening" and "strengthening" mean the same
     /// thing in both.
     private enum DisplayEvidence: Int, Comparable {
         case dark = 0
         case held = 1
-        case recovery = 2
-        case yin = 3
+        case sustained = 2
+        case measured = 3
 
         init(reading: TunerReading?) {
             guard let reading else { self = .dark; return }
             guard reading.freshness == .fresh else { self = .held; return }
-            self = reading.recovered ? .recovery : .yin
+            self = DisplayEvidence(reading.evidence)
+        }
+
+        init(_ evidence: Evidence) {
+            self = evidence == .sustained ? .sustained : .measured
         }
 
         static func < (lhs: DisplayEvidence, rhs: DisplayEvidence) -> Bool {
@@ -150,11 +161,11 @@ public final class PitchTracker: @unchecked Sendable {
     /// Consecutive frames on which YIN, rather than spectral recovery, produced
     /// the estimate the display is acting on.
     public private(set) var consecutiveYinSuccesses: Int = 0
-    /// Consecutive frames on which it did not: no pitch, or a recovered one.
+    /// Consecutive frames on which it did not: no pitch, or a Sustained one.
     public private(set) var consecutiveYinFailures: Int = 0
 
     /// True while the dropout streak is short enough that the display has not yet
-    /// earned the right to weaken to a recovery or a hold.
+    /// earned the right to weaken to Sustained evidence or a hold.
     public var shouldHoldThroughDropout: Bool {
         consecutiveYinFailures < Self.continuationYinFailuresToWeaken
     }
@@ -236,14 +247,14 @@ public final class PitchTracker: @unchecked Sendable {
             guidedTargetIndex = 0
         }
 
-        // The streak is counted on the estimator, not on the pitch. A spectrally
-        // recovered estimate is a success for the pipeline — it is a reading, and
+        // The streak is counted on the estimator, not on the pitch. A Sustained
+        // estimate is a success for the pipeline — it is a reading, and
         // it is steadier than the YIN frames it replaces — but it is a *failure*
         // for YIN, and conflating the two is what makes the state flap. Counting
         // them as one thing gives a frame that is weaker evidence exactly the same
         // vote as the frame before it, so the display alternates between two
         // readings of the same note at the estimator's own cadence.
-        if pitchResult.isSignalPresent && !pitchResult.recovered {
+        if pitchResult.isSignalPresent && pitchResult.evidence == .measured {
             consecutiveYinSuccesses += 1
             consecutiveYinFailures = 0
         } else {
@@ -255,7 +266,7 @@ public final class PitchTracker: @unchecked Sendable {
         // conjunct is load-bearing, and it is the same predicate the display uses
         // below, so "foreground" means one thing throughout the tracker.
         //
-        // A recovered estimate is exempt from the *periodicity* conjunct only.
+        // Sustained evidence is exempt from the *periodicity* conjunct only.
         // `TunerAnalysisSession` deliberately reports it as a salience capped at
         // 0.70 — below `foregroundPeriodicityThreshold` — precisely because
         // salience is not periodicity, so reading it as one is meaningless. It is
@@ -266,7 +277,7 @@ public final class PitchTracker: @unchecked Sendable {
         // `TunerAnalysisSession` already applied to produce it at all.
         let isForeground = pitchResult.isSignalPresent
             && pitchResult.frequency >= TunerConstants.detectorMinHz
-            && (pitchResult.recovered || pitchResult.confidence >= Self.foregroundPeriodicityThreshold)
+            && (pitchResult.evidence == .sustained || pitchResult.confidence >= Self.foregroundPeriodicityThreshold)
             && pitchResult.amplitudeRMS >= Self.foregroundLevelMultiple * ambientFloor
 
         if isForeground {
@@ -418,7 +429,7 @@ public final class PitchTracker: @unchecked Sendable {
                     displayCents: displayCentsEma,
                     freshness: .held,
                     inTune: last.inTune,
-                    recovered: last.recovered
+                    evidence: last.evidence
                 ))
             }
             return publish(nil)
@@ -446,13 +457,13 @@ public final class PitchTracker: @unchecked Sendable {
         let enterThreshold = config.precision ? Self.precisionEnterTuneCents : Self.standardEnterTuneCents
         let exitThreshold = config.precision ? Self.precisionExitTuneCents : Self.standardExitTuneCents
 
-        // A spectrally recovered estimate may update the display and the prior, but
-        // must not assert that a string is in tune. Cents error on recovery is
-        // noisier than YIN's, and "you are flat" is directly actionable advice, so
-        // a wrong recovered value must never be able to tell the player to move a
-        // peg. The rule itself lives on the estimate it governs, `PitchResult`.
+        // A Sustained estimate may update the display and the prior, but must not
+        // assert that a string is in tune. Cents error on recovery is noisier than
+        // YIN's, and "you are flat" is directly actionable advice, so a wrong
+        // Sustained value must never be able to tell the player to move a peg. The
+        // rule itself lives on the grade it governs, `Evidence`.
         // The tracker records the true `inTune` state for later YIN frames.
-        let inTuneMayBeAsserted = !pitchResult.recovered || PitchResult.recoveredMayAssertInTune
+        let inTuneMayBeAsserted = pitchResult.evidence.mayAssertInTune
 
         let inTune: Bool
         if lastInTuneState {
@@ -466,7 +477,8 @@ public final class PitchTracker: @unchecked Sendable {
 
         // 6. Guided Mode Progress Advancement (1-second uninterrupted fresh hold requirement)
         if config.mode == .guided && targetIndex == guidedTargetIndex {
-            if inTune && pitchResult.confidence >= Self.guidedCompletionPeriodicity && !pitchResult.recovered {
+            if inTune && pitchResult.confidence >= Self.guidedCompletionPeriodicity
+                && pitchResult.evidence.mayCompleteTuning {
                 if let startTime = guidedHoldStartTime {
                     if (now - startTime) >= Self.guidedHoldDuration {
                         guidedProgress[targetIndex] = true
@@ -498,7 +510,7 @@ public final class PitchTracker: @unchecked Sendable {
         //    is deliberate: the frame is evidence about the note even when it is not
         //    evidence about the display, and the display's own expiry is a duration
         //    that the streak must not be able to reach.
-        guard mayChangeDisplay(to: pitchResult.recovered ? .recovery : .yin) else {
+        guard mayChangeDisplay(to: DisplayEvidence(pitchResult.evidence)) else {
             return pinnedReading(at: now)
         }
 
@@ -515,7 +527,7 @@ public final class PitchTracker: @unchecked Sendable {
             displayCents: displayCentsEma,
             freshness: .fresh,
             inTune: inTune && inTuneMayBeAsserted,
-            recovered: pitchResult.recovered
+            evidence: pitchResult.evidence
         )
         lastReading = reading
         return publish(reading)
@@ -563,7 +575,7 @@ public final class PitchTracker: @unchecked Sendable {
                 displayCents: displayCentsEma,
                 freshness: .held,
                 inTune: last.inTune, // Preserve last confirmed in-tune visual state
-                recovered: last.recovered
+                evidence: last.evidence
             ))
         }
 
@@ -595,16 +607,16 @@ public final class PitchTracker: @unchecked Sendable {
     /// not about the pitch: a decaying note produces confident, in-vocabulary,
     /// wildly different pitches, and no threshold on the pitch can tell that from a
     /// player tuning.
-    private func mayChangeDisplay(to evidence: DisplayEvidence) -> Bool {
+    private func mayChangeDisplay(to state: DisplayEvidence) -> Bool {
         let current = DisplayEvidence(reading: displayedReading)
-        if evidence == current { return true }
+        if state == current { return true }
         // Going from nothing to something is acquisition, not continuation, and
         // acquisition already has its own requirements — the candidate count, the
         // evidence span, the onset shortcut. Applying a second, stricter one here
         // would cost manual mode its first frame, and manual mode is the mode where
         // the player has already chosen the string and is waiting for a number.
         guard current != .dark else { return true }
-        if evidence > current {
+        if state > current {
             return consecutiveYinSuccesses >= Self.continuationYinSuccessesToStrengthen
         }
         return consecutiveYinFailures >= Self.continuationYinFailuresToWeaken
@@ -631,7 +643,7 @@ public final class PitchTracker: @unchecked Sendable {
             displayCents: shown.displayCents,
             freshness: shown.freshness,
             inTune: shown.inTune,
-            recovered: shown.recovered
+            evidence: shown.evidence
         )
     }
 

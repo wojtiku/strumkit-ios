@@ -12,7 +12,7 @@ struct TunerPresentationTests {
         cents: Double = 0.0,
         freshness: TunerReading.Freshness = .fresh,
         inTune: Bool = true,
-        recovered: Bool = false
+        evidence: Evidence = .measured
     ) -> TunerReading {
         TunerReading(
             at: at,
@@ -25,7 +25,7 @@ struct TunerPresentationTests {
             displayCents: cents,
             freshness: freshness,
             inTune: inTune,
-            recovered: recovered
+            evidence: evidence
         )
     }
 
@@ -96,16 +96,16 @@ struct TunerPresentationTests {
         #expect(abs(negativeElapsed - 1.0) < 1e-4)
     }
 
-    @Test("Guidance text for recovered readings declines to give tuning advice")
-    func testGuidanceTextRecoveredReading() {
-        let inTune = makeReading(freshness: .fresh, inTune: false, recovered: true)
+    @Test("Guidance text for Sustained readings declines to give tuning advice")
+    func testGuidanceTextSustainedReading() {
+        let inTune = makeReading(freshness: .fresh, inTune: false, evidence: .sustained)
         #expect(TunerPresentation.guidanceText(for: inTune, feedback: .tracking) == "Still ringing — hold to check")
 
-        let flat = makeReading(cents: -30.0, freshness: .fresh, inTune: false, recovered: true)
+        let flat = makeReading(cents: -30.0, freshness: .fresh, inTune: false, evidence: .sustained)
         #expect(TunerPresentation.guidanceText(for: flat, feedback: .tracking) == "Still ringing — hold to check",
-                "A 30-cent-flat recovered frame must not tell the player to turn a peg")
+                "A 30-cent-flat Sustained frame must not tell the player to turn a peg")
 
-        let sharp = makeReading(cents: 25.0, freshness: .fresh, inTune: false, recovered: true)
+        let sharp = makeReading(cents: 25.0, freshness: .fresh, inTune: false, evidence: .sustained)
         #expect(TunerPresentation.guidanceText(for: sharp, feedback: .tracking) == "Still ringing — hold to check")
     }
 
@@ -122,14 +122,14 @@ struct TunerPresentationTests {
                 "The tracker decides when a held reading stops; the view must expire it at the same moment")
     }
 
-    @Test("TunerViewModel dims the needle for recovered evidence")
+    @Test("TunerViewModel dims the needle for Sustained evidence")
     @MainActor
-    func testViewModelNeedleOpacityForRecoveredReading() {
+    func testViewModelNeedleOpacityForSustainedReading() {
         let session = TunerAnalysisSession()
         let vm = TestTuner.viewModel(session: session)
         let now = CACurrentMediaTime()
 
-        let recovered = TunerReading(
+        let sustained = TunerReading(
             at: now,
             lastFreshAt: now,
             frequency: 440.0,
@@ -140,11 +140,11 @@ struct TunerPresentationTests {
             displayCents: -12.0,
             freshness: .fresh,
             inTune: false,
-            recovered: true
+            evidence: .sustained
         )
         let snap = AnalysisSnapshot(
-            reading: recovered,
-            pitchResult: PitchResult(frequency: 440.0, closestNote: MusicalNote(midiNoteNumber: 69), centsDeviation: -12, confidence: 0.2, amplitudeRMS: 0.002, isSignalPresent: true, recovered: true),
+            reading: sustained,
+            pitchResult: PitchResult(frequency: 440.0, closestNote: MusicalNote(midiNoteNumber: 69), centsDeviation: -12, confidence: 0.2, amplitudeRMS: 0.002, isSignalPresent: true, evidence: .sustained),
             feedbackState: .tracking,
             guidedProgress: [],
             guidedTargetIndex: 0,
@@ -154,7 +154,7 @@ struct TunerPresentationTests {
         )
 
         vm.handleSnapshot(snap)
-        #expect(vm.currentReading?.recovered == true)
+        #expect(vm.currentReading?.evidence == .sustained)
         #expect(vm.needleOpacity == TunerPresentation.recoveredOpacity)
     }
 
@@ -175,12 +175,13 @@ struct TunerPresentationTests {
             cents: 0.0,
             displayCents: 0.0,
             freshness: .fresh,
-            inTune: true
+            inTune: true,
+            evidence: .measured
         )
 
         let freshSnap = AnalysisSnapshot(
             reading: freshReading,
-            pitchResult: PitchResult(frequency: 440.0, closestNote: MusicalNote(midiNoteNumber: 69), centsDeviation: 0, confidence: 0.9, amplitudeRMS: 0.05, isSignalPresent: true),
+            pitchResult: PitchResult(frequency: 440.0, closestNote: MusicalNote(midiNoteNumber: 69), centsDeviation: 0, confidence: 0.9, amplitudeRMS: 0.05, isSignalPresent: true, evidence: .measured),
             feedbackState: .tracking,
             guidedProgress: [],
             guidedTargetIndex: 0,
@@ -206,12 +207,13 @@ struct TunerPresentationTests {
             cents: 0.0,
             displayCents: 0.0,
             freshness: .held,
-            inTune: true
+            inTune: true,
+            evidence: .measured
         )
 
         let heldSnap = AnalysisSnapshot(
             reading: heldReading,
-            pitchResult: PitchResult(frequency: 0, closestNote: MusicalNote(midiNoteNumber: 69), centsDeviation: 0, confidence: 0, amplitudeRMS: 0.001, isSignalPresent: false),
+            pitchResult: PitchResult(frequency: 0, closestNote: MusicalNote(midiNoteNumber: 69), centsDeviation: 0, confidence: 0, amplitudeRMS: 0.001, isSignalPresent: false, evidence: .measured),
             feedbackState: .tracking,
             guidedProgress: [],
             guidedTargetIndex: 0,

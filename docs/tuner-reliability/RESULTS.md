@@ -53,7 +53,7 @@ sustain. After the fix: 0 over-claims, 0 tuning-advice emissions.
 
 A recovered estimate is now explicitly lower-trust than a YIN-confirmed one:
 
-- `TunerReading.inTune` is `false` for recovered frames (`recoveredMayAssertInTune = false`).
+- `TunerReading.inTune` is `false` for recovered frames (`Evidence.mayAssertInTune is false`).
 - Guidance is `"Still ringing — hold to check"` — never "Tune up"/"Tune down".
 - The needle and readout render at `TunerPresentation.recoveredOpacity` (0.55) so inferred
   evidence is visibly distinct from confirmed evidence.

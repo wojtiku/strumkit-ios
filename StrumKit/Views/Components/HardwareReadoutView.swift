@@ -48,12 +48,11 @@ public struct HardwareReadoutView: View {
     }
 
     /// Opacity applied to evidence-derived readouts. Held readings fade with the
-    /// hold timer; spectrally recovered readings are dimmed to a fixed, still
-    /// visible level so the player can tell inferred evidence from confirmed
-    /// evidence at a glance.
+    /// hold timer; Sustained readings are dimmed to a fixed, still visible level so
+    /// the player can tell inferred evidence from measured evidence at a glance.
     private var evidenceOpacity: Double {
         if reading?.freshness == .held { return holdOpacity }
-        if reading?.recovered == true { return TunerPresentation.recoveredOpacity }
+        if reading?.evidence == .sustained { return TunerPresentation.recoveredOpacity }
         return 1.0
     }
 
@@ -61,11 +60,12 @@ public struct HardwareReadoutView: View {
         TunerPresentation.guidanceText(for: reading, feedback: feedback)
     }
 
-    /// The in-tune confirmation is only ever shown for fresh, YIN-confirmed
-    /// evidence. A held reading merely remembers the last verdict, and a recovered
-    /// one is not precise enough to confirm.
+    /// The in-tune confirmation is only ever shown for a fresh Reading backed by
+    /// Measured evidence. A held Reading merely remembers the last verdict, and a
+    /// Sustained one is not precise enough to confirm.
     private var showsInTuneConfirmation: Bool {
-        reading?.inTune == true && reading?.freshness == .fresh && reading?.recovered != true
+        reading?.inTune == true && reading?.freshness == .fresh
+            && reading?.evidence.mayAssertInTune == true
     }
 
     private var formattedCents: String {

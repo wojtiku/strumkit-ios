@@ -34,10 +34,10 @@ public final class TunerViewModel {
 
     /// Opacity the gauge needle should render at.
     ///
-    /// Combines the hold fade with the dimming applied to spectrally recovered
-    /// evidence, so inferred readings never look as authoritative as confirmed ones.
+    /// Combines the hold fade with the de-emphasis applied to Sustained evidence, so
+    /// inferred readings never look as authoritative as measured ones.
     public var needleOpacity: Double {
-        if currentReading?.recovered == true {
+        if currentReading?.evidence == .sustained {
             return min(holdOpacity, TunerPresentation.recoveredOpacity)
         }
         return holdOpacity

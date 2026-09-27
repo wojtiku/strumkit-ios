@@ -103,26 +103,10 @@ public struct PitchResult: Sendable, Equatable {
     public let confidence: Double
     public let amplitudeRMS: Double
     public let isSignalPresent: Bool
-    public let recovered: Bool
+    public let evidence: Evidence
     /// `true` when the input exceeded the clipping threshold, which forces
     /// abstention independently of level.
     public let isClipped: Bool
-
-    /// Whether a recovered estimate may assert that a String is in tune. `false`.
-    ///
-    /// The rule is a property of the Evidence it governs, so it is stated here rather
-    /// than on whatever module happens to schedule the frames. Sustained evidence
-    /// extends a Note that is already being tracked; it may show a Reading and nothing
-    /// more. Recovery is less certain than YIN's autocorrelation and a wrong recovered
-    /// cents value is directly actionable advice ("turn the peg"), so a recovered
-    /// Reading may move the needle and update the Hold but must never become tuning
-    /// advice. The cents readout is kept, de-emphasised, so the value stays
-    /// inspectable.
-    ///
-    /// Only Measured evidence may assert it, so this gates the flag `recovered` sets
-    /// rather than any per-frame judgement — there is nothing left to decide at the
-    /// call site.
-    public static let recoveredMayAssertInTune: Bool = false
 
     public init(
         frequency: Double,
@@ -131,7 +115,7 @@ public struct PitchResult: Sendable, Equatable {
         confidence: Double,
         amplitudeRMS: Double,
         isSignalPresent: Bool,
-        recovered: Bool = false,
+        evidence: Evidence,
         isClipped: Bool = false
     ) {
         self.frequency = frequency
@@ -140,10 +124,14 @@ public struct PitchResult: Sendable, Equatable {
         self.confidence = confidence
         self.amplitudeRMS = amplitudeRMS
         self.isSignalPresent = isSignalPresent
-        self.recovered = recovered
+        self.evidence = evidence
         self.isClipped = isClipped
     }
 
+    /// The placeholder for a frame that was never analysed — no signal, or nothing
+    /// the estimator was willing to name. Nothing was heard, so nothing is being
+    /// claimed: `isSignalPresent` is false, and every consumer of a `PitchResult`
+    /// acts on that before it acts on anything else here.
     public static let idle = PitchResult(
         frequency: 0,
         closestNote: MusicalNote(midiNoteNumber: 69),
@@ -151,7 +139,7 @@ public struct PitchResult: Sendable, Equatable {
         confidence: 0,
         amplitudeRMS: 0,
         isSignalPresent: false,
-        recovered: false
+        evidence: .measured
     )
 }
 

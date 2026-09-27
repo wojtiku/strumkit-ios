@@ -12,25 +12,25 @@ public enum TunerPresentation: Sendable {
     /// Minimum needle/readout opacity at the end of the display hold window.
     public static let minHoldOpacity: Double = 0.4
 
-    /// Opacity used for a reading backed by spectral recovery rather than YIN.
+    /// Opacity used for a Reading backed by Sustained rather than Measured evidence.
     ///
-    /// Recovery extends a note's life into the decay, but its cents error is
-    /// larger than YIN's, so the value is shown de-emphasised and is never turned
+    /// Sustained evidence extends a Note's life into the decay, but its cents error
+    /// is larger than YIN's, so the value is shown de-emphasised and is never turned
     /// into tuning advice.
     public static let recoveredOpacity: Double = 0.55
 
     /// Returns human-readable guidance text for the current reading and feedback state.
     ///
-    /// Fresh, YIN-confirmed readings display directional tuning advice
+    /// Readings backed by Measured evidence display directional tuning advice
     /// ("In tune", "Tune up", "Tune down"). Held readings prompt for a new pluck,
-    /// and spectrally recovered readings decline to give advice at all, since
+    /// and Sustained readings decline to give advice at all, since
     /// their cents error is not precise enough to act on.
     public static func guidanceText(for reading: TunerReading?, feedback: SignalFeedbackState) -> String {
         guard let reading else { return feedback.advisoryMessage }
         if reading.freshness == .held {
             return "Last reading — pluck again"
         }
-        if reading.recovered {
+        if reading.evidence == .sustained {
             return "Still ringing — hold to check"
         }
         if reading.inTune {

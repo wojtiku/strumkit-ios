@@ -221,11 +221,14 @@ public enum AudioTestHelpers {
     /// The display state a reading represents: one of "none", "fresh", "held" or
     /// "recovered".
     ///
-    /// "recovered" wins over "held" because a recovered reading is the more
+    /// "recovered" wins over "held" because a Sustained reading is the more
     /// specific fact about the frame, and the display treats it as its own state.
+    /// The label is the *display* state's name, kept as-is because the replay
+    /// traces and the measurement scripts key off it; the grade it stands for is
+    /// `Evidence.sustained`.
     public static func displayState(for reading: TunerReading?) -> String {
         guard let reading else { return "none" }
-        if reading.recovered { return "recovered" }
+        if reading.evidence == .sustained { return "recovered" }
         return reading.freshness == .fresh ? "fresh" : "held"
     }
 
