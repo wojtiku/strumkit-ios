@@ -127,6 +127,15 @@ public final class TunerAnalysisSession: @unchecked Sendable {
     // UI Publication Callback
     public var onSnapshotPublished: (@MainActor (AnalysisSnapshot) -> Void)? = nil
 
+    /// Notified on the main actor when the microphone reports something the tuner has
+    /// to absorb. By the time this fires the source has already been stopped and this
+    /// session's results invalidated; the callback decides whether to pick capture up
+    /// again, which it can only do by calling `start(source:config:targets:)`.
+    public var onSourceEvent: (@MainActor (MicrophoneEvent) -> Void)? = nil
+
+    /// The microphone currently delivering into this session, if any.
+    private var activeSource: MicrophoneSource?
+
     public init(
         config: TunerConfig = TunerConfig(),
         targets: [StringTarget] = [],
@@ -198,6 +207,47 @@ public final class TunerAnalysisSession: @unchecked Sendable {
         lock.unlock()
     }
 
+    /// Starts analysis *and* capture as one act, wired together.
+    ///
+    /// This is the only verb a caller needs: the source's windows are stamped with
+    /// this session's own sequence and generation as they arrive, so an
+    /// implementation cannot get invalidation wrong, and the source is stopped again
+    /// by `stop()` and by any event it reports. A caller no longer has to remember
+    /// to stop capture, stop analysis, and re-arm both.
+    ///
+    /// - Throws: whatever the source throws if capture cannot be started. Nothing is
+    ///   left wired in that case — no event handler, no half-started source.
+    public func start(
+        source: MicrophoneSource,
+        config: TunerConfig,
+        targets: [StringTarget]
+    ) throws {
+        // A source already in place is stopped rather than left running: re-arming
+        // means one source, not two.
+        detachSource()
+        start(config: config, targets: targets)
+
+        source.onEvent = { [weak self] event in
+            self?.handleSourceEvent(event)
+        }
+        lock.lock()
+        activeSource = source
+        lock.unlock()
+
+        do {
+            try source.start { [weak self] window in
+                self?.submitLiveAudio(
+                    window: window.samples,
+                    sampleRate: window.sampleRate,
+                    captureEndSeconds: window.captureEnd
+                )
+            }
+        } catch {
+            detachSource()
+            throw error
+        }
+    }
+
     public func stop() {
         lock.lock()
         activeGeneration &+= 1
@@ -207,6 +257,7 @@ public final class TunerAnalysisSession: @unchecked Sendable {
         detector = nil
         previousFrameRms = 0.0
         lock.unlock()
+        detachSource()
     }
 
     /// Applies a configuration change, invalidating in-flight results computed
@@ -253,6 +304,45 @@ public final class TunerAnalysisSession: @unchecked Sendable {
         tracker.reset(targetCount: targetCount)
         previousFrameRms = 0.0
         lock.unlock()
+    }
+
+    // MARK: - Audio Edge Ownership
+
+    /// Unhooks the source and stops it, if one is wired.
+    ///
+    /// Stopping the *source* and not just the analysis is the point: leaving the tap
+    /// installed means the engine keeps delivering frames stamped with the new
+    /// generation, so the stop would be cosmetic and this session would keep
+    /// publishing through the interruption.
+    private func detachSource() {
+        lock.lock()
+        let source = activeSource
+        activeSource = nil
+        lock.unlock()
+
+        guard let source else { return }
+        source.onEvent = nil
+        source.stop()
+    }
+
+    private func handleSourceEvent(_ event: MicrophoneEvent) {
+        // Hop to the main actor before touching the source. A session notification can
+        // arrive on the very thread that is delivering audio, and stopping the source
+        // from inside it would be waiting on the queue it is running on.
+        Task { @MainActor [weak self] in
+            self?.absorbSourceEvent(event)
+        }
+    }
+
+    /// Turns a microphone event into the stop it implies, then tells the caller.
+    ///
+    /// The caller hears about it only once the source is genuinely stopped and stale
+    /// results can no longer publish. Whether capture is picked up again is the
+    /// caller's decision, since only it knows whether the player meant to be listening.
+    @MainActor
+    private func absorbSourceEvent(_ event: MicrophoneEvent) {
+        stop()
+        onSourceEvent?(event)
     }
 
     // MARK: - Live Audio Ingestion (Bounded Mailbox)

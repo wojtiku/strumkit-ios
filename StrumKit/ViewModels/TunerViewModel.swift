@@ -55,21 +55,39 @@ public final class TunerViewModel {
     public var activeToneStringIndex: Int? = nil
 
     // Services
-    private let captureService: AudioCaptureService
-    private let stringSynth: AcousticStringSynthesizer
+    //
+    // The microphone and the reference-tone player are required, not defaulted. A
+    // default here would hand a test a real microphone by omission, and a test that
+    // drives real audio hardware is a test that cannot assert anything.
+    private let source: MicrophoneSource
+    private let referenceTone: ReferenceTonePlayer
     private let tracker: PitchTracker
     private let preferencesStore: TunerPreferencesStore
     private let session: TunerAnalysisSession
 
+    /// The live app's wiring: a real microphone and the real synthesiser.
+    ///
+    /// The composition root's job, deliberately not the initialiser's default, so
+    /// that no caller can reach the ViewModel without saying what it listens to.
+    public static func live(
+        preferencesStore: TunerPreferencesStore = TunerPreferencesStore()
+    ) -> TunerViewModel {
+        TunerViewModel(
+            source: AVAudioEngineMicrophone(),
+            referenceTone: AcousticStringSynthesizer(),
+            preferencesStore: preferencesStore
+        )
+    }
+
     public init(
-        captureService: AudioCaptureService = AudioCaptureService(),
-        stringSynth: AcousticStringSynthesizer = AcousticStringSynthesizer(),
+        source: MicrophoneSource,
+        referenceTone: ReferenceTonePlayer,
         tracker: PitchTracker = PitchTracker(),
         preferencesStore: TunerPreferencesStore = TunerPreferencesStore(),
         session: TunerAnalysisSession? = nil
     ) {
-        self.captureService = captureService
-        self.stringSynth = stringSynth
+        self.source = source
+        self.referenceTone = referenceTone
         self.tracker = tracker
         self.preferencesStore = preferencesStore
 
@@ -86,37 +104,30 @@ public final class TunerViewModel {
 
         // Initialize guided progress for active instrument string count
         self.guidedProgress = Array(repeating: false, count: initial.config.customMidi.count)
-
-        setupCaptureCallbacks()
     }
 
     private var listeningIntent: Bool = false
 
-    private func setupCaptureCallbacks() {
-        captureService.onInterruption = { [weak self] began, shouldResume in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                if began {
-                    // Stop capture, not just analysis: leaving the tap installed means
-                    // the engine keeps delivering frames stamped with the new
-                    // generation, so the "stop" would be cosmetic and the session
-                    // would keep publishing through the interruption.
-                    self.captureService.stopCapture()
-                    self.session.stop()
-                    self.engineStatus = .interrupted
-                    self.feedbackState = .inactive
-                } else if shouldResume && self.listeningIntent {
-                    await self.start()
+    /// Reacts to what the microphone reports.
+    ///
+    /// The source has already been stopped and the analysis invalidated by the time
+    /// this runs; all that is left is the decision only this layer can make, which is
+    /// whether the player meant to be listening at all. Picking capture back up means
+    /// asking the session to start it, which re-arms both halves.
+    private func handleSourceEvent(_ event: MicrophoneEvent) {
+        switch event {
+        case .interrupted(let resumable):
+            self.engineStatus = .interrupted
+            self.feedbackState = .inactive
+            if resumable && listeningIntent {
+                Task { [weak self] in
+                    await self?.start()
                 }
             }
-        }
-
-        captureService.onRouteChange = { [weak self] _ in
-            Task { @MainActor [weak self] in
-                guard let self, self.listeningIntent else { return }
-                self.captureService.stopCapture()
-                self.session.stop()
-                await self.start()
+        case .routeChanged:
+            guard listeningIntent else { return }
+            Task { [weak self] in
+                await self?.start()
             }
         }
     }
@@ -131,10 +142,10 @@ public final class TunerViewModel {
         listeningIntent = true
         guard engineStatus != .listening && engineStatus != .requesting else { return }
 
-        let permStatus = captureService.checkPermissionStatus()
+        let permStatus = source.permissionStatus
         if permStatus == .notDetermined {
             engineStatus = .requesting
-            let granted = await captureService.requestPermission()
+            let granted = await source.requestPermission()
             if !granted {
                 engineStatus = .denied
                 return
@@ -146,27 +157,19 @@ public final class TunerViewModel {
 
         do {
             stopReferenceTone()
-            session.start(config: config, targets: targets)
             session.onSnapshotPublished = { [weak self] snapshot in
                 self?.handleSnapshot(snapshot)
             }
-            // Capture the session by value rather than reaching through `self` from
-            // the audio tap: the tap is real-time, and touching a MainActor-isolated
-            // object there means a weak-reference load and retain/release per
-            // callback. `TunerAnalysisSession` is `Sendable`, so this is safe.
-            let analysisSession = session
-            NSLog("[VM] starting capture")
-            try captureService.startCapture(bufferSize: 1024) { window, sampleRate, captureEndSeconds, callbackFrameCount in
-                analysisSession.submitLiveAudio(
-                    window: window,
-                    sampleRate: sampleRate,
-                    captureEndSeconds: captureEndSeconds,
-                    callbackFrameCount: callbackFrameCount
-                )
+            session.onSourceEvent = { [weak self] event in
+                self?.handleSourceEvent(event)
             }
+            // One verb: the session wires the source into frame submission and takes
+            // ownership of stopping it, so this layer never touches the capture path.
+            NSLog("[VM] starting capture")
+            try session.start(source: source, config: config, targets: targets)
             self.engineStatus = .listening
             self.feedbackState = .ready
-            self.diagnostics.sampleRate = captureService.sampleRate
+            self.diagnostics.sampleRate = source.sampleRate
         } catch let err as AudioCaptureError {
             NSLog("[VM] capture FAILED: %@", err.localizedDescription)
             session.stop()
@@ -189,9 +192,10 @@ public final class TunerViewModel {
 
     public func stop() {
         listeningIntent = false
-        captureService.stopCapture()
-        stopReferenceTone()
+        // Stops the microphone and the analysis behind it; there is no capture path
+        // left for this layer to remember.
         session.stop()
+        stopReferenceTone()
         holdPresentationTask?.cancel()
         holdPresentationTask = nil
         activeHoldFreshAt = nil
@@ -419,7 +423,7 @@ public final class TunerViewModel {
             stopReferenceTone()
         } else {
             activeToneStringIndex = index
-            stringSynth.playString(
+            referenceTone.playString(
                 frequency: target.frequency,
                 stringIndex: index,
                 instrument: config.instrument
@@ -429,7 +433,7 @@ public final class TunerViewModel {
 
     public func stopReferenceTone() {
         activeToneStringIndex = nil
-        stringSynth.stop()
+        referenceTone.stop()
     }
 
     // MARK: - Calibration & Custom Tuning

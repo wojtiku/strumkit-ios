@@ -3,7 +3,7 @@ import SwiftUI
 /// Master Tuner view implementing the complete chorder native instrument tuner.
 public struct TunerView: View {
     @Environment(\.scenePhase) private var scenePhase
-    @State private var viewModel = TunerViewModel()
+    @State private var viewModel = TunerViewModel.live()
     @State private var isShowingSettings = false
 
     public init() {}

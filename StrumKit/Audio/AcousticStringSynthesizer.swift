@@ -3,7 +3,7 @@ import Foundation
 
 /// Synthesizes authentic acoustic plucked string tones for Guitar and Ukulele.
 /// Based on chorder's physical string model (Karplus-Strong with pluck excitation, body resonance, and string dispersion).
-public final class AcousticStringSynthesizer: @unchecked Sendable {
+public final class AcousticStringSynthesizer: @unchecked Sendable, ReferenceTonePlayer {
     private let engine = AVAudioEngine()
     private let playerNode = AVAudioPlayerNode()
     private let queue = DispatchQueue(label: "com.strumkit.stringsynth")

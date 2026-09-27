@@ -405,23 +405,32 @@ conflict with Tasks 11–12.
 
 ---
 
-## Known flaky test
+## Known flaky tests
 
-`PreferencesTests.testAcousticStringSynthesizerPluck()` drives real audio hardware through the
-simulator. `playString` synthesises ~123k samples and starts an `AVAudioEngine` on a
+Two tests fail intermittently under machine load. Both are timing races, neither is logic
+errors, and neither should ever be fixed by loosening an assertion.
+
+**`PreferencesTests.testAcousticStringSynthesizerPluck()`** drives real audio hardware through
+the simulator. `playString` synthesises ~123k samples and starts an `AVAudioEngine` on a
 background queue, and only then sets the state the test polls for; the test allows 1 second.
 Under load, or if the engine fails to start, that budget can expire and the state stays `nil`,
-behind a `print` nobody reads.
+behind a `print` nobody reads. Observed once, immediately after a run killed
+mid-audio-teardown. Passed 3/3 full-suite runs and 6/6 in isolation afterwards.
 
-Observed once, immediately after a run killed mid-audio-teardown. Passed 3/3 full-suite runs
-and 6/6 in isolation afterwards. **Re-run the full suite once before treating it as a real
-failure, and never fix it by loosening an assertion.** Fixing it properly means making the
-engine-start failure observable and waiting on a real precondition instead of a time budget —
-which is its own ticket, not a drive-by.
+**`AnalysisSessionTests.testBoundedMailboxAndReplacement()`** races a 10 ms sleep against a
+background worker that then sleeps 60 ms in the analysis hook. If the process is descheduled
+before the worker starts, the frame under test is drained as the next pending frame instead of
+being replaced, and `replacedFrames` comes back 1 where 2 is expected. Observed twice, both
+times while the machine was busy; 5/6 and 5/5 full-suite runs green before and after the
+change it was suspected in.
+
+**Re-run the full suite once before treating either as a real failure.** Fixing them properly
+means waiting on real preconditions instead of time budgets — which is its own ticket, not a
+drive-by, and not something to do while a refactor is in flight.
 
 ## Gates
 
-1. **120 tests / 21 suites green after every phase.** No phase may reduce coverage.
+1. **The suite stays green after every phase.** No phase may reduce coverage.
 2. **No constant changes value in Phases 1–3 or 5a.** Any threshold that moves is a rejected
    change; it belongs to the detection plan, on evidence.
 3. **No assertion is loosened to reach green.** `SustainContinuityTests` is the standing

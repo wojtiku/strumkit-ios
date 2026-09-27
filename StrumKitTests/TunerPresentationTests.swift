@@ -126,7 +126,7 @@ struct TunerPresentationTests {
     @MainActor
     func testViewModelNeedleOpacityForRecoveredReading() {
         let session = TunerAnalysisSession()
-        let vm = TunerViewModel(session: session)
+        let vm = TestTuner.viewModel(session: session)
         let now = CACurrentMediaTime()
 
         let recovered = TunerReading(
@@ -162,7 +162,7 @@ struct TunerPresentationTests {
     @MainActor
     func testViewModelHoldPresentationRetainsReadingWithoutPrematureExpiration() async throws {
         let session = TunerAnalysisSession()
-        let vm = TunerViewModel(session: session)
+        let vm = TestTuner.viewModel(session: session)
 
         let now = CACurrentMediaTime()
         let freshReading = TunerReading(

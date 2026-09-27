@@ -103,7 +103,7 @@ struct PreferencesTests {
         saved.mode = .chromatic
         store.save(saved)
 
-        let viewModel = TunerViewModel(preferencesStore: store)
+        let viewModel = TestTuner.viewModel(preferencesStore: store)
 
         #expect(viewModel.config.instrument == .ukulele)
         #expect(viewModel.config.tuningId == "baritone")
@@ -118,7 +118,7 @@ struct PreferencesTests {
     @MainActor
     func testPerInstrumentTuningPersistenceInViewModel() {
         let (store, _) = makeIsolatedStore()
-        let viewModel = TunerViewModel(preferencesStore: store)
+        let viewModel = TestTuner.viewModel(preferencesStore: store)
 
         // Set Guitar to Drop D
         viewModel.setTuningPreset(id: "drop-d")
@@ -146,7 +146,7 @@ struct PreferencesTests {
         #expect(viewModel.config.customMidi == [69, 62, 66, 71])
 
         // Create a new ViewModel instance to simulate restarting the app
-        let freshViewModel = TunerViewModel(preferencesStore: store)
+        let freshViewModel = TestTuner.viewModel(preferencesStore: store)
         #expect(freshViewModel.config.instrument == .ukulele)
         #expect(freshViewModel.config.tuningId == "d-tuning")
 
@@ -158,7 +158,7 @@ struct PreferencesTests {
     @MainActor
     func testViewModelMutationsPersist() {
         let (store, _) = makeIsolatedStore()
-        let viewModel = TunerViewModel(preferencesStore: store)
+        let viewModel = TestTuner.viewModel(preferencesStore: store)
 
         viewModel.updateA4(432.0)
         viewModel.togglePrecision()
@@ -182,7 +182,7 @@ struct PreferencesTests {
         saved.guitarCustomMidi = [40, 45, 50]
         store.save(saved)
 
-        let viewModel = TunerViewModel(preferencesStore: store)
+        let viewModel = TestTuner.viewModel(preferencesStore: store)
 
         #expect(viewModel.config.tuningId == "custom")
         #expect(viewModel.config.customMidi == TunerPreferences.defaultGuitarMidi)
@@ -193,7 +193,7 @@ struct PreferencesTests {
     @MainActor
     func testOutOfRangeCustomNoteFallsBackToDefault() {
         let (store, _) = makeIsolatedStore()
-        let viewModel = TunerViewModel(preferencesStore: store)
+        let viewModel = TestTuner.viewModel(preferencesStore: store)
 
         viewModel.updateCustomMidi(stringIndex: 0, midi: TunerConstants.customMidiMax + 17)
 
@@ -206,7 +206,7 @@ struct PreferencesTests {
     @MainActor
     func testUnknownTuningPresetFallsBackToDefault() {
         let (store, _) = makeIsolatedStore()
-        let viewModel = TunerViewModel(preferencesStore: store)
+        let viewModel = TestTuner.viewModel(preferencesStore: store)
 
         viewModel.setTuningPreset(id: "no-such-preset")
 

@@ -7,6 +7,21 @@ public enum AudioPermissionStatus: Sendable, Equatable {
     case denied
 }
 
+/// What the tuner needs from a reference tone: to make a **String** audible, and to
+/// stop.
+///
+/// Exists so a test can assert *which* tone was requested. The synthesiser itself is
+/// integration-tested against real audio hardware; the observable thing worth pinning
+/// is the tuner's choice, which is otherwise only audible.
+public protocol ReferenceTonePlayer: AnyObject, Sendable {
+    /// Plays the tone of the **String** at `frequency`, as identified by the player
+    /// choosing `stringIndex` of `instrument`.
+    func playString(frequency: Double, stringIndex: Int, instrument: InstrumentCategory)
+
+    /// Stops any playing tone immediately.
+    func stop()
+}
+
 /// Errors that can occur during audio engine lifecycle or recording.
 public enum AudioCaptureError: LocalizedError, Sendable {
     case permissionDenied

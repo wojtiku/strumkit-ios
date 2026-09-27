@@ -336,14 +336,17 @@ public enum AudioTestHelpers {
 
     /// Hop size, in samples, that the live capture path requests.
     ///
-    /// `AudioCaptureService` installs its tap with this buffer size and asks the
-    /// session for a 20 ms preferred I/O duration, so production analyses audio
-    /// roughly every 1024 frames. Replay that uses 2048-sample hops measures the
-    /// pipeline at half the production update rate, which is why the default here
-    /// matches the live request.
+    /// The live adapter installs its tap with this buffer size and asks the session
+    /// for a 20 ms preferred I/O duration, so production analyses audio roughly
+    /// every 1024 frames. Replay that uses 2048-sample hops measures the pipeline at
+    /// half the production update rate, which is why the default here matches the
+    /// live request.
     ///
     /// This is a *requested* size: the OS is free to deliver larger buffers, which
-    /// is why live diagnostics report the actual `callbackFrameCount`.
+    /// is why the live path used to be the only place reporting the actual
+    /// `callbackFrameCount`. Since the microphone seam, tap size is the adapter's
+    /// own decision and the live path does not report it; this constant is what
+    /// replay stamps instead.
     public static let productionHopSamples = 1024
 
     /// Peak amplitude of an injected dropout window, as a fraction of the peak
