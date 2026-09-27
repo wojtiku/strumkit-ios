@@ -10,7 +10,7 @@ import Foundation
 /// device-specific underneath — the `AVAudioSession` configuration, the ring
 /// buffer, the capture-edge clock — is a collaborator this file names and a
 /// caller cannot, in `AudioSessionConfiguration` and `AudioRingBuffer`.
-public final class AVAudioEngineMicrophone: @unchecked Sendable {
+final class AVAudioEngineMicrophone: @unchecked Sendable {
     /// Frames the engine is asked for per callback.
     ///
     /// A request, not a guarantee: the OS may deliver larger buffers, and nothing
@@ -23,18 +23,18 @@ public final class AVAudioEngineMicrophone: @unchecked Sendable {
 
     /// The hardware's rate, which satisfies the seam's requirement and is not
     /// knowable until capture has started.
-    public private(set) var sampleRate: Double = 44100.0
+    private(set) var sampleRate: Double = 44100.0
     private var ringBuffer: AudioRingBuffer? = nil
     private let sessionConfiguration = AudioSessionConfiguration()
 
     private let eventLock = NSLock()
     private var _onEvent: (@Sendable (MicrophoneEvent) -> Void)?
 
-    public init() {}
+    init() {}
 }
 
 extension AVAudioEngineMicrophone: MicrophoneSource {
-    public var onEvent: (@Sendable (MicrophoneEvent) -> Void)? {
+    var onEvent: (@Sendable (MicrophoneEvent) -> Void)? {
         get {
             eventLock.lock()
             defer { eventLock.unlock() }
@@ -58,9 +58,9 @@ extension AVAudioEngineMicrophone: MicrophoneSource {
         }
     }
 
-    public var permissionStatus: AudioPermissionStatus { checkPermissionStatus() }
+    var permissionStatus: AudioPermissionStatus { checkPermissionStatus() }
 
-    public func requestPermission() async -> Bool {
+    func requestPermission() async -> Bool {
         await requestMicrophonePermission()
     }
 
@@ -101,7 +101,7 @@ extension AVAudioEngineMicrophone: MicrophoneSource {
     /// The tap's own frame length is a fact about the real-time thread, not
     /// something the caller is given: nothing above the seam can use it, and the
     /// window's trailing-edge timestamp already carries what the analysis needs.
-    public func start(delivering: @escaping @Sendable (CapturedWindow) -> Void) throws {
+    func start(delivering: @escaping @Sendable (CapturedWindow) -> Void) throws {
         try queue.sync {
             guard !self.isRunningInternal else { return }
 
@@ -188,7 +188,7 @@ extension AVAudioEngineMicrophone: MicrophoneSource {
     /// `AudioSessionConfiguration`, which is where the reasoning lives. Unhooking
     /// them here would mean the notification that invites a resume had nowhere to
     /// go, because stopping the tap is what the interruption caused.
-    public func stop() {
+    func stop() {
         queue.sync {
             guard self.isRunningInternal else { return }
             self.engine.inputNode.removeTap(onBus: 0)

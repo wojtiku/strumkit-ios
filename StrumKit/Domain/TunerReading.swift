@@ -1,25 +1,25 @@
 import Foundation
 
-public struct TunerReading: Sendable, Equatable {
-    public let at: TimeInterval
-    public let lastFreshAt: TimeInterval
-    public let frequency: Double
+struct TunerReading: Sendable, Equatable {
+    let at: TimeInterval
+    let lastFreshAt: TimeInterval
+    let frequency: Double
     /// What this Reading is measured against: the **String** the player is aiming at,
     /// or — in **Chromatic** mode, where nothing is being aimed at — the **Note** it
     /// names instead. Never both, and never neither: a consumer that wants to know
     /// which it is holding switches on this, and cannot get it wrong by reading a flag.
-    public let aim: ReadingAim
-    public let cents: Double
-    public let displayCents: Double
-    public let freshness: Freshness
-    public let evidence: Evidence
+    let aim: ReadingAim
+    let cents: Double
+    let displayCents: Double
+    let freshness: Freshness
+    let evidence: Evidence
 
-    public enum Freshness: String, Sendable {
+    enum Freshness: String, Sendable {
         case fresh
         case held
     }
 
-    public init(
+    init(
         at: TimeInterval,
         lastFreshAt: TimeInterval,
         frequency: Double,
@@ -47,9 +47,9 @@ public struct TunerReading: Sendable, Equatable {
     /// Derived rather than stored: it used to be a second copy of
     /// `aim.target.note`, which is two fields that can disagree about the same pitch.
     /// There is now one place a Reading's name comes from.
-    public var note: String { aim.name }
+    var note: String { aim.name }
 
     /// The in-tune verdict, or `nil` in **Chromatic** mode, where nothing is being
     /// aimed at and the question does not apply. See `ReadingAim.inTune`.
-    public var inTune: Bool? { aim.inTune }
+    var inTune: Bool? { aim.inTune }
 }

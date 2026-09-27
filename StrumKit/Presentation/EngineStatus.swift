@@ -1,4 +1,4 @@
-public enum EngineStatus: String, Sendable {
+enum EngineStatus: String, Sendable {
     case paused
     case requesting
     case listening
@@ -8,7 +8,7 @@ public enum EngineStatus: String, Sendable {
     case interrupted
     case failed
 
-    public var displayTitle: String {
+    var displayTitle: String {
         switch self {
         case .paused: "Microphone off"
         case .requesting: "Waiting for microphone permission"
@@ -21,7 +21,7 @@ public enum EngineStatus: String, Sendable {
         }
     }
 
-    public var guidanceError: String? {
+    var guidanceError: String? {
         switch self {
         case .denied: "Allow microphone access in iOS Settings to enable tuning. You can still use reference tones."
         case .missing: "Connect a microphone or choose another input."

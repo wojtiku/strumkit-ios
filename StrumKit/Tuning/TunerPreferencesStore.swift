@@ -1,15 +1,15 @@
 import Foundation
 
 /// Storage interface for saving and loading TunerPreferences via UserDefaults.
-public final class TunerPreferencesStore: @unchecked Sendable {
-    public static let storageKey = "com.strumkit.tuner.preferences.v1"
+final class TunerPreferencesStore: @unchecked Sendable {
+    static let storageKey = "com.strumkit.tuner.preferences.v1"
     private let userDefaults: UserDefaults
 
-    public init(userDefaults: UserDefaults = .standard) {
+    init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
     }
 
-    public func load() -> TunerPreferences {
+    func load() -> TunerPreferences {
         guard let data = userDefaults.data(forKey: Self.storageKey) else {
             return TunerPreferences()
         }
@@ -34,7 +34,7 @@ public final class TunerPreferencesStore: @unchecked Sendable {
         }
     }
 
-    public func save(_ preferences: TunerPreferences) {
+    func save(_ preferences: TunerPreferences) {
         do {
             let encoder = JSONEncoder()
             let data = try encoder.encode(preferences)
@@ -44,7 +44,7 @@ public final class TunerPreferencesStore: @unchecked Sendable {
         }
     }
 
-    public func clear() {
+    func clear() {
         userDefaults.removeObject(forKey: Self.storageKey)
     }
 }

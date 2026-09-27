@@ -1,10 +1,10 @@
 import Foundation
 @testable import StrumKit
 
-public enum AudioTestHelpers {
+enum AudioTestHelpers {
 
     /// Generates pure synthetic sine wave samples matching chorder's tone() helper.
-    public static func tone(frequency: Double, rate: Double, amplitude: Float = 0.1) -> [Float] {
+    static func tone(frequency: Double, rate: Double, amplitude: Float = 0.1) -> [Float] {
         let length = Int(ceil(rate * 0.1))
         var samples = [Float](repeating: 0, count: length)
         for i in 0..<length {
@@ -15,7 +15,7 @@ public enum AudioTestHelpers {
     }
 
     /// Known phase-derived fundamental, seeded noise, transient attack, and decay matching chorder's pluck() helper.
-    public static func pluck(
+    static func pluck(
         rate: Double,
         frequency: Double,
         seconds: Double = 1.4,
@@ -56,7 +56,7 @@ public enum AudioTestHelpers {
     }
 
     /// Parses a standard 16-bit PCM WAV file into Float samples normalized to [-1.0, 1.0].
-    public static func loadWav(name: String) -> (samples: [Float], sampleRate: Double)? {
+    static func loadWav(name: String) -> (samples: [Float], sampleRate: Double)? {
         let bundle = Bundle(for: BundleLocator.self)
         var wavUrl: URL? = bundle.url(forResource: name, withExtension: "wav")
 
@@ -147,23 +147,23 @@ public enum AudioTestHelpers {
     }
 
     /// Frame-by-frame diagnostic record for production replay simulations.
-    public struct ReplayFrame: Sendable {
-        public let captureEndSeconds: Double
-        public let rawFrequency: Double
-        public let rawRMS: Double
-        public let confidence: Double
-        public let rejection: String? // "gate", "clipping", "noPeriodicity", "ambiguity", "targetMismatch", "acquiring"
-        public let reading: TunerReading?
+    struct ReplayFrame: Sendable {
+        let captureEndSeconds: Double
+        let rawFrequency: Double
+        let rawRMS: Double
+        let confidence: Double
+        let rejection: String? // "gate", "clipping", "noPeriodicity", "ambiguity", "targetMismatch", "acquiring"
+        let reading: TunerReading?
         /// Which display state produced this frame: "none", "fresh", "held" or
         /// "recovered". Derived from the reading rather than stored on it, so the
-        /// public `TunerReading` API is not widened for a test concern.
-        public let displayState: String
+        /// app's `TunerReading` API is not widened for a test concern.
+        let displayState: String
 
         /// - Parameter displayState: normally left `nil`, which derives the state
         ///   from `reading` and so cannot drift from it. A hand-built frame passes
         ///   an explicit state to exercise states a real reading cannot represent,
         ///   such as a transition trace with no readings behind it.
-        public init(
+        init(
             captureEndSeconds: Double,
             rawFrequency: Double,
             rawRMS: Double,
@@ -183,7 +183,7 @@ public enum AudioTestHelpers {
     }
 
     /// Evaluates if an estimated frequency falls within 50 cents of the target reference.
-    public static func isCorrectRecordedPitch(_ frequency: Double, reference: Double) -> Bool {
+    static func isCorrectRecordedPitch(_ frequency: Double, reference: Double) -> Bool {
         guard frequency.isFinite, frequency > 0, reference > 0 else { return false }
         return abs(1200 * log2(frequency / reference)) <= 50
     }
@@ -194,7 +194,7 @@ public enum AudioTestHelpers {
     /// `isSignalPresent == true` with no frequency means it heard something
     /// periodic but refused to name a pitch (an ambiguity rejection), which is a
     /// very different situation from the level gate or from a target mismatch.
-    public static func classifyRejection(
+    static func classifyRejection(
         pitchResult: PitchResult,
         noiseGate: Float,
         reading: TunerReading?,
@@ -226,7 +226,7 @@ public enum AudioTestHelpers {
     /// The label is the *display* state's name, kept as-is because the replay
     /// traces and the measurement scripts key off it; the grade it stands for is
     /// `Evidence.sustained`.
-    public static func displayState(for reading: TunerReading?) -> String {
+    static func displayState(for reading: TunerReading?) -> String {
         guard let reading else { return "none" }
         if reading.evidence == .sustained { return "recovered" }
         return reading.freshness == .fresh ? "fresh" : "held"
@@ -265,7 +265,7 @@ public enum AudioTestHelpers {
     /// Use this when the claim is about the estimator — detection counts,
     /// correct/wrong-note tallies, cent error percentiles, bias, and "what was
     /// the last time we actually measured this note?".
-    public static func wasMeasuredThisFrame(_ reading: TunerReading) -> Bool {
+    static func wasMeasuredThisFrame(_ reading: TunerReading) -> Bool {
         reading.lastFreshAt == reading.at
     }
 
@@ -280,7 +280,7 @@ public enum AudioTestHelpers {
     /// so what the subtraction removes is the first frame's *appearance*. Every
     /// change after it is kept, including the `none -> fresh` acquisition step.
     /// A trace that acquires once and then holds therefore scores exactly 1.
-    public static func countDisplayTransitions(_ frames: [ReplayFrame]) -> Int {
+    static func countDisplayTransitions(_ frames: [ReplayFrame]) -> Int {
         var transitions = 0
         var previous: String?
         for frame in frames {
@@ -292,7 +292,7 @@ public enum AudioTestHelpers {
 
     /// Counts of each display state across a trace, for attributing a transition
     /// to a specific state change rather than to a bare count.
-    public static func stateHistogram(_ frames: [ReplayFrame]) -> [String: Int] {
+    static func stateHistogram(_ frames: [ReplayFrame]) -> [String: Int] {
         frames.reduce(into: [:]) { $0[$1.displayState, default: 0] += 1 }
     }
 
@@ -316,7 +316,7 @@ public enum AudioTestHelpers {
     /// `RealStrumStabilityTests` 1.00 s) and both were calibrated against it as a
     /// display measure, so its contract is stated here rather than changed under
     /// them.
-    public static func freshCoverageSeconds(
+    static func freshCoverageSeconds(
         frames: [ReplayFrame],
         reference: Double,
         intervalStart: Double,
@@ -350,7 +350,7 @@ public enum AudioTestHelpers {
     /// `callbackFrameCount`. Since the microphone seam, tap size is the adapter's
     /// own decision and the live path does not report it; this constant is what
     /// replay stamps instead.
-    public static let productionHopSamples = 1024
+    static let productionHopSamples = 1024
 
     /// Peak amplitude of an injected dropout window, as a fraction of the peak
     /// level of the signal under replay.
@@ -366,7 +366,7 @@ public enum AudioTestHelpers {
     /// under the gate yields a `gate` rejection instead. That is the correct
     /// outcome for a level the detector could not hear anyway, but it means this
     /// constant bounds the fixture's usable `lvl-` range rather than removing it.
-    public static let dropoutNoiseFraction: Double = 0.01
+    static let dropoutNoiseFraction: Double = 0.01
 
     /// Which frames a given dropout rate loses.
     ///
@@ -374,7 +374,7 @@ public enum AudioTestHelpers {
     /// no waveform can express it. Selection is a Park-Miller walk, the same
     /// generator `CoverageMatrix.signal` uses, so one seed fully determines it and
     /// seed A and seed B drop different frames.
-    public static func droppedFrameIndices(frameCount: Int, rate: Double, seed: UInt64) -> [Int] {
+    static func droppedFrameIndices(frameCount: Int, rate: Double, seed: UInt64) -> [Int] {
         guard frameCount > 0, rate > 0 else { return [] }
         var lcg = seed % 2147483647
         if lcg == 0 { lcg = 1 }
@@ -423,7 +423,7 @@ public enum AudioTestHelpers {
     ///     three fundamental-energy gates. Defaults to `1.0`, which is the
     ///     pre-2026-09-25 behaviour and therefore what every other suite here is
     ///     calibrated against; a sweep passes a smaller value.
-    public static func replayTrace(
+    static func replayTrace(
         samples: [Float],
         sampleRate: Double,
         config: TunerConfig,
@@ -526,7 +526,7 @@ public enum AudioTestHelpers {
     }
 
     /// Replays audio through PitchDetector and PitchTracker (adapter for existing tests).
-    public static func replay(
+    static func replay(
         samples: [Float],
         sampleRate: Double,
         config: TunerConfig

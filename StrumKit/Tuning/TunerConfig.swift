@@ -1,14 +1,14 @@
-public struct TunerConfig: Sendable, Equatable, Codable {
-    public var instrument: InstrumentCategory
-    public var tuningId: String
-    public var customMidi: [Int]
-    public var a4: Double
-    public var mode: TunerMode
-    public var selectedString: Int // Index 0 ..< targets.count
-    public var precision: Bool
-    public var guided: Bool
+struct TunerConfig: Sendable, Equatable, Codable {
+    var instrument: InstrumentCategory
+    var tuningId: String
+    var customMidi: [Int]
+    var a4: Double
+    var mode: TunerMode
+    var selectedString: Int // Index 0 ..< targets.count
+    var precision: Bool
+    var guided: Bool
 
-    public init(
+    init(
         instrument: InstrumentCategory = .guitar,
         tuningId: String = "standard",
         customMidi: [Int] = [40, 45, 50, 55, 59, 64],

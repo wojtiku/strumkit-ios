@@ -1,14 +1,14 @@
-public struct AnalysisSnapshot: Sendable, Equatable {
-    public let reading: TunerReading?
-    public let pitchResult: PitchResult
-    public let feedbackState: SignalFeedbackState
-    public let guidedProgress: [Bool]
-    public let guidedTargetIndex: Int
-    public let diagnostics: TunerDiagnostics
-    public let generation: UInt64
-    public let sequence: UInt64
+struct AnalysisSnapshot: Sendable, Equatable {
+    let reading: TunerReading?
+    let pitchResult: PitchResult
+    let feedbackState: SignalFeedbackState
+    let guidedProgress: [Bool]
+    let guidedTargetIndex: Int
+    let diagnostics: TunerDiagnostics
+    let generation: UInt64
+    let sequence: UInt64
 
-    public init(
+    init(
         reading: TunerReading?,
         pitchResult: PitchResult,
         feedbackState: SignalFeedbackState,

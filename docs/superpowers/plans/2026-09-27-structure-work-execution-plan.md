@@ -465,6 +465,71 @@ interface. Record it rather than accommodating it. One is already known:
   legitimate direct test of a module that now sits behind the audio edge. Ticket 11 should
   record it as a deliberate exception rather than move or delete it, and say why.
 
+Ticket 11 found seven more, and accommodated none of them. In each case the declaration
+stayed `internal` — which is what `@testable` already sees — and the site now says in a
+comment that it is visible for a test. None of them needed a visibility *widened*; that is
+the point, and it is why the whole list could be recorded instead.
+
+**A test reaching past a protocol it was handed.** `PreferencesTests.testAcousticStringSynthesizerPluck`
+constructs `AcousticStringSynthesizer` concretely rather than through `ReferenceTonePlayer`,
+and polls `activeStringIndex` to learn that the background queue has finished. It is the same
+shape as the flake recorded above: a state flag standing in for "the work is done", with a
+sleep loop in front of it. `activeStringIndex` is `private(set)`, so the test can read it and
+cannot write it, which is the correct fence — but it is not on the protocol, and nothing in the
+app reads it. The real fix is a completion the tone player reports, not a pollable field; that
+is a change to `ReferenceTonePlayer`'s contract and belongs to its own ticket.
+
+**Test-only entry points on production types.** Four types carry members that no app code
+calls and that exist because a test does. They are not reaching *past* an interface so much as
+being the interface's test-only annex, but they are the reason those members are visible at
+all, so they are listed:
+
+- `HannProjection.rawPower` and `HannProjection.phaseAndPower`. The detector uses
+  `normalizedPower`; `CorrelationTests` needs the other two to check that the normalisation
+  divides by the right thing and that the phase convention is the negative-imaginary one.
+  Two functions in production code with no production caller.
+- `SpectralPitchScorer.scoreAudio`, `.scoreWindow`, `.computeMagnitudes` and `.directDFT`.
+  The Analysis group enters the scorer through `analyzeAudio` alone; these four are how
+  `SpectralPitchScorerTests` checks the scorer against itself, `directDFT` being the
+  hand-written reference the accelerated path is compared to. All four are now marked
+  `internal` explicitly, so the test-facing surface is greppable.
+- `TunerAnalysisSession.submitLiveAudio` and `.processFrameSync`. The second is already
+  labelled a seam for "replay & tests", and replay only ever happens in the suite, so it is a
+  test seam end to end. The first is the live path's own conversion from `CapturedWindow`,
+  and `AnalysisSessionTests` calls it directly — below the `MicrophoneSource` seam that tickets
+  04 and 06 built, in a file that also has `AudioSeamDoubles` for driving the same thing
+  through the seam.
+- `TunerPreferences.activeConfig()`. A one-line wrapper over `Tuning.resolve(self).config`,
+  used only by `PreferencesTests`. It does go through the real resolution, so the test is not
+  asserting against a parallel implementation — but the app never calls it, and it could not
+  be made private without rewriting the test.
+
+**Reaching into a value another group hands over.** Not a test: `TunerAnalysisSession`'s
+spectral-recovery gate reads `HarmonicEvidence.peakFrequency` and `.peakMagnitude` out of
+`SpectralPitchScorer.WindowAnalysis.evidence`, then does the scorer's arithmetic itself —
+strongest partial, support fraction, count of supporting partials. The gate is written on the
+far side of the scorer's diagnostic result, in a group that has no business knowing what a
+harmonic's whitened peak is. Visibility cannot fix this one, because the scorer does not offer
+the question the gate is asking; only the two fields the gate reads are visible now, and the
+other four are private. The fix is a scorer-side answer to "how many supporting partials does
+this candidate have", which is a design change and not a visibility one.
+
+**An inverted dependency no visibility can express.** `SignalFeedbackState` lives in
+`Presentation/`, and `Detection/` depends on it: `PitchTracker` produces it and
+`AnalysisSnapshot` carries it. Both groups have to see each other, so there is no width that
+makes the arrow point one way. It reads like Domain vocabulary — it describes the signal, not
+the screen — and moving it is a layout change, which is ticket 10's subject and not this
+ticket's. Recorded here because visibility work is what made it visible.
+
+**Deliberately not reach-throughs**, so the next reader does not re-open them: the tracker's
+`private(set)` hysteresis state (`ambientFloor`, `consecutiveYinSuccesses`,
+`consecutiveYinFailures`, `shouldHoldThroughDropout`) is read by `TrackerTests` and the plan
+already names `PitchTracker` as the module the rest of the app should look like.
+`private(set)` is the right fence — a test can observe the streak and cannot fabricate it. The
+`CoverageMatrixTests` reads of `PitchDetector`'s three energy gates are the spec's own gate
+table, asserted as numbers. `TunerPreferencesStore.storageKey` is how a test plants corrupt
+data. `AudioCaptureError.errorDescription` is a `LocalizedError` requirement, not an interface.
+
 ## Gates
 
 1. **The suite stays green after every phase.** No phase may reduce coverage.

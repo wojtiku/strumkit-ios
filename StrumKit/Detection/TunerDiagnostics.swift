@@ -1,15 +1,15 @@
-public struct TunerDiagnostics: Sendable, Equatable {
-    public var sampleRate: Double = 44100.0
-    public var analysisMs: Double = 0.0
-    public var dspMs: Double = 0.0
-    public var queueDelayMs: Double = 0.0
-    public var resultAgeMs: Double = 0.0
-    public var replacedFrames: UInt64 = 0
-    public var callbackFrameCount: Int = 0
-    public var dropped: Int = 0
-    public var level: Double = 0.0
+struct TunerDiagnostics: Sendable, Equatable {
+    var sampleRate: Double = 44100.0
+    var analysisMs: Double = 0.0
+    var dspMs: Double = 0.0
+    var queueDelayMs: Double = 0.0
+    var resultAgeMs: Double = 0.0
+    var replacedFrames: UInt64 = 0
+    var callbackFrameCount: Int = 0
+    var dropped: Int = 0
+    var level: Double = 0.0
 
-    public init(
+    init(
         sampleRate: Double = 44100.0,
         analysisMs: Double = 0.0,
         dspMs: Double = 0.0,

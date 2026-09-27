@@ -1,23 +1,23 @@
 import Foundation
 
 /// Pure presentation helper for tuning guidance, hold timeouts, and visual fading.
-public enum TunerPresentation: Sendable {
+enum TunerPresentation: Sendable {
     /// Visual hold duration before an inactive reading expires from the display.
     ///
     /// Kept equal to `PitchTracker.readingHoldDuration`: the tracker decides when a
     /// held reading stops being produced, and this decides when the display clears
     /// it. If they drift, the display and the tracker disagree about expiry.
-    public static let displayHoldDuration: TimeInterval = PitchTracker.readingHoldDuration
+    static let displayHoldDuration: TimeInterval = PitchTracker.readingHoldDuration
 
     /// Minimum needle/readout opacity at the end of the display hold window.
-    public static let minHoldOpacity: Double = 0.4
+    static let minHoldOpacity: Double = 0.4
 
     /// Opacity used for a Reading backed by Sustained rather than Measured evidence.
     ///
     /// Sustained evidence extends a Note's life into the decay, but its cents error
     /// is larger than YIN's, so the value is shown de-emphasised and is never turned
     /// into tuning advice.
-    public static let recoveredOpacity: Double = 0.55
+    static let recoveredOpacity: Double = 0.55
 
     /// Returns human-readable guidance text for the current reading and feedback state.
     ///
@@ -30,7 +30,7 @@ public enum TunerPresentation: Sendable {
     /// there is no **String** for "turn the peg" to be about. It falls back to what the
     /// signal itself is saying, so the banner stays a report of the sound rather than
     /// becoming an instruction the mode cannot justify.
-    public static func guidanceText(for reading: TunerReading?, feedback: SignalFeedbackState) -> String {
+    static func guidanceText(for reading: TunerReading?, feedback: SignalFeedbackState) -> String {
         guard let reading else { return feedback.advisoryMessage }
         if reading.freshness == .held {
             return "Last reading — pluck again"
@@ -62,17 +62,17 @@ public enum TunerPresentation: Sendable {
     /// With nothing sounding, the second column falls back to what the mode is aiming
     /// at — the locked or guided String, or in chromatic mode simply "Nearest note",
     /// which is the only honest description of a pitch the player has not chosen.
-    public struct MeasuredAgainst: Equatable, Sendable {
-        public let label: String
-        public let value: String
+    struct MeasuredAgainst: Equatable, Sendable {
+        let label: String
+        let value: String
 
-        public init(label: String, value: String) {
+        init(label: String, value: String) {
             self.label = label
             self.value = value
         }
     }
 
-    public static func measuredAgainst(
+    static func measuredAgainst(
         for reading: TunerReading?,
         selectedTarget: StringTarget?,
         mode: TunerMode
@@ -99,7 +99,7 @@ public enum TunerPresentation: Sendable {
 
     /// Computes needle/readout opacity fading from 1.0 to 0.4 over the display hold duration.
     /// Clamped to [minHoldOpacity, 1.0]. Fresh readings always return 1.0.
-    public static func holdOpacity(for reading: TunerReading?, now: TimeInterval) -> Double {
+    static func holdOpacity(for reading: TunerReading?, now: TimeInterval) -> Double {
         guard let reading else { return 1.0 }
         guard reading.freshness == .held else { return 1.0 }
         let elapsed = max(0.0, now - reading.lastFreshAt)

@@ -2,7 +2,7 @@ import SwiftUI
 
 /// 21-tick hardware gauge inspired by chorder's SVG gauge.
 /// Maps cents from -50 to +50 into an arc with needle angle -75° to +75°.
-public struct HardwareGaugeView: View {
+struct HardwareGaugeView: View {
     let cents: Double
     let visible: Bool
     let inTune: Bool
@@ -20,7 +20,7 @@ public struct HardwareGaugeView: View {
     @State private var enteringNote = false
     @State private var entryTask: Task<Void, Never>?
 
-    public init(cents: Double, visible: Bool, inTune: Bool, needleOpacity: Double = 1.0) {
+    init(cents: Double, visible: Bool, inTune: Bool, needleOpacity: Double = 1.0) {
         self.cents = cents
         self.visible = visible
         self.inTune = inTune
@@ -38,7 +38,7 @@ public struct HardwareGaugeView: View {
         enteringNote ? 0 : needleAngle
     }
 
-    public var body: some View {
+    var body: some View {
         ZStack {
             // Background Track Arc & 21 Ticks
             GaugeBackgroundView()

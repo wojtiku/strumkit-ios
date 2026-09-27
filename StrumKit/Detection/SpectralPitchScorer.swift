@@ -3,7 +3,10 @@ import Accelerate
 
 /// A detected local maximum of the whitened magnitude spectrum, with parabolic
 /// sub-bin interpolation applied to its frequency and magnitude.
-struct SpectralPeak {
+///
+/// File-local: peak extraction and its callers all live in this file, and no
+/// declaration that leaves the file names a peak.
+private struct SpectralPeak {
     let freq: Double
     let mag: Float
 }
@@ -15,29 +18,59 @@ struct SpectralPeak {
 /// per-window whitening gain displaces peak positions by several cents.
 /// `whitenedPeakFrequency` and `peakMagnitude` describe the whitened spectrum,
 /// which is what candidate ranking and score strength are based on.
+///
+/// Not file-local, unlike `SpectralPeak`: it travels to the Analysis group inside
+/// `WindowAnalysis.evidence`, which the spectral-recovery gate reads to decide how
+/// many supporting partials a candidate has. Only `peakFrequency` and
+/// `peakMagnitude` cross that seam — the two the gate asks about — so those are the
+/// two visible here, and the scorer's own ranking fields stay private.
 struct HarmonicEvidence: Sendable {
     let harmonic: Int
     let expectedFrequency: Double
     /// Interpolated peak position in the unwhitened spectrum; `nil` if none found.
     let peakFrequency: Double?
     /// Interpolated peak position in the whitened spectrum; `nil` if none found.
-    let whitenedPeakFrequency: Double?
+    private let whitenedPeakFrequency: Double?
     let peakMagnitude: Float
-    let scoreContribution: Double
+    private let scoreContribution: Double
+
+    /// Written only where the scorer assembles its own evidence, and read across the
+    /// seam for two of the six fields — so the initialiser is spelled out here rather
+    /// than left to the memberwise default, which a single private field would
+    /// otherwise drag down to private and lock out the one construction site.
+    init(
+        harmonic: Int,
+        expectedFrequency: Double,
+        peakFrequency: Double?,
+        whitenedPeakFrequency: Double?,
+        peakMagnitude: Float,
+        scoreContribution: Double
+    ) {
+        self.harmonic = harmonic
+        self.expectedFrequency = expectedFrequency
+        self.peakFrequency = peakFrequency
+        self.whitenedPeakFrequency = whitenedPeakFrequency
+        self.peakMagnitude = peakMagnitude
+        self.scoreContribution = scoreContribution
+    }
 }
 
 /// A candidate pitch detected through harmonic spectral summation.
-public struct SpectralCandidate: Sendable, Equatable {
+///
+/// Crosses the seam into the Analysis group, which ranks and gates on `frequency`
+/// and `score`. The two fields below those are the scorer's own ranking inputs and
+/// nothing outside this file reads them, so they stay here.
+struct SpectralCandidate: Sendable, Equatable {
     /// Measured fundamental frequency in Hertz.
-    public let frequency: Double
+    let frequency: Double
     /// Combined harmonic score (evidence metric).
-    public let score: Double
+    let score: Double
     /// Raw un-interpolated peak score on the discrete grid.
-    public let rawScore: Double
+    private let rawScore: Double
     /// Peak amplitude measured for each evaluated harmonic (h = 1...H).
-    public let peakHarmonics: [Float]
+    private let peakHarmonics: [Float]
 
-    public init(
+    init(
         frequency: Double,
         score: Double,
         rawScore: Double,
@@ -52,20 +85,20 @@ public struct SpectralCandidate: Sendable, Equatable {
 
 /// Offline / sustain-recovery spectral pitch scorer implementing Klapuri 2006 harmonic summation
 /// and 56-band compressive spectral whitening (sigma_b^(-2/3)).
-public final class SpectralPitchScorer: @unchecked Sendable {
-    public static let analysisRate: Double = 16000.0
-    public static let windowSize: Int = 1536
-    public static let fftSize: Int = 4096
-    public static let halfFftSize: Int = 2048 // half-spectrum bins
-    public static let minFrequency: Double = 50.0
-    public static let maxFrequency: Double = 1100.0
-    public static let gridPointsPerSemitone: Double = 15.0
-    public static let maxHarmonicFrequency: Double = 6400.0
-    public static let maxHarmonics: Int = 19
-    public static let binResolutionHz: Double = 16000.0 / 4096.0 // 3.90625 Hz
+final class SpectralPitchScorer: @unchecked Sendable {
+    static let analysisRate: Double = 16000.0
+    static let windowSize: Int = 1536
+    static let fftSize: Int = 4096
+    private static let halfFftSize: Int = 2048 // half-spectrum bins
+    static let minFrequency: Double = 50.0
+    static let maxFrequency: Double = 1100.0
+    private static let gridPointsPerSemitone: Double = 15.0
+    private static let maxHarmonicFrequency: Double = 6400.0
+    private static let maxHarmonics: Int = 19
+    private static let binResolutionHz: Double = 16000.0 / 4096.0 // 3.90625 Hz
 
     // MARK: - Options & Switches
-    public var isWhiteningEnabled: Bool = true
+    var isWhiteningEnabled: Bool = true
 
     // MARK: - Precomputed Tables & Buffers
     private let lock = NSLock()
@@ -102,7 +135,7 @@ public final class SpectralPitchScorer: @unchecked Sendable {
     }
     private let candidateGrid: [CandidateGridPoint]
 
-    public init() {
+    init() {
         let log2n = vDSP_Length(12) // 2^12 = 4096
         guard let setup = vDSP_create_fftsetup(log2n, FFTRadix(kFFTRadix2)) else {
             fatalError("Failed to allocate Accelerate FFTSetup for size \(Self.fftSize)")
@@ -225,10 +258,16 @@ public final class SpectralPitchScorer: @unchecked Sendable {
         imagp.deallocate()
     }
 
-    // MARK: - Public Scoring API
+    // MARK: - Scoring API
+    //
+    // `analyzeAudio` is the app's way in: the Analysis group holds a scorer and asks
+    // it for a `WindowAnalysis`. The three marked `internal` below have no app caller
+    // — they are the scorer's own test surface, kept visible rather than private so
+    // `SpectralPitchScorerTests` can check the scorer against itself. Recorded as
+    // reach-throughs in the structure-work plan.
 
     /// Scores raw audio by resampling to 16 kHz if needed and applying spectral analysis.
-    public func scoreAudio(samples: [Float], sampleRate: Double) -> [SpectralCandidate] {
+    internal func scoreAudio(samples: [Float], sampleRate: Double) -> [SpectralCandidate] {
         analyzeAudio(samples: samples, sampleRate: sampleRate)?.candidates ?? []
     }
 
@@ -258,7 +297,7 @@ public final class SpectralPitchScorer: @unchecked Sendable {
     }
 
     /// Scores a 16 kHz window (nominally 1536 samples).
-    public func scoreWindow(_ samples: [Float]) -> [SpectralCandidate] {
+    internal func scoreWindow(_ samples: [Float]) -> [SpectralCandidate] {
         analyzeWindow(samples)?.candidates ?? []
     }
 
@@ -470,7 +509,7 @@ public final class SpectralPitchScorer: @unchecked Sendable {
     ///   of the magnitude. A windowed spectral main lobe is much closer to a
     ///   Gaussian than to a parabola, so log-space interpolation is the more
     ///   accurate choice when the peak's *position* is what matters.
-    static func extractPeaks(
+    private static func extractPeaks(
         from spectrum: [Float],
         relativeThreshold: Float,
         interpolateOnLogMagnitude: Bool = false
@@ -533,16 +572,16 @@ public final class SpectralPitchScorer: @unchecked Sendable {
     /// with order), so dividing a high partial's interpolated peak by its order
     /// increasingly overestimates the fundamental. Capping the order keeps that
     /// bias small while still gaining the `1/h` reduction in interpolation error.
-    static let maxEstimationHarmonic: Int = 8
+    private static let maxEstimationHarmonic: Int = 8
 
     /// A per-harmonic estimate may not sit further than this from the grid
     /// estimate before it is treated as a mismatched peak and discarded.
-    static let maxHarmonicDeviationCents: Double = 35.0
+    private static let maxHarmonicDeviationCents: Double = 35.0
 
     /// If harmonic-based estimation disagrees with the grid estimate by more than
     /// this, the grid estimate is kept: the harmonic set was not describing one
     /// fundamental and the grid maximum is the safer of the two.
-    static let maxFundamentalShiftCents: Double = 45.0
+    private static let maxFundamentalShiftCents: Double = 45.0
 
     /// Estimates a candidate's fundamental from its interpolated harmonic peaks.
     ///
@@ -561,7 +600,7 @@ public final class SpectralPitchScorer: @unchecked Sendable {
     ///
     /// - Returns: `nil` when no usable harmonic peak was found or the set does not
     ///   describe one fundamental, so the caller keeps the grid estimate.
-    static func estimateFundamental(
+    private static func estimateFundamental(
         gridFrequency: Double,
         evidence: [HarmonicEvidence]
     ) -> Double? {
@@ -599,8 +638,9 @@ public final class SpectralPitchScorer: @unchecked Sendable {
         return estimate
     }
 
-    // MARK: - Internal Transform & Diagnostic Seams
-    internal func computeTransform(padded: [Float]) -> (magnitudes: [Float], powerSpectrum: [Float]) {        padded.withUnsafeBufferPointer { buffer in
+    // MARK: - Transform
+    private func computeTransform(padded: [Float]) -> (magnitudes: [Float], powerSpectrum: [Float]) {
+        padded.withUnsafeBufferPointer { buffer in
             let base = buffer.baseAddress!
             for i in 0..<Self.halfFftSize {
                 realp[i] = base[2 * i]
@@ -626,7 +666,7 @@ public final class SpectralPitchScorer: @unchecked Sendable {
     }
 
     /// Computes unwhitened DFT magnitude spectrum A[k] for the input window.
-    public func computeMagnitudes(samples: [Float]) -> [Float] {
+    internal func computeMagnitudes(samples: [Float]) -> [Float] {
         lock.lock()
         defer { lock.unlock() }
 
@@ -717,7 +757,11 @@ public final class SpectralPitchScorer: @unchecked Sendable {
 
     // MARK: - Direct DFT Diagnostic Seam
     /// Computes the exact Discrete Fourier Transform magnitude for verification against Accelerate FFT.
-    public static func directDFT(samples: [Float], fftSize: Int) -> [Float] {
+    ///
+    /// Test surface, like the three marked `internal` under Scoring API: it is the
+    /// reference the accelerated path is checked against, and nothing in the app
+    /// transforms anything the slow way.
+    internal static func directDFT(samples: [Float], fftSize: Int) -> [Float] {
         let halfSize = fftSize / 2
         var magnitudes = [Float](repeating: 0, count: halfSize)
         let n = samples.count

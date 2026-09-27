@@ -2,16 +2,16 @@ import Foundation
 
 /// Polyphase sinc resampler matching chorder's trailing-window resampling.
 /// Resamples arbitrary input sample rate (e.g. 44.1kHz, 48kHz) down to ANALYSIS_RATE = 16000Hz.
-public final class Resampler: @unchecked Sendable {
-    public static let analysisRate: Double = 16000.0
-    public static let windowSize: Int = 1536
-    public static let resamplerRadius: Int = 48
-    public static let resamplerPhases: Int = 256
+final class Resampler: @unchecked Sendable {
+    static let analysisRate: Double = 16000.0
+    static let windowSize: Int = 1536
+    private static let resamplerRadius: Int = 48
+    private static let resamplerPhases: Int = 256
 
     private var cachedKernels: [Int: [[Float]]] = [:]
     private let lock = NSLock()
 
-    public init() {}
+    init() {}
 
     /// Trailing input samples needed to resample a window at `sampleRate` down to
     /// `analysisRate`.
@@ -20,7 +20,7 @@ public final class Resampler: @unchecked Sendable {
     /// full output window at the input rate. Lives here rather than at the audio
     /// edge: it is a property of the filter, and every caller of it — the capture
     /// tap, the spectral scorer, the replay helpers — is asking the same question.
-    public static func requiredInputSamples(for sampleRate: Double) -> Int {
+    static func requiredInputSamples(for sampleRate: Double) -> Int {
         if sampleRate <= analysisRate {
             return windowSize
         }
@@ -71,7 +71,7 @@ public final class Resampler: @unchecked Sendable {
     }
 
     /// Resamples the trailing window of `source` to `windowSize` samples at 16000 Hz.
-    public func resampleWindow(source: [Float], inputRate: Double) -> [Float]? {
+    func resampleWindow(source: [Float], inputRate: Double) -> [Float]? {
         let count = source.count
         guard count >= Self.windowSize else { return nil }
 

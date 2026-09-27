@@ -1,6 +1,6 @@
 /// Official presets matching chorder/src/audio/tuner/presets.ts
-public enum Presets {
-    public static let guitar: [TuningPreset] = [
+enum Presets {
+    static let guitar: [TuningPreset] = [
         TuningPreset(id: "standard", label: "Standard · E A D G B E", midi: [40, 45, 50, 55, 59, 64]),
         TuningPreset(id: "drop-d", label: "Drop D", midi: [38, 45, 50, 55, 59, 64]),
         TuningPreset(id: "drop-c", label: "Drop C", midi: [36, 43, 48, 53, 57, 62]),
@@ -13,14 +13,14 @@ public enum Presets {
         TuningPreset(id: "open-g", label: "Open G", midi: [38, 43, 50, 55, 59, 62])
     ]
 
-    public static let ukulele: [TuningPreset] = [
+    static let ukulele: [TuningPreset] = [
         TuningPreset(id: "high-g", label: "High G · G C E A", midi: [67, 60, 64, 69]),
         TuningPreset(id: "low-g", label: "Low G · G C E A", midi: [55, 60, 64, 69]),
         TuningPreset(id: "baritone", label: "Baritone · D G B E", midi: [50, 55, 59, 64]),
         TuningPreset(id: "d-tuning", label: "D tuning · A D F♯ B", midi: [69, 62, 66, 71])
     ]
 
-    public static func presets(for instrument: InstrumentCategory) -> [TuningPreset] {
+    static func presets(for instrument: InstrumentCategory) -> [TuningPreset] {
         switch instrument {
         case .guitar: guitar
         case .ukulele: ukulele
@@ -28,5 +28,5 @@ public enum Presets {
     }
 
     /// Available MIDI notes for custom tuning selection (A1 to B5 inclusively).
-    public static let customNotes: [Int] = Array(TunerConstants.customMidiMin...TunerConstants.customMidiMax)
+    static let customNotes: [Int] = Array(TunerConstants.customMidiMin...TunerConstants.customMidiMax)
 }

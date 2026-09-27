@@ -1,13 +1,13 @@
 import SwiftUI
 
 /// Mode bar matching chorder: tabs for Auto / Guided / Chromatic and Precision ±2¢ / ±5¢ toggle.
-public struct HardwareModeBarView: View {
+struct HardwareModeBarView: View {
     let mode: TunerMode
     let precision: Bool
     let onSelectMode: (TunerMode) -> Void
     let onTogglePrecision: () -> Void
 
-    public init(
+    init(
         mode: TunerMode,
         precision: Bool,
         onSelectMode: @escaping (TunerMode) -> Void,
@@ -19,7 +19,7 @@ public struct HardwareModeBarView: View {
         self.onTogglePrecision = onTogglePrecision
     }
 
-    public var body: some View {
+    var body: some View {
         HStack(spacing: 8) {
             // Mode Tabs (Auto, Guided, Chromatic)
             HStack(spacing: 2) {

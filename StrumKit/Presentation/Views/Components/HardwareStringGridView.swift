@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Reference strings section matching chorder's string grid, locked state, checkmarks, and tone buttons.
-public struct HardwareStringGridView: View {
+struct HardwareStringGridView: View {
     let targets: [StringTarget]
     let selectedIndex: Int?
     let mode: TunerMode
@@ -12,7 +12,7 @@ public struct HardwareStringGridView: View {
     let onPlayTone: (Int) -> Void
     let onResetGuided: () -> Void
 
-    public init(
+    init(
         targets: [StringTarget],
         selectedIndex: Int?,
         mode: TunerMode,
@@ -43,7 +43,7 @@ public struct HardwareStringGridView: View {
         }
     }
 
-    public var body: some View {
+    var body: some View {
         VStack(spacing: 10) {
             // Caption Header
             HStack {

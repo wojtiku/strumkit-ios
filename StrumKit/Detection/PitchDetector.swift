@@ -9,17 +9,17 @@ import Accelerate
 /// - Sub-sample parabolic interpolation with curvature guard.
 /// - Multiplier candidate arbitration (2x, 3x, 4x) using Hann power projection to eliminate octave doubling.
 /// - Prior frequency continuity tracking and ambiguity detection.
-public final class PitchDetector: @unchecked Sendable {
-    public static let minAnalysisRMS: Double = 0.00006
-    public static let curvatureEpsilon: Double = 1e-15
-    public static let refinementRadius: Int = 2
-    public static let candidateSearchRadius: Int = 2
-    public static let fallbackResidualLimit: Double = 0.35
-    public static let candidateMultipliers: [Int] = [2, 3, 4]
+final class PitchDetector: @unchecked Sendable {
+    static let minAnalysisRMS: Double = 0.00006
+    private static let curvatureEpsilon: Double = 1e-15
+    private static let refinementRadius: Int = 2
+    private static let candidateSearchRadius: Int = 2
+    private static let fallbackResidualLimit: Double = 0.35
+    private static let candidateMultipliers: [Int] = [2, 3, 4]
 
-    public static let priorSubharmonicMaxDistanceCents: Double = 35.0
-    public static let priorSubharmonicMinEnergyRatio: Double = 0.05
-    public static let unprioritizedSubharmonicMinEnergyRatio: Double = 0.30
+    private static let priorSubharmonicMaxDistanceCents: Double = 35.0
+    private static let priorSubharmonicMinEnergyRatio: Double = 0.05
+    private static let unprioritizedSubharmonicMinEnergyRatio: Double = 0.30
 
     /// The unscaled floor for a candidate fundamental's share of a window's power.
     /// Each of the three gates multiplies one of these two bases by the instance's
@@ -32,24 +32,24 @@ public final class PitchDetector: @unchecked Sendable {
     /// `fundamentalMinEnergyRatio` at every frequency, high notes included, so
     /// "high notes get a weaker floor" is true of one site out of three. The two
     /// bases keep their 2:1 ratio at every scale.
-    public static let fundamentalEnergyBase: Double = 0.004
-    public static let highNoteEnergyBase: Double = 0.002
+    static let fundamentalEnergyBase: Double = 0.004
+    private static let highNoteEnergyBase: Double = 0.002
 
     /// The shipped value. `1.0` is the pre-2026-09-25 behaviour, bit for bit;
     /// Task 6 changes it from a measured sweep of `fundamentalEnergyScale` and
     /// records the decision table in RESULTS.md.
-    public static let defaultFundamentalEnergyScale: Double = 1.0
+    static let defaultFundamentalEnergyScale: Double = 1.0
 
-    public static let harmonicSupportMinRatio: Double = 0.5
+    private static let harmonicSupportMinRatio: Double = 0.5
 
-    public static let clippingSampleLevel: Float = 0.98
-    public static let clippingFraction: Double = 0.01
+    private static let clippingSampleLevel: Float = 0.98
+    private static let clippingFraction: Double = 0.01
 
     private let resampler = Resampler()
-    public let sampleRate: Double
-    public let bufferSize: Int
-    public let minFrequency: Double
-    public let maxFrequency: Double
+    let sampleRate: Double
+    let bufferSize: Int
+    let minFrequency: Double
+    let maxFrequency: Double
 
     /// The one multiplier behind all three fundamental-energy gates, and the only
     /// thing Task 6 changes. `1.0` is the pre-2026-09-25 behaviour, bit for bit.
@@ -98,18 +98,18 @@ public final class PitchDetector: @unchecked Sendable {
     /// ratio test vacuously true, so that veto arms strictly more often than at
     /// any positive scale. Its other two conjuncts still apply, so "more often"
     /// is not "always", and nothing here claims which signals those are.
-    public let fundamentalEnergyScale: Double
+    let fundamentalEnergyScale: Double
 
     // `fundamentalMinEnergyRatio` and `standardAmbiguityMinEnergyRatio` are the
     // same expression on purpose, not a copy-paste slip: they were already both
     // 0.004 before any scale existed. One shared base means the knob cannot
     // split them — giving them separate values is a second edit, here and in
     // `fundamentalEnergyBase`, and not a sweep result.
-    public var fundamentalMinEnergyRatio: Double { Self.fundamentalEnergyBase * fundamentalEnergyScale }
-    public var standardAmbiguityMinEnergyRatio: Double { Self.fundamentalEnergyBase * fundamentalEnergyScale }
-    public var highNoteAmbiguityMinEnergyRatio: Double { Self.highNoteEnergyBase * fundamentalEnergyScale }
+    var fundamentalMinEnergyRatio: Double { Self.fundamentalEnergyBase * fundamentalEnergyScale }
+    var standardAmbiguityMinEnergyRatio: Double { Self.fundamentalEnergyBase * fundamentalEnergyScale }
+    var highNoteAmbiguityMinEnergyRatio: Double { Self.highNoteEnergyBase * fundamentalEnergyScale }
 
-    public init(
+    init(
         sampleRate: Double = 44100.0,
         bufferSize: Int = 2048,
         minFrequency: Double = TunerConstants.detectorMinHz,
@@ -131,7 +131,7 @@ public final class PitchDetector: @unchecked Sendable {
     ///   has to answer it — with the right clock — because it branches on the answer.
     ///   This entry point states only what it cannot infer, so `nil` means "no live
     ///   prior" and never "a prior I forgot to qualify".
-    public func detectPitch(
+    func detectPitch(
         in buffer: [Float],
         noiseGateRMS: Float = 0.0001,
         yinThreshold: Float = 0.15,

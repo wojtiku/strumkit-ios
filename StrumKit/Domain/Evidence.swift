@@ -14,7 +14,7 @@
 /// absent. The path that produced it was measured and found blocked: its gate
 /// rejected exactly the weak fundamentals it existed to rescue. See
 /// `docs/tuner-reliability/RESULTS.md` §13 and the glossary's Evidence entry.
-public enum Evidence: Sendable, Hashable {
+enum Evidence: Sendable, Hashable {
     case measured
     case sustained
 
@@ -30,7 +30,7 @@ public enum Evidence: Sendable, Hashable {
     /// The rule is a property of the grade, so it is stated on the grade rather
     /// than on whatever module happens to schedule the frames: there is nothing
     /// left to decide at the call site.
-    public var mayAssertInTune: Bool { self == .measured }
+    var mayAssertInTune: Bool { self == .measured }
 
     /// Whether a Reading backed by this Evidence may complete a Tuning sequence.
     ///
@@ -41,5 +41,5 @@ public enum Evidence: Sendable, Hashable {
     /// Sustained frame fails the guided hold's periodicity requirement anyway;
     /// stating the rule here means the completion gate does not rest on that
     /// coincidence.
-    public var mayCompleteTuning: Bool { self == .measured }
+    var mayCompleteTuning: Bool { self == .measured }
 }

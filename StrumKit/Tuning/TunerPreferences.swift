@@ -3,21 +3,21 @@ import Foundation
 /// Persistent user preferences for the StrumKit instrument tuner.
 /// Remembers instrument choice, tuning presets per instrument, reference pitch calibration,
 /// detection mode, and precision settings across app launches.
-public struct TunerPreferences: Sendable, Equatable, Codable {
-    public var selectedInstrument: InstrumentCategory
-    public var guitarTuningId: String
-    public var ukuleleTuningId: String
-    public var guitarCustomMidi: [Int]
-    public var ukuleleCustomMidi: [Int]
-    public var a4: Double
-    public var mode: TunerMode
-    public var precision: Bool
-    public var guided: Bool
+struct TunerPreferences: Sendable, Equatable, Codable {
+    var selectedInstrument: InstrumentCategory
+    var guitarTuningId: String
+    var ukuleleTuningId: String
+    var guitarCustomMidi: [Int]
+    var ukuleleCustomMidi: [Int]
+    var a4: Double
+    var mode: TunerMode
+    var precision: Bool
+    var guided: Bool
 
-    public static let defaultGuitarMidi: [Int] = [40, 45, 50, 55, 59, 64]
-    public static let defaultUkuleleMidi: [Int] = [67, 60, 64, 69]
+    static let defaultGuitarMidi: [Int] = [40, 45, 50, 55, 59, 64]
+    static let defaultUkuleleMidi: [Int] = [67, 60, 64, 69]
 
-    public init(
+    init(
         selectedInstrument: InstrumentCategory = .guitar,
         guitarTuningId: String = "standard",
         ukuleleTuningId: String = "high-g",
@@ -53,7 +53,7 @@ public struct TunerPreferences: Sendable, Equatable, Codable {
     }
 
     /// The **Tuning** stored for one **Instrument**: a **Preset** id, or `Tuning.customTuningId`.
-    public func tuningId(for instrument: InstrumentCategory) -> String {
+    func tuningId(for instrument: InstrumentCategory) -> String {
         switch instrument {
         case .guitar: guitarTuningId
         case .ukulele: ukuleleTuningId
@@ -64,7 +64,7 @@ public struct TunerPreferences: Sendable, Equatable, Codable {
     ///
     /// As stored, unvalidated: whether they name a tuning the player can play is
     /// `Tuning`'s decision, not this struct's.
-    public func customMidi(for instrument: InstrumentCategory) -> [Int] {
+    func customMidi(for instrument: InstrumentCategory) -> [Int] {
         switch instrument {
         case .guitar: guitarCustomMidi
         case .ukulele: ukuleleCustomMidi
@@ -76,7 +76,7 @@ public struct TunerPreferences: Sendable, Equatable, Codable {
     /// - Parameter customMidi: the **Note** numbers of a **Custom tuning**. Left as it was
     ///   when omitted, so choosing a shipped **Preset** does not disturb a **Custom tuning**
     ///   the player may still want back.
-    public mutating func setTuning(_ tuningId: String, customMidi: [Int]? = nil, for instrument: InstrumentCategory) {
+    mutating func setTuning(_ tuningId: String, customMidi: [Int]? = nil, for instrument: InstrumentCategory) {
         switch instrument {
         case .guitar:
             guitarTuningId = tuningId
@@ -91,7 +91,13 @@ public struct TunerPreferences: Sendable, Equatable, Codable {
     ///
     /// A read of the one resolution in `Tuning` — the same resolution the **Targets** come
     /// from, so the two cannot describe different tunings.
-    public func activeConfig() -> TunerConfig {
+    ///
+    /// Nothing in the app calls this: the app resolves through `Tuning` and takes the
+    /// **Targets** with the config. It is here for `PreferencesTests`, which checks the
+    /// stored choices reach a config — recorded as a reach-through rather than made
+    /// private, because the test reads it and a test is not to be rewritten to suit a
+    /// visibility change.
+    func activeConfig() -> TunerConfig {
         Tuning.resolve(self).config
     }
 }

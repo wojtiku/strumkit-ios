@@ -2,12 +2,12 @@ import SwiftUI
 import QuartzCore
 
 /// Master Tuner view implementing the complete chorder native instrument tuner.
-public struct TunerView: View {
+struct TunerView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var viewModel = TunerViewModel.live()
     @State private var isShowingSettings = false
 
-    public init() {}
+    init() {}
 
     /// The String the readout should name as the thing being aimed at.
     ///
@@ -62,7 +62,7 @@ public struct TunerView: View {
         .animation(minimumInterval: 1.0 / 30.0, paused: viewModel.currentReading?.freshness != .held)
     }
 
-    public var body: some View {
+    var body: some View {
         NavigationStack {
             ZStack {
                 TunerTheme.background

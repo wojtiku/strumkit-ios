@@ -3,15 +3,26 @@ import Foundation
 
 /// Synthesizes authentic acoustic plucked string tones for Guitar and Ukulele.
 /// Based on chorder's physical string model (Karplus-Strong with pluck excitation, body resonance, and string dispersion).
-public final class AcousticStringSynthesizer: @unchecked Sendable, ReferenceTonePlayer {
+///
+/// `playString` and `stop` are what the app uses, through `ReferenceTonePlayer`;
+/// `activeStringIndex` is the one member a test reaches past that protocol for.
+final class AcousticStringSynthesizer: @unchecked Sendable, ReferenceTonePlayer {
     private let engine = AVAudioEngine()
     private let playerNode = AVAudioPlayerNode()
     private let queue = DispatchQueue(label: "com.strumkit.stringsynth")
     private let synthFormat: AVAudioFormat
 
-    public private(set) var activeStringIndex: Int? = nil
+    /// Which **String** is currently sounding, readable but not settable from outside
+    /// the file.
+    ///
+    /// Not on `ReferenceTonePlayer`, and the only reason it is visible at all is
+    /// `PreferencesTests.testAcousticStringSynthesizerPluck`, which polls it to wait for
+    /// the background queue to finish — a reach-through past the tone-player
+    /// interface, recorded in the structure-work plan. It is the same shape as the
+    /// flake that test is known for: a state flag standing in for "the work finished".
+    private(set) var activeStringIndex: Int? = nil
 
-    public init() {
+    init() {
         let format = AVAudioFormat(standardFormatWithSampleRate: 44100.0, channels: 1)!
         self.synthFormat = format
         engine.attach(playerNode)
@@ -19,7 +30,7 @@ public final class AcousticStringSynthesizer: @unchecked Sendable, ReferenceTone
     }
 
     /// Plays an acoustic reference string tone.
-    public func playString(frequency: Double, stringIndex: Int, instrument: InstrumentCategory) {
+    func playString(frequency: Double, stringIndex: Int, instrument: InstrumentCategory) {
         queue.async {
             self.stopInternal()
 
@@ -129,7 +140,7 @@ public final class AcousticStringSynthesizer: @unchecked Sendable, ReferenceTone
     }
 
     /// Stops any playing tone immediately.
-    public func stop() {
+    func stop() {
         queue.async {
             self.stopInternal()
         }

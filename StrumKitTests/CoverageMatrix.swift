@@ -71,7 +71,7 @@ enum CoverageMatrix {
     ///
     /// Mirrored by `EXTRA_VOICE_WEIGHT` in `docs/tuner-reliability/webtuna/xeng.mjs`;
     /// the two generators must agree or the per-cell `sig=` checksums diverge.
-    public static let extraVoiceWeight: Double = 0.7
+    static let extraVoiceWeight: Double = 0.7
 
     static func signal(
         _ c: Case,

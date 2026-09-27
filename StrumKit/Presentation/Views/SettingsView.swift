@@ -1,15 +1,15 @@
 import SwiftUI
 
 /// Settings sheet for reference pitch calibration, custom tunings, and audio diagnostics matching chorder.
-public struct SettingsView: View {
+struct SettingsView: View {
     @Bindable var viewModel: TunerViewModel
     @Environment(\.dismiss) private var dismiss
 
-    public init(viewModel: TunerViewModel) {
+    init(viewModel: TunerViewModel) {
         self.viewModel = viewModel
     }
 
-    public var body: some View {
+    var body: some View {
         NavigationStack {
             Form {
                 // Section 1: Reference Pitch Calibration (A4)

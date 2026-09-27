@@ -1,17 +1,17 @@
 /// Analyzed pitch state from the DSP pipeline.
-public struct PitchResult: Sendable, Equatable {
-    public let frequency: Double
-    public let closestNote: MusicalNote
-    public let centsDeviation: Double
-    public let confidence: Double
-    public let amplitudeRMS: Double
-    public let isSignalPresent: Bool
-    public let evidence: Evidence
+struct PitchResult: Sendable, Equatable {
+    let frequency: Double
+    let closestNote: MusicalNote
+    let centsDeviation: Double
+    let confidence: Double
+    let amplitudeRMS: Double
+    let isSignalPresent: Bool
+    let evidence: Evidence
     /// `true` when the input exceeded the clipping threshold, which forces
     /// abstention independently of level.
-    public let isClipped: Bool
+    let isClipped: Bool
 
-    public init(
+    init(
         frequency: Double,
         closestNote: MusicalNote,
         centsDeviation: Double,
@@ -35,7 +35,7 @@ public struct PitchResult: Sendable, Equatable {
     /// the estimator was willing to name. Nothing was heard, so nothing is being
     /// claimed: `isSignalPresent` is false, and every consumer of a `PitchResult`
     /// acts on that before it acts on anything else here.
-    public static let idle = PitchResult(
+    static let idle = PitchResult(
         frequency: 0,
         closestNote: MusicalNote(midiNoteNumber: 69),
         centsDeviation: 0,

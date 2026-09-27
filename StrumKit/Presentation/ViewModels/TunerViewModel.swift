@@ -3,7 +3,7 @@ import Observation
 
 @MainActor
 @Observable
-public final class TunerViewModel {
+final class TunerViewModel {
     // MARK: - Configuration & Engine State
     /// The player's choice, resolved: what the tuner will do, and the **Targets** it will
     /// measure readings against.
@@ -13,20 +13,20 @@ public final class TunerViewModel {
     private var resolved: Tuning.Resolved
 
     /// What the tuner will do. A read of `resolved`, the same value `targets` reads.
-    public var config: TunerConfig { resolved.config }
-    public var preferences: TunerPreferences
-    public var engineStatus: EngineStatus = .paused
-    public var currentReading: TunerReading? = nil
-    public var lastTone: ToneMemory? = nil
-    public var feedbackState: SignalFeedbackState = .inactive
-    public var diagnostics: TunerDiagnostics = TunerDiagnostics()
+    var config: TunerConfig { resolved.config }
+    var preferences: TunerPreferences
+    var engineStatus: EngineStatus = .paused
+    var currentReading: TunerReading? = nil
+    var lastTone: ToneMemory? = nil
+    var feedbackState: SignalFeedbackState = .inactive
+    var diagnostics: TunerDiagnostics = TunerDiagnostics()
 
     /// Measured level of the audio the capture tap is actually delivering.
     ///
     /// This is the first thing to check when a detector "does nothing": a simulator HAL
     /// client can start cleanly, report "Listening" with a live latency, and still deliver
     /// pure silence, which looks exactly like a broken algorithm.
-    public var inputLevel: TunerAnalysisSession.InputLevel {
+    var inputLevel: TunerAnalysisSession.InputLevel {
         session.inputLevel
     }
 
@@ -37,7 +37,7 @@ public final class TunerViewModel {
     /// rather than reading a clock. What is decided here is how the fade and the
     /// de-emphasis applied to Sustained evidence combine, so an inferred Reading never
     /// looks as authoritative as a measured one however far through the hold it is.
-    public func needleOpacity(holdFade: Double) -> Double {
+    func needleOpacity(holdFade: Double) -> Double {
         if currentReading?.evidence == .sustained {
             return min(holdFade, TunerPresentation.recoveredOpacity)
         }
@@ -58,11 +58,11 @@ public final class TunerViewModel {
     private var holdExpiry: HoldExpiry? = nil
 
     // Guided Mode
-    public var guidedProgress: [Bool] = []
-    public var guidedTargetIndex: Int = 0
+    var guidedProgress: [Bool] = []
+    var guidedTargetIndex: Int = 0
 
     // Tone synthesis
-    public var activeToneStringIndex: Int? = nil
+    var activeToneStringIndex: Int? = nil
 
     // Services
     //
@@ -79,7 +79,7 @@ public final class TunerViewModel {
     ///
     /// The composition root's job, deliberately not the initialiser's default, so
     /// that no caller can reach the ViewModel without saying what it listens to.
-    public static func live(
+    static func live(
         preferencesStore: TunerPreferencesStore = TunerPreferencesStore()
     ) -> TunerViewModel {
         TunerViewModel(
@@ -89,7 +89,7 @@ public final class TunerViewModel {
         )
     }
 
-    public init(
+    init(
         source: MicrophoneSource,
         referenceTone: ReferenceTonePlayer,
         tracker: PitchTracker = PitchTracker(),
@@ -154,12 +154,12 @@ public final class TunerViewModel {
     }
 
     // MARK: - String Targets
-    public var targets: [StringTarget] {
+    var targets: [StringTarget] {
         resolved.targets
     }
 
     // MARK: - Audio Capture Lifecycle
-    public func start() async {
+    func start() async {
         listeningIntent = true
         guard engineStatus != .listening && engineStatus != .requesting else { return }
         await beginListening()
@@ -219,7 +219,7 @@ public final class TunerViewModel {
         }
     }
 
-    public func stop() {
+    func stop() {
         listeningIntent = false
         // Stops the microphone and the analysis behind it; there is no capture path
         // left for this layer to remember.
@@ -231,7 +231,9 @@ public final class TunerViewModel {
         self.feedbackState = .inactive
     }
 
-    public func toggleListening() async {
+    /// Nothing calls this: the header buttons drive `start()` and `stop()` directly.
+    /// Left in place rather than deleted, and narrowed to the file it is dead in.
+    private func toggleListening() async {
         if engineStatus == .listening || engineStatus == .requesting {
             stop()
         } else {
@@ -330,7 +332,7 @@ public final class TunerViewModel {
     }
 
     // MARK: - Instrument & Preset Selection
-    public func setInstrument(_ instrument: InstrumentCategory) {
+    func setInstrument(_ instrument: InstrumentCategory) {
         guard instrument != config.instrument else { return }
         preferences.selectedInstrument = instrument
 
@@ -362,7 +364,7 @@ public final class TunerViewModel {
         self.guidedTargetIndex = session.guidedTargetIndex
     }
 
-    public func setTuningPreset(id: String) {
+    func setTuningPreset(id: String) {
         let instrument = config.instrument
         preferences.setTuning(id, for: instrument)
 
@@ -380,7 +382,7 @@ public final class TunerViewModel {
     }
 
     // MARK: - Mode Controls
-    public func setMode(_ mode: TunerMode) {
+    func setMode(_ mode: TunerMode) {
         applyResolution { config in
             config.mode = mode
             config.guided = (mode == .guided)
@@ -394,7 +396,7 @@ public final class TunerViewModel {
         }
     }
 
-    public func togglePrecision() {
+    func togglePrecision() {
         applyResolution { $0.precision.toggle() }
         session.updateConfiguration(config, preservingGuidedProgress: true)
         syncGuidedStateFromSession()
@@ -402,7 +404,7 @@ public final class TunerViewModel {
         savePreferences()
     }
 
-    public func toggleStringLock(index: Int) {
+    func toggleStringLock(index: Int) {
         if config.mode == .manual && config.selectedString == index {
             applyResolution { $0.mode = .auto }
         } else {
@@ -417,7 +419,7 @@ public final class TunerViewModel {
         syncGuidedStateFromSession()
     }
 
-    public func unlockString() {
+    func unlockString() {
         applyResolution { $0.mode = .auto }
         session.updateConfiguration(config, preservingGuidedProgress: true)
         syncGuidedStateFromSession()
@@ -425,7 +427,7 @@ public final class TunerViewModel {
         savePreferences()
     }
 
-    public func resetGuidedSession() {
+    func resetGuidedSession() {
         session.resetGuidedSession()
         cancelHoldExpiry()
         currentReading = nil
@@ -434,7 +436,7 @@ public final class TunerViewModel {
     }
 
     // MARK: - Reference Tones (Acoustic Pluck)
-    public func playReferenceTone(index: Int) {
+    func playReferenceTone(index: Int) {
         guard index < targets.count else { return }
         let target = targets[index]
         lastTone = ToneMemory(note: target.note, frequency: target.frequency, source: .reference)
@@ -451,13 +453,13 @@ public final class TunerViewModel {
         }
     }
 
-    public func stopReferenceTone() {
+    private func stopReferenceTone() {
         activeToneStringIndex = nil
         referenceTone.stop()
     }
 
     // MARK: - Calibration & Custom Tuning
-    public func updateA4(_ newA4: Double) {
+    func updateA4(_ newA4: Double) {
         let clamped = max(TunerConstants.minCalibrationHz, min(TunerConstants.maxCalibrationHz, newA4))
         applyResolution { $0.a4 = clamped }
         session.updateConfiguration(config)
@@ -466,7 +468,7 @@ public final class TunerViewModel {
         savePreferences()
     }
 
-    public func updateCustomMidi(stringIndex: Int, midi: Int) {
+    func updateCustomMidi(stringIndex: Int, midi: Int) {
         // Bounded by the *resolved* tuning's string count, so the string the player is
         // editing is one the tuner is actually showing them.
         guard stringIndex < resolved.config.customMidi.count else { return }

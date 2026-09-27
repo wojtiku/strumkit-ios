@@ -1,4 +1,4 @@
-public enum SignalFeedbackState: String, Sendable {
+enum SignalFeedbackState: String, Sendable {
     case ready
     case inactive
     case tracking
@@ -9,7 +9,7 @@ public enum SignalFeedbackState: String, Sendable {
     case clipping
     case ambiguous
 
-    public var advisoryMessage: String {
+    var advisoryMessage: String {
         switch self {
         case .ready, .inactive: "Play one string and let it ring"
         case .tracking: "Listening"

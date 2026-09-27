@@ -9,24 +9,24 @@ import Foundation
 /// configuration the tuner runs under, and the **Targets** its **Strings** are measured
 /// against. Answering both together is the point — a configuration that disagrees with the
 /// **Targets** is not a state this app can be in.
-public enum Tuning {
+enum Tuning {
     /// The id a player's own **Tuning** is stored under, alongside the shipped **Preset** ids.
-    public static let customTuningId = "custom"
+    static let customTuningId = "custom"
 
     /// What the player has chosen, resolved: what the tuner will do, and the **Targets** it
     /// will measure readings against.
-    public struct Resolved: Sendable {
-        public let config: TunerConfig
-        public let targets: [StringTarget]
+    struct Resolved: Sendable {
+        let config: TunerConfig
+        let targets: [StringTarget]
 
-        public init(config: TunerConfig, targets: [StringTarget]) {
+        init(config: TunerConfig, targets: [StringTarget]) {
             self.config = config
             self.targets = targets
         }
     }
 
     /// Resolves the **Tuning** the stored preferences describe.
-    public static func resolve(_ preferences: TunerPreferences) -> Resolved {
+    static func resolve(_ preferences: TunerPreferences) -> Resolved {
         let instrument = preferences.selectedInstrument
         return resolve(
             instrument: instrument,
@@ -51,7 +51,7 @@ public enum Tuning {
     ///   - customMidi: the **Note** numbers of the **Custom tuning**, unvalidated.
     ///   - selectedString: the locked **String**, carried through untouched. A resolution
     ///     describes a **Tuning**; whether a lock survives it is the caller's decision.
-    public static func resolve(
+    static func resolve(
         instrument: InstrumentCategory,
         tuningId: String,
         customMidi: [Int],
@@ -106,13 +106,13 @@ public enum Tuning {
 
     /// How many **Strings** an **Instrument** tunes. The default **Tuning** is one **Note**
     /// per **String**, so its length is the count — written once, not guessed twice.
-    public static func stringCount(for instrument: InstrumentCategory) -> Int {
+    private static func stringCount(for instrument: InstrumentCategory) -> Int {
         defaultMidi(for: instrument).count
     }
 
     /// The **Tuning** an **Instrument** falls back to: standard for a guitar, High G for a
     /// ukulele. What a choice resolves to when it names nothing the tuner can play.
-    public static func defaultMidi(for instrument: InstrumentCategory) -> [Int] {
+    private static func defaultMidi(for instrument: InstrumentCategory) -> [Int] {
         switch instrument {
         case .guitar: TunerPreferences.defaultGuitarMidi
         case .ukulele: TunerPreferences.defaultUkuleleMidi

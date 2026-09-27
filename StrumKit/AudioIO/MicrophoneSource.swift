@@ -5,7 +5,7 @@ import Foundation
 ///
 /// An implementation owns the sample rate, the tap size, the ring buffer, and the
 /// device-specific `AVAudioSession` configuration. A caller knows none of that.
-public protocol MicrophoneSource: AnyObject, Sendable {
+protocol MicrophoneSource: AnyObject, Sendable {
     /// Delivered on an arbitrary thread.
     var onEvent: (@Sendable (MicrophoneEvent) -> Void)? { get set }
 

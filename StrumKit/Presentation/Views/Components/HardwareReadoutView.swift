@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Main musical note readout, cents indicator, guidance instructions, and the heard
 /// frequency beside whatever the Reading is measured against.
-public struct HardwareReadoutView: View {
+struct HardwareReadoutView: View {
     let reading: TunerReading?
     let lastTone: ToneMemory?
     let feedback: SignalFeedbackState
@@ -11,7 +11,7 @@ public struct HardwareReadoutView: View {
     let mode: TunerMode
     let holdOpacity: Double
 
-    public init(
+    init(
         reading: TunerReading?,
         lastTone: ToneMemory?,
         feedback: SignalFeedbackState,
@@ -101,7 +101,7 @@ public struct HardwareReadoutView: View {
         return "\(sign)\(mag) cents"
     }
 
-    public var body: some View {
+    var body: some View {
         VStack(spacing: 8) {
             // Hero Note Display with Superscript Octave
             HStack(alignment: .top, spacing: 2) {

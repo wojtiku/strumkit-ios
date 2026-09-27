@@ -3,28 +3,28 @@ import Foundation
 /// Manages pitch stability, target string matching, guided-mode progression,
 /// display cents smoothing, and multi-reading acquisition.
 /// Faithful native port of chorder/src/audio/tuner/tracker.ts.
-public final class PitchTracker: @unchecked Sendable {
+final class PitchTracker: @unchecked Sendable {
     // Tuning thresholds (cents)
-    public static let standardEnterTuneCents: Double = 5.0
-    public static let standardExitTuneCents: Double = 7.0
-    public static let precisionEnterTuneCents: Double = 2.0
-    public static let precisionExitTuneCents: Double = 3.0
+    private static let standardEnterTuneCents: Double = 5.0
+    private static let standardExitTuneCents: Double = 7.0
+    private static let precisionEnterTuneCents: Double = 2.0
+    private static let precisionExitTuneCents: Double = 3.0
 
     // Acquisition & Stability
-    public static let acquireReadings: Int = 3
-    public static let onsetAcquireReadings: Int = 2
-    public static let onsetRmsMultiplier: Double = 3.0
+    private static let acquireReadings: Int = 3
+    private static let onsetAcquireReadings: Int = 2
+    private static let onsetRmsMultiplier: Double = 3.0
 
     // Guided mode requirements
-    public static let guidedHoldDuration: TimeInterval = 1.0 // 1 full second in tune
-    public static let guidedCompletionPeriodicity: Double = 0.85
+    private static let guidedHoldDuration: TimeInterval = 1.0 // 1 full second in tune
+    static let guidedCompletionPeriodicity: Double = 0.85
 
     // Ambient noise floor tracking
-    public static let initialAmbientFloor: Double = 0.0002
-    public static let minAmbientFloor: Double = 0.00008
-    public static let maxAmbientFloor: Double = 0.015
-    public static let foregroundPeriodicityThreshold: Double = 0.75
-    public static let ambientCooldown: TimeInterval = 0.35
+    static let initialAmbientFloor: Double = 0.0002
+    private static let minAmbientFloor: Double = 0.00008
+    private static let maxAmbientFloor: Double = 0.015
+    private static let foregroundPeriodicityThreshold: Double = 0.75
+    private static let ambientCooldown: TimeInterval = 0.35
 
     /// How far above the learned ambient floor a frame must be before a
     /// periodicity value is allowed to mean "something was played".
@@ -62,17 +62,17 @@ public final class PitchTracker: @unchecked Sendable {
     /// The headroom on the detection side is large either way: the four strum
     /// onsets on that file are 18.8×–66× the room's mean, and the weakest real
     /// acquisition on any recorded fixture is 12.28×.
-    public static let foregroundLevelMultiple: Double = 2.0
+    static let foregroundLevelMultiple: Double = 2.0
 
     // Hold & Sustain Grace Durations
-    public static let readingHoldDuration: TimeInterval = 1.0
-    public static let priorGraceDuration: TimeInterval = 0.85
+    static let readingHoldDuration: TimeInterval = 1.0
+    static let priorGraceDuration: TimeInterval = 0.85
 
     // Responsiveness & Confirmation Constants
-    public static let standardEvidenceSpan: TimeInterval = 0.040 // 40 ms
-    public static let onsetEvidenceSpan: TimeInterval = 0.020    // 20 ms
-    public static let maxCandidateGap: TimeInterval = 0.250      // 250 ms: accommodates worker queue & mailbox replacement
-    public static let displayEmaTimeConstant: TimeInterval = 0.050 // tau = 50 ms
+    private static let standardEvidenceSpan: TimeInterval = 0.040 // 40 ms
+    private static let onsetEvidenceSpan: TimeInterval = 0.020    // 20 ms
+    static let maxCandidateGap: TimeInterval = 0.250      // 250 ms: accommodates worker queue & mailbox replacement
+    static let displayEmaTimeConstant: TimeInterval = 0.050 // tau = 50 ms
 
     // Continuation hysteresis. Acquisition has always demanded more than one frame
     // of evidence before it will put a note on screen; continuation had no
@@ -81,8 +81,8 @@ public final class PitchTracker: @unchecked Sendable {
     // asymmetric on purpose: giving up is the visible failure a player notices, so
     // it is the sticky direction; coming back is the visible correction, so it is
     // the prompt one.
-    public static let continuationYinFailuresToWeaken: Int = 3     // ~70 ms at the 43.1 Hz capture cadence
-    public static let continuationYinSuccessesToStrengthen: Int = 2 // ~46 ms
+    static let continuationYinFailuresToWeaken: Int = 3     // ~70 ms at the 43.1 Hz capture cadence
+    private static let continuationYinSuccessesToStrengthen: Int = 2 // ~46 ms
 
     /// What one frame's Reading is measured against, before the in-tune verdict is
     /// settled.
@@ -192,40 +192,40 @@ public final class PitchTracker: @unchecked Sendable {
     /// and rebuilds the flicker the gate exists to remove.
     private var displayedReading: TunerReading? = nil
 
-    public private(set) var ambientFloor: Double = initialAmbientFloor
-    public private(set) var guidedProgress: [Bool] = []
-    public private(set) var guidedTargetIndex: Int = 0
-    public private(set) var feedbackState: SignalFeedbackState = .inactive
-    public private(set) var continuityPrior: (frequency: Double, at: TimeInterval)? = nil
+    private(set) var ambientFloor: Double = initialAmbientFloor
+    private(set) var guidedProgress: [Bool] = []
+    private(set) var guidedTargetIndex: Int = 0
+    private(set) var feedbackState: SignalFeedbackState = .inactive
+    private(set) var continuityPrior: (frequency: Double, at: TimeInterval)? = nil
 
     /// Consecutive frames on which YIN, rather than spectral recovery, produced
     /// the estimate the display is acting on.
-    public private(set) var consecutiveYinSuccesses: Int = 0
+    private(set) var consecutiveYinSuccesses: Int = 0
     /// Consecutive frames on which it did not: no pitch, or a Sustained one.
-    public private(set) var consecutiveYinFailures: Int = 0
+    private(set) var consecutiveYinFailures: Int = 0
 
     /// True while the dropout streak is short enough that the display has not yet
     /// earned the right to weaken to Sustained evidence or a hold.
-    public var shouldHoldThroughDropout: Bool {
+    var shouldHoldThroughDropout: Bool {
         consecutiveYinFailures < Self.continuationYinFailuresToWeaken
     }
 
-    public init() {}
+    init() {}
 
     /// Recommends the noise gate threshold based on current ambient noise floor and sustain status.
-    public func recommendedNoiseGate(isSustaining: Bool) -> Float {
+    func recommendedNoiseGate(isSustaining: Bool) -> Float {
         let multiplier = isSustaining ? 1.15 : 1.4
         let gate = max(0.00015, ambientFloor * multiplier)
         return Float(gate)
     }
 
     /// Recommends the YIN threshold (0.15 for attack acquisition, 0.25 for sustaining pitch).
-    public func recommendedYinThreshold(isSustaining: Bool) -> Float {
+    func recommendedYinThreshold(isSustaining: Bool) -> Float {
         return isSustaining ? 0.25 : 0.15
     }
 
     /// Resets tracker state when configuration or instrument changes.
-    public func reset(targetCount: Int) {
+    func reset(targetCount: Int) {
         reset(targetCount: targetCount, preservingGuidedProgress: false)
     }
 
@@ -235,7 +235,7 @@ public final class PitchTracker: @unchecked Sendable {
     /// A mode, precision or string-lock change invalidates in-flight *readings* but
     /// must not discard strings the player has already tuned. An instrument or
     /// preset change does discard them, because the strings are different ones.
-    public func reset(targetCount: Int, preservingGuidedProgress: Bool) {
+    func reset(targetCount: Int, preservingGuidedProgress: Bool) {
         let previousProgress = guidedProgress
         let previousTarget = guidedTargetIndex
         guidedProgress = Array(repeating: false, count: targetCount)
@@ -267,14 +267,14 @@ public final class PitchTracker: @unchecked Sendable {
     }
 
     /// Restarts the guided tuning session while retaining settings.
-    public func resetGuidedSession(targetCount: Int) {
+    func resetGuidedSession(targetCount: Int) {
         guidedProgress = Array(repeating: false, count: targetCount)
         guidedTargetIndex = 0
         guidedHoldStartTime = nil
     }
 
     /// Evaluates raw DSP pitch result against tuner configuration and targets.
-    public func process(
+    func process(
         pitchResult: PitchResult,
         at now: TimeInterval,
         config: TunerConfig,

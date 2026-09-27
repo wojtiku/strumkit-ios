@@ -6,7 +6,7 @@ import QuartzCore
 ///
 /// Features a bounded mailbox (at most one pending frame), generational invalidation
 /// across preset/configuration changes, and monotonic capture-to-display timing.
-public final class TunerAnalysisSession: @unchecked Sendable {
+final class TunerAnalysisSession: @unchecked Sendable {
     // MARK: - Synchronized State
     private let lock = NSLock()
     private let workerQueue = DispatchQueue(label: "com.strumkit.analysis.worker", qos: .userInitiated)
@@ -43,7 +43,7 @@ public final class TunerAnalysisSession: @unchecked Sendable {
     // documented in docs/tuner-reliability/RESULTS.md.
 
     /// Minimum absolute evidence score for a recovered candidate.
-    public static let spectralRecoveryMinScore: Double = 0.035
+    private static let spectralRecoveryMinScore: Double = 0.035
 
     /// Minimum pre-whitening RMS for a recovered candidate.
     ///
@@ -53,7 +53,7 @@ public final class TunerAnalysisSession: @unchecked Sendable {
     /// Note already heard, never name one. That Note is carried in the prior, not
     /// necessarily in this window, so the window itself still has to hold real
     /// energy from it — which is why the floor sits above the fresh path's.
-    public static let spectralRecoveryMinRMS: Double = 0.0003
+    private static let spectralRecoveryMinRMS: Double = 0.0003
 
     /// A recovered candidate must beat the best candidate outside the prior's
     /// local-search window by this ratio.
@@ -63,7 +63,7 @@ public final class TunerAnalysisSession: @unchecked Sendable {
     /// 445 Hz "A4" out of a 0.0008-amplitude noise tail, 21 cents sharp. 1.25 keeps
     /// the measured real-signal separation (1.36-1.44x on the quiet fixtures) while
     /// rejecting that case.
-    public static let spectralRecoverySeparationRatio: Double = 1.25
+    private static let spectralRecoverySeparationRatio: Double = 1.25
 
     /// A recovered candidate must be explained by at least this many distinct
     /// harmonic peaks, each carrying at least `spectralSupportFraction` of the
@@ -72,18 +72,18 @@ public final class TunerAnalysisSession: @unchecked Sendable {
     /// A lone spectral peak inside the search window is far more often a noise
     /// artefact than a decaying note, and admitting it produced the largest
     /// single-frame errors (up to ~19 cents) seen in fixture replay.
-    public static let spectralRecoveryMinHarmonics: Int = 2
-    public static let spectralSupportFraction: Double = 0.15
+    private static let spectralRecoveryMinHarmonics: Int = 2
+    private static let spectralSupportFraction: Double = 0.15
 
     /// RMS multiple above the previous frame that marks an onset.
-    public static let onsetRmsRatio: Double = 2.5
-    public static let onsetMinRMS: Double = 0.005
+    private static let onsetRmsRatio: Double = 2.5
+    private static let onsetMinRMS: Double = 0.005
 
     /// Half-width of the local search around the continuity prior.
     ///
     /// A local-search setting, not an instrument-wide acceptance range: candidate
     /// *acceptance* still depends on the score, RMS and competitor evidence below.
-    public static let spectralSearchRadiusCents: Double = 70.0
+    private static let spectralSearchRadiusCents: Double = 70.0
 
     private var previousFrameRms: Double = 0.0
 
@@ -94,7 +94,7 @@ public final class TunerAnalysisSession: @unchecked Sendable {
     ///
     /// Guarded because it is read on the analysis worker and written from the
     /// caller's thread.
-    public var isSpectralRecoveryEnabled: Bool {
+    var isSpectralRecoveryEnabled: Bool {
         get {
             lock.lock()
             defer { lock.unlock() }
@@ -125,7 +125,7 @@ public final class TunerAnalysisSession: @unchecked Sendable {
     }
 
     // UI Publication Callback
-    public var onSnapshotPublished: (@MainActor (AnalysisSnapshot) -> Void)? = nil
+    var onSnapshotPublished: (@MainActor (AnalysisSnapshot) -> Void)? = nil
 
     /// Notified on the main actor when the microphone reports something the tuner has
     /// to absorb. By the time this fires the source has already been stopped and this
@@ -135,7 +135,7 @@ public final class TunerAnalysisSession: @unchecked Sendable {
     /// A callback that re-arms must not gate that on any status of its own: this
     /// session has already stopped the source, so a status saying it is listening is
     /// the thing that is out of date.
-    public var onSourceEvent: (@MainActor (MicrophoneEvent) -> Void)? = nil
+    var onSourceEvent: (@MainActor (MicrophoneEvent) -> Void)? = nil
 
     /// The microphone this session is listening to, whether or not its tap is
     /// running.
@@ -146,7 +146,7 @@ public final class TunerAnalysisSession: @unchecked Sendable {
     /// to after the stop that the interruption itself caused.
     private var activeSource: MicrophoneSource?
 
-    public init(
+    init(
         config: TunerConfig = TunerConfig(),
         targets: [StringTarget] = [],
         tracker: PitchTracker = PitchTracker(),
@@ -158,14 +158,14 @@ public final class TunerAnalysisSession: @unchecked Sendable {
         self.fundamentalEnergyScale = fundamentalEnergyScale
     }
 
-    // MARK: - Public State Accessors
-    public var generation: UInt64 {
+    // MARK: - State Accessors
+    var generation: UInt64 {
         lock.lock()
         defer { lock.unlock() }
         return activeGeneration
     }
 
-    public var replacedFrames: UInt64 {
+    var replacedFrames: UInt64 {
         lock.lock()
         defer { lock.unlock() }
         return replacedFramesCount
@@ -173,38 +173,38 @@ public final class TunerAnalysisSession: @unchecked Sendable {
 
     /// Frames discarded without ever being analysed: stale-generation frames, and
     /// frames dropped by a generation change while queued.
-    public var droppedFrames: Int {
+    var droppedFrames: Int {
         lock.lock()
         defer { lock.unlock() }
         return droppedFramesCount
     }
 
-    public var continuityPrior: (frequency: Double, at: TimeInterval)? {
+    var continuityPrior: (frequency: Double, at: TimeInterval)? {
         lock.lock()
         defer { lock.unlock() }
         return tracker.continuityPrior
     }
 
-    public var feedbackState: SignalFeedbackState {
+    var feedbackState: SignalFeedbackState {
         lock.lock()
         defer { lock.unlock() }
         return tracker.feedbackState
     }
 
-    public var guidedProgress: [Bool] {
+    var guidedProgress: [Bool] {
         lock.lock()
         defer { lock.unlock() }
         return tracker.guidedProgress
     }
 
-    public var guidedTargetIndex: Int {
+    var guidedTargetIndex: Int {
         lock.lock()
         defer { lock.unlock() }
         return tracker.guidedTargetIndex
     }
 
     // MARK: - Lifecycle & Configuration Invalidation
-    public func start(config: TunerConfig, targets: [StringTarget]) {
+    func start(config: TunerConfig, targets: [StringTarget]) {
         lock.lock()
         activeGeneration &+= 1
         currentConfig = config
@@ -227,7 +227,7 @@ public final class TunerAnalysisSession: @unchecked Sendable {
     ///
     /// - Throws: whatever the source throws if capture cannot be started. Nothing is
     ///   left wired in that case — no event handler, no half-started source.
-    public func start(
+    func start(
         source: MicrophoneSource,
         config: TunerConfig,
         targets: [StringTarget]
@@ -258,7 +258,7 @@ public final class TunerAnalysisSession: @unchecked Sendable {
         }
     }
 
-    public func stop() {
+    func stop() {
         lock.lock()
         activeGeneration &+= 1
         pendingFrame = nil
@@ -277,7 +277,7 @@ public final class TunerAnalysisSession: @unchecked Sendable {
     ///   affect how a pitch is judged (mode, precision, string lock), so the
     ///   player's completed strings survive. Pass `false` when the strings
     ///   themselves change.
-    public func updateConfiguration(_ config: TunerConfig, preservingGuidedProgress: Bool = false) {
+    func updateConfiguration(_ config: TunerConfig, preservingGuidedProgress: Bool = false) {
         lock.lock()
         activeGeneration &+= 1
         currentConfig = config
@@ -288,7 +288,7 @@ public final class TunerAnalysisSession: @unchecked Sendable {
         lock.unlock()
     }
 
-    public func updateTargets(_ targets: [StringTarget]) {
+    func updateTargets(_ targets: [StringTarget]) {
         lock.lock()
         activeGeneration &+= 1
         currentTargets = targets
@@ -299,14 +299,14 @@ public final class TunerAnalysisSession: @unchecked Sendable {
         lock.unlock()
     }
 
-    public func resetGuidedSession() {
+    func resetGuidedSession() {
         lock.lock()
         tracker.resetGuidedSession(targetCount: currentTargets.count)
         previousFrameRms = 0.0
         lock.unlock()
     }
 
-    public func reset(targetCount: Int) {
+    func reset(targetCount: Int) {
         lock.lock()
         activeGeneration &+= 1
         pendingFrame = nil
@@ -380,7 +380,12 @@ public final class TunerAnalysisSession: @unchecked Sendable {
     /// engine's delivery, it does not cross the microphone seam, and nothing here
     /// can act on it — so the live diagnostic stays at its zero default and only
     /// replay, which knows its own hop size, stamps a real one.
-    public func submitLiveAudio(
+    ///
+    /// `internal` rather than private because the live path reaches it from the
+    /// source's delivery closure and `AnalysisSessionTests` reaches it from outside
+    /// the microphone seam, which is a recorded reach-through rather than a reason
+    /// to widen anything.
+    internal func submitLiveAudio(
         window: [Float],
         sampleRate: Double,
         captureEndSeconds: TimeInterval
@@ -427,7 +432,11 @@ public final class TunerAnalysisSession: @unchecked Sendable {
     /// - Note: this seam bypasses the serial worker. Call it from a single thread;
     ///   concurrent use alongside `submitLiveAudio` would interleave detector and
     ///   tracker state updates out of frame order.
-    public func processFrameSync(
+    ///
+    /// Nothing in the app calls this: "replay" happens only in the test suite, so
+    /// this is a test seam end to end. `internal` because that is the honest width
+    /// for it — recorded as a reach-through, not widened for.
+    internal func processFrameSync(
         _ frame: AnalysisFrame,
         resultAgeReference: TimeInterval? = nil
     ) -> AnalysisSnapshot? {
@@ -456,13 +465,13 @@ public final class TunerAnalysisSession: @unchecked Sendable {
     /// This is the first thing to check when a detector "does nothing": a simulator HAL
     /// client can start cleanly, report "Listening" with a live latency, and still deliver
     /// pure silence, which looks exactly like a broken algorithm.
-    public struct InputLevel: Sendable, Equatable {
-        public var rms: Double = 0
-        public var peak: Double = 0
-        public var frames: UInt64 = 0
+    struct InputLevel: Sendable, Equatable {
+        var rms: Double = 0
+        var peak: Double = 0
+        var frames: UInt64 = 0
     }
 
-    public var inputLevel: InputLevel {
+    var inputLevel: InputLevel {
         lock.lock()
         defer { lock.unlock() }
         return InputLevel(rms: _inputRMS, peak: _inputPeak, frames: _inputFrameCount)

@@ -13,13 +13,13 @@
 ///   are a distance from the **Note**'s own frequency in equal temperament, and there
 ///   is no verdict to give. `MusicalNote` is a pitch and nothing more; it names no
 ///   String, and it is not a `StringTarget` with a missing string number.
-public enum ReadingAim: Sendable, Hashable {
+enum ReadingAim: Sendable, Hashable {
     case target(StringTarget, inTune: Bool)
     case note(MusicalNote)
 
     /// The **String** this **Reading** is measured against, or `nil` when it names a
     /// **Note** and nothing is being aimed at.
-    public var target: StringTarget? {
+    var target: StringTarget? {
         switch self {
         case .target(let target, _): target
         case .note: nil
@@ -31,7 +31,7 @@ public enum ReadingAim: Sendable, Hashable {
     /// `nil` means *not applicable*, not *out of tune*. A consumer that needs a
     /// colour or a piece of advice has to say what it does without one; that is the
     /// point, because the alternative is a chromatic note being reported as wrong.
-    public var inTune: Bool? {
+    var inTune: Bool? {
         switch self {
         case .target(_, let inTune): inTune
         case .note: nil
@@ -40,7 +40,7 @@ public enum ReadingAim: Sendable, Hashable {
 
     /// The **Note** named, whether it is the **String** being aimed at or the pitch
     /// heard in **Chromatic** mode. The Reading shows this and nothing else needs it.
-    public var name: String {
+    var name: String {
         switch self {
         case .target(let target, _): target.note
         case .note(let note): note.displayName
@@ -49,7 +49,7 @@ public enum ReadingAim: Sendable, Hashable {
 
     /// The frequency the cents are measured from. Deviation from it is advice in the
     /// **String** modes and a fact about equal temperament in **Chromatic** mode.
-    public var frequency: Double {
+    var frequency: Double {
         switch self {
         case .target(let target, _): target.frequency
         case .note(let note): note.frequency

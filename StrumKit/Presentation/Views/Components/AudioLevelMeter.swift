@@ -1,12 +1,17 @@
 import SwiftUI
 
 /// Discreet audio input meter displaying real-time RMS amplitude and noise gate threshold.
-public struct AudioLevelMeter: View {
+///
+/// No view constructs this — `TunerView` shows the level through
+/// `HardwareReadoutView` instead — so it is file-private, and the only thing that
+/// can ever reach it is this file. Left in place rather than deleted: removing a
+/// view is not a visibility change.
+private struct AudioLevelMeter: View {
     let amplitudeRMS: Double
     let noiseGateThreshold: Float
     let isListening: Bool
 
-    public init(amplitudeRMS: Double, noiseGateThreshold: Float, isListening: Bool) {
+    init(amplitudeRMS: Double, noiseGateThreshold: Float, isListening: Bool) {
         self.amplitudeRMS = amplitudeRMS
         self.noiseGateThreshold = noiseGateThreshold
         self.isListening = isListening
@@ -19,7 +24,7 @@ public struct AudioLevelMeter: View {
         return clamped / 0.3
     }
 
-    public var body: some View {
+    var body: some View {
         HStack(spacing: 8) {
             Image(systemName: isListening ? "mic.fill" : "mic.slash.fill")
                 .font(.caption2)

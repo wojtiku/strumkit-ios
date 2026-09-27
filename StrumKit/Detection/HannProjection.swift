@@ -2,15 +2,18 @@ import Foundation
 
 /// Projects a signal onto one frequency with a symmetric Hann window.
 /// Exact native Swift implementation of chorder/src/audio/tuner/correlation.ts.
-public enum HannProjection {
-    public struct Result: Sendable {
-        public let real: Double
-        public let imaginary: Double
-        public let weight: Double
+enum HannProjection {
+    /// The complex projection of a window onto one frequency. File-local: the three
+    /// entry points below reduce it to a `Double` or a `(phase:power:)` pair before
+    /// handing anything back, so no caller outside this file ever names it.
+    private struct Result: Sendable {
+        let real: Double
+        let imaginary: Double
+        let weight: Double
     }
 
     /// Projects samples onto a target frequency using a Hann window.
-    public static func project(
+    private static func project(
         samples: [Float],
         frequency: Double,
         sampleRate: Double,
@@ -40,7 +43,7 @@ public enum HannProjection {
     }
 
     /// Detector energy is weight-normalized to compare projections across windows.
-    public static func normalizedPower(
+    static func normalizedPower(
         samples: [Float],
         frequency: Double,
         sampleRate: Double,
@@ -52,7 +55,7 @@ public enum HannProjection {
     }
 
     /// Raw power without weight normalization.
-    public static func rawPower(
+    static func rawPower(
         samples: [Float],
         frequency: Double,
         sampleRate: Double,
@@ -63,7 +66,7 @@ public enum HannProjection {
     }
 
     /// Phase refinement uses the negative-imaginary DFT convention; its power is raw.
-    public static func phaseAndPower(
+    static func phaseAndPower(
         samples: [Float],
         frequency: Double,
         sampleRate: Double,

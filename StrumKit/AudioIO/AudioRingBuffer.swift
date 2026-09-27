@@ -9,6 +9,13 @@ import Foundation
 ///
 /// Behind the microphone seam. Nothing outside the audio edge needs to know how a
 /// window of trailing audio is kept.
+///
+/// One deliberate exception, recorded rather than accommodated:
+/// `PitchDetectionTests.testAudioRingBufferAccumulation` drives this type directly
+/// through `@testable` instead of crossing the seam. It is testing accumulation
+/// across writes — the ring buffer's own contract — which no seam test would
+/// exercise, because the seam hands out `CapturedWindow`s and never shows its
+/// bookkeeping. That is why the type is `internal` and not `private`.
 final class AudioRingBuffer: @unchecked Sendable {
     private var buffer: [Float]
     private var head = 0
