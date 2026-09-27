@@ -8,6 +8,14 @@ public struct TunerView: View {
 
     public init() {}
 
+    /// The String the readout should name as the thing being aimed at.
+    ///
+    /// In the guided and locked modes the player has already chosen a String and the
+    /// answer does not depend on what is sounding. In auto mode the answer is whatever
+    /// String the current Reading is measured against — and a chromatic Reading is
+    /// measured against nothing, so there is no String to name. That is not a gap to
+    /// fill with a placeholder: the readout says EQUAL TEMP in that case, which is a
+    /// truer description than any String would be.
     private var activeTarget: StringTarget? {
         if viewModel.config.mode == .guided {
             let index = min(viewModel.guidedTargetIndex, viewModel.targets.count - 1)
@@ -16,7 +24,30 @@ public struct TunerView: View {
             let index = min(viewModel.config.selectedString, viewModel.targets.count - 1)
             return viewModel.targets[index]
         }
-        return viewModel.currentReading?.target
+        guard case .target(let target, _) = viewModel.currentReading?.aim else { return nil }
+        return target
+    }
+
+    /// The String the grid should highlight as the one being tuned.
+    ///
+    /// Auto mode follows the Reading, and a chromatic Reading names a Note rather than a
+    /// String, so nothing is highlighted — there is no String on the instrument the
+    /// player is currently being told to reach for.
+    private var highlightedStringIndex: Int? {
+        if viewModel.config.mode == .guided { return viewModel.guidedTargetIndex }
+        if viewModel.config.mode == .manual { return viewModel.config.selectedString }
+        guard case .target(let target, _) = viewModel.currentReading?.aim else { return nil }
+        return viewModel.targets.firstIndex(of: target)
+    }
+
+    /// Whether the display may declare a String in tune right now.
+    ///
+    /// `false` in chromatic mode, where the Reading carries no verdict to show. The
+    /// gauge then colours the needle by the direction of the deviation instead of
+    /// turning green, and the haptic never fires — a chromatic tuner has no peg to
+    /// tell anyone about.
+    private var showsInTuneVerdict: Bool {
+        viewModel.currentReading?.inTune ?? false
     }
 
     public var body: some View {
@@ -43,7 +74,7 @@ public struct TunerView: View {
                     // 4. Reference Strings Section
                     HardwareStringGridView(
                         targets: viewModel.targets,
-                        selectedIndex: viewModel.config.mode == .guided ? viewModel.guidedTargetIndex : (viewModel.config.mode == .manual ? viewModel.config.selectedString : viewModel.currentReading?.targetIndex),
+                        selectedIndex: highlightedStringIndex,
                         mode: viewModel.config.mode,
                         guidedProgress: viewModel.guidedProgress,
                         activeToneIndex: viewModel.activeToneStringIndex,
@@ -89,7 +120,9 @@ public struct TunerView: View {
                     break
                 }
             }
-            // Haptic trigger when crossing into tune
+            // Haptic trigger when crossing into tune. Only a Reading that names a
+            // String can be "into tune"; in chromatic mode the trigger stays nil and
+            // the player is never told they have arrived somewhere.
             .sensoryFeedback(.impact(weight: .medium), trigger: viewModel.currentReading?.inTune) { oldVal, newVal in
                 newVal == true && oldVal == false
             }
@@ -204,7 +237,7 @@ public struct TunerView: View {
             HardwareGaugeView(
                 cents: viewModel.currentReading?.displayCents ?? 0,
                 visible: viewModel.currentReading != nil,
-                inTune: viewModel.currentReading?.inTune ?? false,
+                inTune: showsInTuneVerdict,
                 needleOpacity: viewModel.needleOpacity
             )
             .padding(.horizontal, 12)

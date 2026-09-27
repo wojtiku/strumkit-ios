@@ -1,6 +1,7 @@
 import SwiftUI
 
-/// Main musical note readout, cents indicator, guidance instructions, and heard/target frequencies.
+/// Main musical note readout, cents indicator, guidance instructions, and the heard
+/// frequency beside whatever the Reading is measured against.
 public struct HardwareReadoutView: View {
     let reading: TunerReading?
     let lastTone: ToneMemory?
@@ -38,7 +39,11 @@ public struct HardwareReadoutView: View {
 
     private var statusColor: Color {
         guard let reading else { return TunerTheme.neutral }
-        if reading.inTune {
+        // Green is a verdict about a String, so it is only available to a Reading that
+        // carries one. A chromatic Reading is measured against equal temperament and is
+        // coloured by which side of it the sound fell on, which is a fact rather than a
+        // verdict — which is all the mode can honestly show.
+        if reading.inTune == true {
             return TunerTheme.inTune
         } else if reading.cents < 0 {
             return TunerTheme.flat
@@ -62,10 +67,22 @@ public struct HardwareReadoutView: View {
 
     /// The in-tune confirmation is only ever shown for a fresh Reading backed by
     /// Measured evidence. A held Reading merely remembers the last verdict, and a
-    /// Sustained one is not precise enough to confirm.
+    /// Sustained one is not precise enough to confirm. A chromatic Reading has no
+    /// verdict to remember in the first place, so the check is never reached.
     private var showsInTuneConfirmation: Bool {
         reading?.inTune == true && reading?.freshness == .fresh
             && reading?.evidence.mayAssertInTune == true
+    }
+
+    /// What the second column names, decided in `TunerPresentation` so the choice
+    /// between "a String the player is aiming at" and "the pitch equal temperament
+    /// says this was" is made once, in a testable place, rather than here.
+    private var measuredAgainst: TunerPresentation.MeasuredAgainst {
+        TunerPresentation.measuredAgainst(
+            for: reading,
+            selectedTarget: selectedTarget,
+            mode: mode
+        )
     }
 
     private var formattedCents: String {
@@ -155,24 +172,14 @@ public struct HardwareReadoutView: View {
                 Divider()
                     .frame(height: 20)
 
-                // Target Frequency
+                // The thing this Reading is measured against: a String, or a Note in
+                // equal temperament. The label says which.
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("TARGET")
+                    Text(measuredAgainst.label)
                         .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(.secondary)
-                    if let reading {
-                        Text("\(reading.target.note) · \(String(format: "%.1f", reading.target.frequency)) Hz")
-                            .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    } else if mode == .chromatic {
-                        Text("Nearest note")
-                            .font(.system(size: 13, weight: .medium))
-                    } else if let selectedTarget {
-                        Text("\(selectedTarget.note) · \(String(format: "%.1f", selectedTarget.frequency)) Hz")
-                            .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                    } else {
-                        Text("Any open string")
-                            .font(.system(size: 13, weight: .medium))
-                    }
+                    Text(measuredAgainst.value)
+                        .font(.system(size: 13, weight: .semibold, design: .monospaced))
                 }
             }
             .padding(.top, 4)

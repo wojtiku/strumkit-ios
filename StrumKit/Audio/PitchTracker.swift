@@ -84,8 +84,48 @@ public final class PitchTracker: @unchecked Sendable {
     public static let continuationYinFailuresToWeaken: Int = 3     // ~70 ms at the 43.1 Hz capture cadence
     public static let continuationYinSuccessesToStrengthen: Int = 2 // ~46 ms
 
+    /// What one frame's Reading is measured against, before the in-tune verdict is
+    /// settled.
+    ///
+    /// Split from `ReadingAim` because the two are decided at different points in
+    /// `process`: the aim is step 2 and the verdict is step 5, and a candidate that
+    /// fails to confirm between them must not have updated the hysteresis. The **String**
+    /// modes carry the position in the tuning as well as the **String** itself, because
+    /// two positions in a hand-written **Custom tuning** can name the same pitch and the
+    /// tracker still has to tell them apart.
+    private enum Aim {
+        case target(StringTarget, index: Int)
+        case note(MusicalNote)
+
+        /// Identity of the aim, for the candidate streak, the continuation prior and
+        /// the display-cents reset. `index` is `nil` in **Chromatic** mode, where there
+        /// is no String to have a position — which is what used to be encoded as the
+        /// sentinel `-1`, a value no real String has and one nothing could check.
+        var key: TargetKey {
+            switch self {
+            case .target(let target, let index): TargetKey(index: index, midi: target.midi)
+            case .note(let note): TargetKey(index: nil, midi: note.midiNoteNumber)
+            }
+        }
+
+        /// The position in the tuning, or `nil` when the Reading names a Note.
+        var index: Int? {
+            switch self {
+            case .target(_, let index): index
+            case .note: nil
+            }
+        }
+
+        var frequency: Double {
+            switch self {
+            case .target(let target, _): target.frequency
+            case .note(let note): note.frequency
+            }
+        }
+    }
+
     private struct TargetKey: Equatable {
-        let index: Int
+        let index: Int?
         let midi: Int
     }
 
@@ -307,31 +347,27 @@ public final class PitchTracker: @unchecked Sendable {
         let isOnset = (currentRms >= ambientFloor * 3.5) || ((lastRms > 0) && (currentRms >= lastRms * Self.onsetRmsMultiplier))
         lastRms = currentRms
 
-        // 2. Determine target string according to mode
-        let targetIndex: Int
-        let target: StringTarget
+        // 2. Determine what this Reading is measured against, according to the mode.
+        //
+        //    The String modes are aiming at a String, so the aim is that String.
+        //    Chromatic mode is aiming at nothing: the aim is the equal-tempered Note
+        //    nearest what was heard, which is what the cents are then a distance *from*.
+        let aim: Aim
 
         switch config.mode {
         case .guided:
-            targetIndex = min(guidedTargetIndex, targets.count - 1)
-            target = targets[targetIndex]
+            let index = min(guidedTargetIndex, targets.count - 1)
+            aim = .target(targets[index], index: index)
 
         case .manual:
-            targetIndex = min(max(0, config.selectedString), targets.count - 1)
-            target = targets[targetIndex]
+            let index = min(max(0, config.selectedString), targets.count - 1)
+            aim = .target(targets[index], index: index)
 
         case .chromatic:
-            if let nearest = PitchMath.nearestMidi(for: frequency, a4: config.a4) {
-                target = StringTarget(
-                    note: nearest.note,
-                    midi: nearest.midi,
-                    frequency: PitchMath.midiFrequency(nearest.midi, a4: config.a4),
-                    number: 0
-                )
-                targetIndex = -1
-            } else {
+            guard let named = MusicalNote.closest(to: frequency, referenceA4: config.a4)?.note else {
                 return handleLostSignal(at: now, rms: currentRms)
             }
+            aim = .note(named)
 
         case .auto:
             // Match closest string within MAX_DETUNING_CENTS with 20¢ hysteresis
@@ -349,8 +385,7 @@ public final class PitchTracker: @unchecked Sendable {
 
             let centsToClosest = abs(PitchMath.centsBetween(measured: frequency, reference: targets[closestIdx].frequency))
             if centsToClosest <= TunerConstants.maxDetuningCents {
-                targetIndex = closestIdx
-                target = targets[closestIdx]
+                aim = .target(targets[closestIdx], index: closestIdx)
             } else {
                 handleAmbiguousSignal(at: now)
                 return handleLostSignal(at: now, rms: currentRms)
@@ -358,7 +393,7 @@ public final class PitchTracker: @unchecked Sendable {
         }
 
         // Elapsed fresh evidence target confirmation
-        let currentTargetKey = TargetKey(index: targetIndex, midi: target.midi)
+        let currentTargetKey = aim.key
 
         // Reset candidate confirmation if gap exceeds candidate gap limit (> 250ms)
         if candidateKey != nil && (now - candidateLastSeenAt) > Self.maxCandidateGap {
@@ -422,13 +457,10 @@ public final class PitchTracker: @unchecked Sendable {
                     at: now,
                     lastFreshAt: last.lastFreshAt,
                     frequency: last.frequency,
-                    note: last.note,
-                    target: last.target,
-                    targetIndex: last.targetIndex,
+                    aim: last.aim,
                     cents: last.cents,
                     displayCents: displayCentsEma,
                     freshness: .held,
-                    inTune: last.inTune,
                     evidence: last.evidence
                 ))
             }
@@ -436,7 +468,12 @@ public final class PitchTracker: @unchecked Sendable {
         }
 
         // 3. Calculate cents deviation
-        let rawCents = PitchMath.centsBetween(measured: frequency, reference: target.frequency)
+        //
+        //    Deviation from what the Reading is aimed at: distance from the String the
+        //    player is tuning, or distance from equal temperament in Chromatic mode.
+        //    Same arithmetic, and a genuinely different meaning — which is why the aim
+        //    is a typed choice rather than a frequency someone substituted.
+        let rawCents = PitchMath.centsBetween(measured: frequency, reference: aim.frequency)
         let clampedCents = max(-50.0, min(50.0, rawCents))
 
         // 4. Smooth display cents (Time-based EMA with tau = 50ms) & Target Change Reset
@@ -453,45 +490,60 @@ public final class PitchTracker: @unchecked Sendable {
             displayCentsEma += alpha * (clampedCents - displayCentsEma)
         }
 
-        // 5. In-tune check with hysteresis
-        let enterThreshold = config.precision ? Self.precisionEnterTuneCents : Self.standardEnterTuneCents
-        let exitThreshold = config.precision ? Self.precisionExitTuneCents : Self.standardExitTuneCents
+        // 5. In-tune check with hysteresis, and the aim the Reading is published with.
+        //
+        //    A Reading is in tune when it falls inside a tolerance of its Target, so the
+        //    verdict is computed only for the String modes. A Chromatic Reading has no
+        //    Target: there is no String for it to be in tune with, so the question is
+        //    not asked at all. Recording `false` instead would assert the one thing the
+        //    glossary says is meaningless there — a chromatic note reported as out of
+        //    tune — and every consumer reading the flag would inherit the claim.
+        let readingAim: ReadingAim
+        switch aim {
+        case .note(let note):
+            readingAim = .note(note)
 
-        // A Sustained estimate may update the display and the prior, but must not
-        // assert that a string is in tune. Cents error on recovery is noisier than
-        // YIN's, and "you are flat" is directly actionable advice, so a wrong
-        // Sustained value must never be able to tell the player to move a peg. The
-        // rule itself lives on the grade it governs, `Evidence`.
-        // The tracker records the true `inTune` state for later YIN frames.
-        let inTuneMayBeAsserted = pitchResult.evidence.mayAssertInTune
+        case .target(let target, _):
+            let enterThreshold = config.precision ? Self.precisionEnterTuneCents : Self.standardEnterTuneCents
+            let exitThreshold = config.precision ? Self.precisionExitTuneCents : Self.standardExitTuneCents
 
-        let inTune: Bool
-        if lastInTuneState {
-            inTune = abs(rawCents) <= exitThreshold
-        } else {
-            inTune = abs(rawCents) <= enterThreshold
-        }
-        if inTuneMayBeAsserted {
-            lastInTuneState = inTune
-        }
+            // A Sustained estimate may update the display and the prior, but must not
+            // assert that a string is in tune. Cents error on recovery is noisier than
+            // YIN's, and "you are flat" is directly actionable advice, so a wrong
+            // Sustained value must never be able to tell the player to move a peg. The
+            // rule itself lives on the grade it governs, `Evidence`.
+            // The tracker records the true `inTune` state for later YIN frames.
+            let inTuneMayBeAsserted = pitchResult.evidence.mayAssertInTune
 
-        // 6. Guided Mode Progress Advancement (1-second uninterrupted fresh hold requirement)
-        if config.mode == .guided && targetIndex == guidedTargetIndex {
-            if inTune && pitchResult.confidence >= Self.guidedCompletionPeriodicity
-                && pitchResult.evidence.mayCompleteTuning {
-                if let startTime = guidedHoldStartTime {
-                    if (now - startTime) >= Self.guidedHoldDuration {
-                        guidedProgress[targetIndex] = true
-                        if guidedTargetIndex + 1 < targets.count {
-                            guidedTargetIndex += 1
+            let inTune: Bool
+            if lastInTuneState {
+                inTune = abs(rawCents) <= exitThreshold
+            } else {
+                inTune = abs(rawCents) <= enterThreshold
+            }
+            if inTuneMayBeAsserted {
+                lastInTuneState = inTune
+            }
+            readingAim = .target(target, inTune: inTune && inTuneMayBeAsserted)
+
+            // 6. Guided Mode Progress Advancement (1-second uninterrupted fresh hold requirement)
+            if config.mode == .guided, let targetIndex = aim.index, targetIndex == guidedTargetIndex {
+                if inTune && pitchResult.confidence >= Self.guidedCompletionPeriodicity
+                    && pitchResult.evidence.mayCompleteTuning {
+                    if let startTime = guidedHoldStartTime {
+                        if (now - startTime) >= Self.guidedHoldDuration {
+                            guidedProgress[targetIndex] = true
+                            if guidedTargetIndex + 1 < targets.count {
+                                guidedTargetIndex += 1
+                            }
+                            guidedHoldStartTime = nil
                         }
-                        guidedHoldStartTime = nil
+                    } else {
+                        guidedHoldStartTime = now
                     }
                 } else {
-                    guidedHoldStartTime = now
+                    guidedHoldStartTime = nil
                 }
-            } else {
-                guidedHoldStartTime = nil
             }
         }
 
@@ -514,19 +566,14 @@ public final class PitchTracker: @unchecked Sendable {
             return pinnedReading(at: now)
         }
 
-        let noteDisplay = PitchMath.midiNoteName(target.midi)
-
         let reading = TunerReading(
             at: now,
             lastFreshAt: now,
             frequency: frequency,
-            note: noteDisplay,
-            target: target,
-            targetIndex: targetIndex,
+            aim: readingAim,
             cents: rawCents,
             displayCents: displayCentsEma,
             freshness: .fresh,
-            inTune: inTune && inTuneMayBeAsserted,
             evidence: pitchResult.evidence
         )
         lastReading = reading
@@ -568,13 +615,10 @@ public final class PitchTracker: @unchecked Sendable {
                 at: now,
                 lastFreshAt: last.lastFreshAt,
                 frequency: last.frequency,
-                note: last.note,
-                target: last.target,
-                targetIndex: last.targetIndex,
+                aim: last.aim,
                 cents: last.cents,
                 displayCents: displayCentsEma,
                 freshness: .held,
-                inTune: last.inTune, // Preserve last confirmed in-tune visual state
                 evidence: last.evidence
             ))
         }
@@ -636,13 +680,10 @@ public final class PitchTracker: @unchecked Sendable {
             at: now,
             lastFreshAt: shown.lastFreshAt,
             frequency: shown.frequency,
-            note: shown.note,
-            target: shown.target,
-            targetIndex: shown.targetIndex,
+            aim: shown.aim,
             cents: shown.cents,
             displayCents: shown.displayCents,
             freshness: shown.freshness,
-            inTune: shown.inTune,
             evidence: shown.evidence
         )
     }

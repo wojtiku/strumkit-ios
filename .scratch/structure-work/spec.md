@@ -282,8 +282,14 @@ change moves those, it is not a structure change.
   processing entry point, the largest test file in the suite crossing it.
 - **View decomposition.** The existing component split is reasonable. A large view is not the
   same as a shallow one.
-- **Anything a player sees.** No reading, colour, message, or timing a player can perceive
-  changes. That is what lets the first three phases be gated on existing tests alone.
+- **Anything a player sees**, with one exception. No reading, colour, message, or timing a
+  player can perceive changes. That is what lets the first three phases be gated on existing
+  tests alone. The exception is the chromatic-mode verdict, which is a correction rather
+  than a change: the glossary says chromatic mode is never "in tune", and the player was
+  being told "Tune up" or "Tune down" about a String that mode never chose. Removing that
+  advice is the ticket's purpose, not a side effect of it. The cents deviation and the
+  needle direction are still shown — a chromatic tuner still reports distance from equal
+  temperament; only the instruction about a String it is not aiming at is gone.
 - **Acquiring new audio, hardware, or a physical device.** No phase requires one.
 
 ## Further Notes

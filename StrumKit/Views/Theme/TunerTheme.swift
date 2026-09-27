@@ -17,16 +17,4 @@ public enum TunerTheme {
     public static let gaugeTrack = Color(red: 0.18, green: 0.22, blue: 0.29)
     public static let gaugeTickMajor = Color(red: 0.70, green: 0.75, blue: 0.82)
     public static let gaugeTickMinor = Color(red: 0.35, green: 0.40, blue: 0.48)
-
-    /// Dynamically chooses accent color based on cents deviation and tolerance.
-    public static func statusColor(cents: Double, tolerance: Double = 3.0, isSignalPresent: Bool) -> Color {
-        guard isSignalPresent else { return neutral }
-        if abs(cents) <= tolerance {
-            return inTune
-        } else if cents < 0 {
-            return flat
-        } else {
-            return sharp
-        }
-    }
 }

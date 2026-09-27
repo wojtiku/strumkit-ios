@@ -23,17 +23,20 @@ struct ReplayMetricsTests {
 
     @Test("freshCoverageSeconds accurately clips and measures fresh duration")
     func testFreshCoverageCalculation() {
-        let dummyTarget = StringTarget(note: "A4", midi: 69, frequency: 440.0, number: 1)
+        let a4 = StringTarget(note: "A4", midi: 69, frequency: 440.0, number: 1)
+        func reading(at: TimeInterval, frequency: Double, lastFreshAt: TimeInterval, freshness: TunerReading.Freshness, inTune: Bool) -> TunerReading {
+            TunerReading(at: at, lastFreshAt: lastFreshAt, frequency: frequency, aim: .target(a4, inTune: inTune), cents: 0, displayCents: 0, freshness: freshness, evidence: .measured)
+        }
         let frames: [AudioTestHelpers.ReplayFrame] = [
             .init(captureEndSeconds: 0.10, rawFrequency: 0, rawRMS: 0.001, confidence: 0, rejection: "gate", reading: nil),
             .init(captureEndSeconds: 0.20, rawFrequency: 440.0, rawRMS: 0.05, confidence: 0.9, rejection: nil,
-                  reading: TunerReading(at: 0.20, lastFreshAt: 0.20, frequency: 440.0, note: "A4", target: dummyTarget, targetIndex: 0, cents: 0, displayCents: 0, freshness: .fresh, inTune: true, evidence: .measured)),
+                  reading: reading(at: 0.20, frequency: 440.0, lastFreshAt: 0.20, freshness: .fresh, inTune: true)),
             .init(captureEndSeconds: 0.30, rawFrequency: 440.0, rawRMS: 0.04, confidence: 0.9, rejection: nil,
-                  reading: TunerReading(at: 0.30, lastFreshAt: 0.30, frequency: 440.0, note: "A4", target: dummyTarget, targetIndex: 0, cents: 0, displayCents: 0, freshness: .fresh, inTune: true, evidence: .measured)),
+                  reading: reading(at: 0.30, frequency: 440.0, lastFreshAt: 0.30, freshness: .fresh, inTune: true)),
             .init(captureEndSeconds: 0.40, rawFrequency: 440.0, rawRMS: 0.01, confidence: 0.5, rejection: nil,
-                  reading: TunerReading(at: 0.40, lastFreshAt: 0.20, frequency: 440.0, note: "A4", target: dummyTarget, targetIndex: 0, cents: 0, displayCents: 0, freshness: .held, inTune: false, evidence: .measured)),
+                  reading: reading(at: 0.40, frequency: 440.0, lastFreshAt: 0.20, freshness: .held, inTune: false)),
             .init(captureEndSeconds: 0.50, rawFrequency: 55.0, rawRMS: 0.005, confidence: 0.8, rejection: nil,
-                  reading: TunerReading(at: 0.50, lastFreshAt: 0.50, frequency: 55.0, note: "A1", target: dummyTarget, targetIndex: 0, cents: 0, displayCents: 0, freshness: .fresh, inTune: false, evidence: .measured))
+                  reading: reading(at: 0.50, frequency: 55.0, lastFreshAt: 0.50, freshness: .fresh, inTune: false))
         ]
 
         let coverage = AudioTestHelpers.freshCoverageSeconds(frames: frames, reference: 440.0, intervalStart: 0.0, intervalEnd: 1.0)

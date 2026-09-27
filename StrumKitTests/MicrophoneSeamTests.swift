@@ -142,13 +142,10 @@ struct MicrophoneSeamTests {
                     at: now,
                     lastFreshAt: now,
                     frequency: guitarLowE.frequency,
-                    note: guitarLowE.note,
-                    target: guitarLowE,
-                    targetIndex: 0,
+                    aim: .target(guitarLowE, inTune: true),
                     cents: 0.0,
                     displayCents: 0.0,
                     freshness: .fresh,
-                    inTune: true,
                     evidence: .measured
                 ),
                 pitchResult: PitchResult(
@@ -168,7 +165,7 @@ struct MicrophoneSeamTests {
                 sequence: 1
             )
         )
-        #expect(viewModel.currentReading?.targetIndex == 0)
+        #expect(viewModel.currentReading?.aim.target == guitarLowE)
 
         viewModel.setInstrument(.ukulele)
 

@@ -418,7 +418,7 @@ struct SpectralPitchScorerTests {
             // 1. Sustained evidence must never assert that a string is in tune. Its
             //    cents error is larger than YIN's, so an in-tune verdict from it is a
             //    claim the evidence does not support.
-            let overClaimed = sustained.filter { $0.inTune }
+            let overClaimed = sustained.filter { $0.inTune == true }
             #expect(overClaimed.isEmpty, "\(fixture.name): \(overClaimed.count) Sustained frames asserted in-tune")
 
             // 2. Sustained evidence must never produce directional advice. This is
@@ -440,7 +440,7 @@ struct SpectralPitchScorerTests {
             // 4. The suppression must not disable the normal YIN path: frames YIN
             //    confirmed still assert in tune when the string is in tune.
             if let inTuneAnchor = confirmed.first(where: { abs($0.cents) < 2.0 }) {
-                #expect(inTuneAnchor.inTune,
+                #expect(inTuneAnchor.inTune == true,
                         "\(fixture.name): a YIN-confirmed in-tune frame must still report inTune")
             }
         }

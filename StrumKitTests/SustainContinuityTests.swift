@@ -74,7 +74,11 @@ struct SustainContinuityTests {
         let soundingEnd = audible.lastIndex(of: true) ?? (frames.count - 1)
 
         var freshCorrect = 0, freshWrong = 0, held = 0, transitions = 0
-        var lastIndex: Int? = nil
+        // A String, by its number rather than its position in an array: a jump between
+        // Strings is a jump between Strings, and in auto mode every fresh Reading here
+        // names one. A chromatic Reading would leave this nil on every frame, which is
+        // the honest answer for a mode that is not on a String at all.
+        var lastStringNumber: Int? = nil
         var firstFresh = -1.0
         var lastFresh = -1.0
         var gapStart: Double? = nil
@@ -89,8 +93,8 @@ struct SustainContinuityTests {
                     if firstFresh < 0 { firstFresh = at }
                     lastFresh = at
                     if AudioTestHelpers.isCorrectRecordedPitch(r.frequency, reference: reference) { freshCorrect += 1 } else { freshWrong += 1 }
-                    if let li = lastIndex, li != r.targetIndex { transitions += 1 }
-                    lastIndex = r.targetIndex
+                    if let li = lastStringNumber, li != r.aim.target?.number { transitions += 1 }
+                    lastStringNumber = r.aim.target?.number
                 } else {
                     held += 1
                     if gapStart == nil { gapStart = at }

@@ -30,8 +30,8 @@ struct TrackerTests {
         let reading = tracker.process(pitchResult: resultE2, at: 0.04, config: config, targets: targets)
 
         #expect(reading != nil)
-        #expect(reading?.target.number == 6)
-        #expect(reading?.target.note == "E2")
+        #expect(reading?.aim.target?.number == 6)
+        #expect(reading?.aim.target?.note == "E2")
         #expect(reading?.inTune == true)
     }
 
@@ -488,7 +488,7 @@ struct TrackerTests {
         let confirmed = readings.filter { $0.at >= 0.04 }
         #expect(!confirmed.isEmpty)
         for r in confirmed {
-            #expect(r.target.note == "A2", "Target must stay locked to A2")
+            #expect(r.aim.target?.note == "A2", "Target must stay locked to A2")
             #expect(r.inTune == true, "In-tune hysteresis must prevent flutter on small jitter")
             #expect(r.freshness == .fresh)
         }
@@ -500,8 +500,8 @@ struct TrackerTests {
         }
     }
 
-    @Test("Chromatic mode identifies targets by MIDI note and immediately resets display cents on note change")
-    func testChromaticTargetIdentityAndDisplayReset() {
+    @Test("Chromatic mode names a Note rather than a Target, and immediately resets display cents on note change")
+    func testChromaticNoteIdentityAndDisplayReset() {
         let tracker = PitchTracker()
         let config = TunerConfig(instrument: .ukulele, tuningId: "high-g", mode: .chromatic)
         let targets: [StringTarget] = []
@@ -526,6 +526,12 @@ struct TrackerTests {
         #expect(c4Reading != nil)
         #expect(c4Reading?.note == "C4")
         #expect(c4Reading?.cents ?? 0 > 25.0)
+        // A chromatic Reading names a Note. There is no String it is being measured
+        // against, so it must not report one — and it must not report being out of
+        // tune, which is a claim about a String that does not exist here.
+        #expect(c4Reading?.aim.target == nil)
+        #expect(c4Reading?.inTune == nil,
+                "A chromatic Reading has no Target, so there is nothing for it to be in tune with")
 
         // 2. Play E4 (329.63 Hz, MIDI 64) with -25 cents deviation on an onset
         let e4Freq = 329.63 * pow(2.0, -25.0 / 1200.0)
@@ -549,7 +555,129 @@ struct TrackerTests {
         // Display cents must reset directly to E4's clamped cents (-25.0), NOT dragged from C4's +30 cents
         let displayError = abs((e4Reading?.displayCents ?? 0.0) - (-25.0))
         #expect(displayError < 1.0, "Display cents should reset immediately on target change, got error \(displayError)")
-        #expect(e4Reading?.inTune == false, "Hysteresis must be reset on target change")
+        #expect(e4Reading?.aim.target == nil)
+        #expect(e4Reading?.inTune == nil,
+                "Switching Note must not leave a verdict behind; chromatic mode asserts none at all")
+    }
+
+    // MARK: - Target and Note
+
+    @Test("A chromatic Reading names the nearest Note in equal temperament and no Target")
+    func testChromaticReadingNamesANoteAndNoTarget() {
+        let tracker = PitchTracker()
+        let config = TunerConfig(instrument: .ukulele, tuningId: "high-g", mode: .chromatic)
+        // The instrument's Strings are deliberately supplied. Chromatic mode is a mode
+        // that exists *alongside* them, and a Reading that quietly reached for one of
+        // them would be indistinguishable from auto mode's answer.
+        let targets = Tuning.resolve(
+            instrument: .ukulele,
+            tuningId: "high-g",
+            customMidi: [],
+            mode: .chromatic,
+            a4: 440.0,
+            precision: false,
+            guided: false
+        ).targets
+
+        // A4 + 17 cents. A4 is on the ukulele's high-G tuning, so a mode that reached
+        // for a String would name the same pitch and the two answers would be
+        // indistinguishable by note alone — only the type can tell them apart.
+        let a4 = 440.0 * pow(2.0, 17.0 / 1200.0)
+        let result = PitchResult(
+            frequency: a4,
+            closestNote: MusicalNote(midiNoteNumber: 69),
+            centsDeviation: 17.0,
+            confidence: 0.95,
+            amplitudeRMS: 0.05,
+            isSignalPresent: true,
+            evidence: .measured
+        )
+
+        var reading: TunerReading?
+        for t in stride(from: 0.0, through: 0.04, by: 0.02) {
+            reading = tracker.process(pitchResult: result, at: t, config: config, targets: targets)
+        }
+
+        guard case .note(let note) = reading?.aim else {
+            Issue.record("Chromatic mode must publish a Note, not a Target: got \(String(describing: reading?.aim))")
+            return
+        }
+        #expect(note.midiNoteNumber == 69)
+        #expect(note.displayName == "A4")
+        #expect(reading?.aim.target == nil)
+        #expect(reading?.inTune == nil)
+    }
+
+    @Test("The cents of a chromatic Reading are its distance from equal temperament")
+    func testChromaticCentsAreDistanceFromEqualTemperament() throws {
+        let tracker = PitchTracker()
+        let config = TunerConfig(instrument: .ukulele, tuningId: "high-g", mode: .chromatic)
+        let a4 = 442.0
+        var configTuned = config
+        configTuned.a4 = a4
+
+        // 31 cents sharp of E4, measured against a calibration that is not 440.
+        let e4 = PitchMath.midiFrequency(64, a4: a4)
+        let played = e4 * pow(2.0, 31.0 / 1200.0)
+        let result = PitchResult(
+            frequency: played,
+            closestNote: MusicalNote(midiNoteNumber: 64, referenceA4: a4),
+            centsDeviation: 31.0,
+            confidence: 0.95,
+            amplitudeRMS: 0.05,
+            isSignalPresent: true,
+            evidence: .measured
+        )
+
+        var latest: TunerReading?
+        for t in stride(from: 0.0, through: 0.04, by: 0.02) {
+            latest = tracker.process(pitchResult: result, at: t, config: configTuned, targets: [])
+        }
+
+        let reading = try #require(latest)
+        #expect(abs(reading.cents - 31.0) < 0.01,
+                "A chromatic Reading is a distance from equal temperament, and that has to survive the Target going away: got \(reading.cents)")
+        #expect(abs(reading.aim.frequency - e4) < 1e-9,
+                "The reference it is measured from is the Note's own frequency under the player's calibration")
+        #expect(reading.displayCents == reading.cents, "A first Reading is not smoothed, so both must agree")
+    }
+
+    @Test("The String modes carry a Target, and deviation from it is still advice")
+    func testStringModesCarryATargetAndAdvice() {
+        for mode in [TunerMode.auto, .manual, .guided] {
+            let tracker = PitchTracker()
+            let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: mode, guided: mode == .guided)
+            let targets = Presets.guitar[0].midi.enumerated().map { index, midi in
+                StringTarget(note: PitchMath.midiNoteName(midi), midi: midi, frequency: PitchMath.midiFrequency(midi), number: 6 - index)
+            }
+
+            // Low E a little sharp: out of tune, so the direction of the advice matters.
+            let e2 = PitchMath.midiFrequency(40)
+            let played = e2 * pow(2.0, 9.0 / 1200.0)
+            let result = PitchResult(
+                frequency: played,
+                closestNote: MusicalNote(midiNoteNumber: 40),
+                centsDeviation: 9.0,
+                confidence: 0.95,
+                amplitudeRMS: 0.05,
+                isSignalPresent: true,
+                evidence: .measured
+            )
+
+            var reading: TunerReading?
+            for t in stride(from: 0.0, through: 0.04, by: 0.02) {
+                reading = tracker.process(pitchResult: result, at: t, config: config, targets: targets)
+            }
+
+            guard let reading else {
+                Issue.record("\(mode.label) mode produced no Reading")
+                continue
+            }
+            #expect(reading.aim.target?.number == 6, "\(mode.label) mode must be measured against a String")
+            #expect(reading.inTune == false, "9 cents sharp is outside the enter tolerance, so \(mode.label) mode must say so")
+            #expect(TunerPresentation.guidanceText(for: reading, feedback: .tracking) == "Tune down",
+                    "\(mode.label) mode must keep giving actionable advice: 9 cents sharp is a peg to turn")
+        }
     }
 
     // MARK: - Recovery Trust Boundary

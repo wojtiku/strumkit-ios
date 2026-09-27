@@ -25,6 +25,11 @@ public enum TunerPresentation: Sendable {
     /// ("In tune", "Tune up", "Tune down"). Held readings prompt for a new pluck,
     /// and Sustained readings decline to give advice at all, since
     /// their cents error is not precise enough to act on.
+    ///
+    /// A chromatic Reading is given no tuning advice either, for a different reason:
+    /// there is no **String** for "turn the peg" to be about. It falls back to what the
+    /// signal itself is saying, so the banner stays a report of the sound rather than
+    /// becoming an instruction the mode cannot justify.
     public static func guidanceText(for reading: TunerReading?, feedback: SignalFeedbackState) -> String {
         guard let reading else { return feedback.advisoryMessage }
         if reading.freshness == .held {
@@ -33,13 +38,63 @@ public enum TunerPresentation: Sendable {
         if reading.evidence == .sustained {
             return "Still ringing — hold to check"
         }
-        if reading.inTune {
+        guard case .target(_, let inTune) = reading.aim else {
+            return feedback.advisoryMessage
+        }
+        if inTune {
             return "In tune"
         } else if reading.cents < 0 {
             return "Tune up"
         } else {
             return "Tune down"
         }
+    }
+
+    /// What the readout prints opposite "HEARD": the thing the current Reading is
+    /// measured against, and the name that is honest for it.
+    ///
+    /// The two cases get different labels, and that is the whole point. A **String** is
+    /// something the player is trying to reach, so it is labelled TARGET and its
+    /// frequency is the thing to aim at. The **Note** a chromatic Reading names is not
+    /// a target and never was, so it is labelled EQUAL TEMP: the frequency the cents
+    /// are a distance from, which is what a chromatic tuner is for.
+    ///
+    /// With nothing sounding, the second column falls back to what the mode is aiming
+    /// at — the locked or guided String, or in chromatic mode simply "Nearest note",
+    /// which is the only honest description of a pitch the player has not chosen.
+    public struct MeasuredAgainst: Equatable, Sendable {
+        public let label: String
+        public let value: String
+
+        public init(label: String, value: String) {
+            self.label = label
+            self.value = value
+        }
+    }
+
+    public static func measuredAgainst(
+        for reading: TunerReading?,
+        selectedTarget: StringTarget?,
+        mode: TunerMode
+    ) -> MeasuredAgainst {
+        switch reading?.aim {
+        case .target(let target, _):
+            return MeasuredAgainst(label: "TARGET", value: "\(target.note) · \(formatHz(target.frequency))")
+        case .note(let note):
+            return MeasuredAgainst(label: "EQUAL TEMP", value: "\(note.displayName) · \(formatHz(note.frequency))")
+        case nil:
+            if mode == .chromatic {
+                return MeasuredAgainst(label: "EQUAL TEMP", value: "Nearest note")
+            }
+            if let selectedTarget {
+                return MeasuredAgainst(label: "TARGET", value: "\(selectedTarget.note) · \(formatHz(selectedTarget.frequency))")
+            }
+            return MeasuredAgainst(label: "TARGET", value: "Any open string")
+        }
+    }
+
+    private static func formatHz(_ frequency: Double) -> String {
+        String(format: "%.1f", frequency) + " Hz"
     }
 
     /// Computes needle/readout opacity fading from 1.0 to 0.4 over the display hold duration.

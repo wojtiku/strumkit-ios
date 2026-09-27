@@ -6,9 +6,12 @@ import QuartzCore
 @Suite("Tuner Presentation Tests")
 struct TunerPresentationTests {
 
+    private static let a4Target = StringTarget(note: "A4", midi: 69, frequency: 440.0, number: 1)
+
     private func makeReading(
         at: TimeInterval = 10.0,
         lastFreshAt: TimeInterval = 10.0,
+        frequency: Double = 440.0,
         cents: Double = 0.0,
         freshness: TunerReading.Freshness = .fresh,
         inTune: Bool = true,
@@ -17,14 +20,34 @@ struct TunerPresentationTests {
         TunerReading(
             at: at,
             lastFreshAt: lastFreshAt,
-            frequency: 440.0,
-            note: "A4",
-            target: StringTarget(note: "A4", midi: 69, frequency: 440.0, number: 1),
-            targetIndex: 0,
+            frequency: frequency,
+            aim: .target(Self.a4Target, inTune: inTune),
             cents: cents,
             displayCents: cents,
             freshness: freshness,
-            inTune: inTune,
+            evidence: evidence
+        )
+    }
+
+    /// A chromatic Reading: a Note in equal temperament, and nothing to be in tune
+    /// with. Built the way `PitchTracker` builds one, so a test claiming chromatic
+    /// mode has no Target is claiming it about the value the display receives.
+    private func makeChromaticReading(
+        at: TimeInterval = 10.0,
+        midi: Int = 69,
+        frequency: Double = 440.0,
+        cents: Double = 0.0,
+        freshness: TunerReading.Freshness = .fresh,
+        evidence: Evidence = .measured
+    ) -> TunerReading {
+        TunerReading(
+            at: at,
+            lastFreshAt: at,
+            frequency: frequency,
+            aim: .note(MusicalNote(midiNoteNumber: midi)),
+            cents: cents,
+            displayCents: cents,
+            freshness: freshness,
             evidence: evidence
         )
     }
@@ -109,6 +132,103 @@ struct TunerPresentationTests {
         #expect(TunerPresentation.guidanceText(for: sharp, feedback: .tracking) == "Still ringing — hold to check")
     }
 
+    // MARK: - Target or Note, never both
+
+    @Test("A chromatic Reading gets no tuning advice, because no String is being aimed at")
+    func testChromaticReadingIsGivenNoTuningAdvice() {
+        // Both directions, and both magnitudes: whatever the cents say, there is no peg
+        // to point at. Before the split, each of these read `inTune == false` and
+        // produced "Tune up" / "Tune down" about a string the mode never chose.
+        let flat = makeChromaticReading(cents: -8.0)
+        #expect(TunerPresentation.guidanceText(for: flat, feedback: .tracking) == SignalFeedbackState.tracking.advisoryMessage,
+                "A chromatic Reading is 8 cents flat of equal temperament; it is not a string that needs tightening")
+
+        let sharp = makeChromaticReading(cents: 12.0)
+        #expect(TunerPresentation.guidanceText(for: sharp, feedback: .tracking) == SignalFeedbackState.tracking.advisoryMessage,
+                "A chromatic Reading is 12 cents sharp of equal temperament; that is a fact, not an instruction")
+
+        // Dead on equal temperament is not "in tune" either — there is no String.
+        let centred = makeChromaticReading(cents: 0.0)
+        #expect(TunerPresentation.guidanceText(for: centred, feedback: .tracking) != "In tune",
+                "Nothing was aimed at, so nothing can have been reached")
+
+        // The banner still reports the signal, so it does not go blank.
+        #expect(TunerPresentation.guidanceText(for: sharp, feedback: .quiet) == SignalFeedbackState.quiet.advisoryMessage)
+    }
+
+    @Test("A held or sustained chromatic Reading is reported the same way as any other")
+    func testChromaticHeldAndSustainedGuidanceUnchanged() {
+        // These two are about Evidence and about the hold, not about the mode, so they
+        // must keep their existing text: nothing here is advice about a String either.
+        let held = makeChromaticReading(freshness: .held)
+        #expect(TunerPresentation.guidanceText(for: held, feedback: .tracking) == "Last reading — pluck again")
+
+        let sustained = TunerReading(
+            at: 10.0,
+            lastFreshAt: 10.0,
+            frequency: 440.0,
+            aim: .note(MusicalNote(midiNoteNumber: 69)),
+            cents: -30.0,
+            displayCents: -30.0,
+            freshness: .fresh,
+            evidence: .sustained
+        )
+        #expect(TunerPresentation.guidanceText(for: sustained, feedback: .tracking) == "Still ringing — hold to check")
+    }
+
+    @Test("The readout names a String as TARGET and a Note as EQUAL TEMP")
+    func testMeasuredAgainstLabelsEachKindHonestly() {
+        let target = StringTarget(note: "A4", midi: 69, frequency: 440.0, number: 1)
+
+        // A Reading measured against a String: that is what the player is aiming at.
+        let withTarget = TunerPresentation.measuredAgainst(
+            for: makeReading(cents: 3.0), selectedTarget: nil, mode: .auto)
+        #expect(withTarget.label == "TARGET")
+        #expect(withTarget.value == "A4 · 440.0 Hz")
+
+        // A chromatic Reading: the equal-tempered Note is what the cents are a
+        // distance from. It is not a target, and calling it one is the claim this split
+        // exists to remove — so the column says EQUAL TEMP even though a String was
+        // previously selected and would otherwise be the obvious thing to print.
+        let withNote = TunerPresentation.measuredAgainst(
+            for: makeChromaticReading(midi: 64, frequency: 323.0, cents: 3.0), selectedTarget: target, mode: .chromatic)
+        #expect(withNote.label == "EQUAL TEMP")
+        #expect(withNote.value == "E4 · 329.6 Hz",
+                "The Note's own frequency under the calibration is the reference, even when a String was previously selected")
+
+        // Nothing sounding: the String the mode is aiming at, or in chromatic mode the
+        // nearest Note, which is the only pitch the mode can name on its own.
+        #expect(TunerPresentation.measuredAgainst(for: nil, selectedTarget: target, mode: .manual)
+            == TunerPresentation.MeasuredAgainst(label: "TARGET", value: "A4 · 440.0 Hz"))
+        #expect(TunerPresentation.measuredAgainst(for: nil, selectedTarget: target, mode: .chromatic)
+            == TunerPresentation.MeasuredAgainst(label: "EQUAL TEMP", value: "Nearest note"),
+            "A chromatic Reading's absence must not fall back to naming a String")
+        #expect(TunerPresentation.measuredAgainst(for: nil, selectedTarget: nil, mode: .auto)
+            == TunerPresentation.MeasuredAgainst(label: "TARGET", value: "Any open string"))
+    }
+
+    @Test("A Reading names one thing only, and the type says which")
+    func testReadingAimIsExclusive() {
+        let target = StringTarget(note: "A4", midi: 69, frequency: 440.0, number: 1)
+        let note = MusicalNote(midiNoteNumber: 69)
+
+        #expect(ReadingAim.target(target, inTune: true).target == target)
+        #expect(ReadingAim.target(target, inTune: true).inTune == true)
+        if case .note = ReadingAim.target(target, inTune: true) {
+            Issue.record("A String-mode Reading must not also be a Note")
+        }
+
+        #expect(ReadingAim.note(note).target == nil)
+        #expect(ReadingAim.note(note).inTune == nil)
+        if case .target = ReadingAim.note(note) {
+            Issue.record("A chromatic Reading must not also be a Target")
+        }
+
+        // Both name the same pitch, which is exactly why one field could not carry both.
+        #expect(ReadingAim.target(target, inTune: true).name == ReadingAim.note(note).name)
+        #expect(ReadingAim.target(target, inTune: true) != ReadingAim.note(note))
+    }
+
     @Test("Recovered opacity is dimmer than fresh and dimmer than a hold in progress")
     func testRecoveredOpacityIsDistinct() {
         #expect(TunerPresentation.recoveredOpacity < 1.0)
@@ -133,13 +253,10 @@ struct TunerPresentationTests {
             at: now,
             lastFreshAt: now,
             frequency: 440.0,
-            note: "A4",
-            target: StringTarget(note: "A4", midi: 69, frequency: 440.0, number: 1),
-            targetIndex: 0,
+            aim: .target(Self.a4Target, inTune: false),
             cents: -12.0,
             displayCents: -12.0,
             freshness: .fresh,
-            inTune: false,
             evidence: .sustained
         )
         let snap = AnalysisSnapshot(
@@ -169,13 +286,10 @@ struct TunerPresentationTests {
             at: now,
             lastFreshAt: now,
             frequency: 440.0,
-            note: "A4",
-            target: StringTarget(note: "A4", midi: 69, frequency: 440.0, number: 1),
-            targetIndex: 0,
+            aim: .target(Self.a4Target, inTune: true),
             cents: 0.0,
             displayCents: 0.0,
             freshness: .fresh,
-            inTune: true,
             evidence: .measured
         )
 
@@ -201,13 +315,10 @@ struct TunerPresentationTests {
             at: heldNow,
             lastFreshAt: heldNow,
             frequency: 440.0,
-            note: "A4",
-            target: StringTarget(note: "A4", midi: 69, frequency: 440.0, number: 1),
-            targetIndex: 0,
+            aim: .target(Self.a4Target, inTune: true),
             cents: 0.0,
             displayCents: 0.0,
             freshness: .held,
-            inTune: true,
             evidence: .measured
         )
 

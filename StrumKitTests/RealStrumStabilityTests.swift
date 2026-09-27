@@ -47,18 +47,19 @@ struct RealStrumStabilityTests {
         let label: String
         let start: TimeInterval
         let end: TimeInterval
-        /// The string this burst is the true target for, by mode. The vocabulary
-        /// is `Presets.ukulele` `high-g`, midi `[67, 60, 64, 69]` = G4 C4 E4 A4.
-        let targetIndex: Int
+        /// The String this burst is the true target for, by mode. The vocabulary
+        /// is `Presets.ukulele` `high-g`, midi `[67, 60, 64, 69]` = G4 C4 E4 A4, which
+        /// is string 4 down to string 1.
+        let stringNumber: Int
         let note: String
     }
 
     private static let bursts: [Burst] = [
-        Burst(label: "B1", start: 1.400, end: 2.100, targetIndex: 0, note: "G4"),
-        Burst(label: "B2", start: 4.900, end: 7.000, targetIndex: 1, note: "C4"),
-        Burst(label: "B3", start: 8.350, end: 9.550, targetIndex: 1, note: "C4"),
-        Burst(label: "B4", start: 11.700, end: 12.650, targetIndex: 2, note: "E4"),
-        Burst(label: "B5", start: 15.300, end: 15.850, targetIndex: 3, note: "A4")
+        Burst(label: "B1", start: 1.400, end: 2.100, stringNumber: 4, note: "G4"),
+        Burst(label: "B2", start: 4.900, end: 7.000, stringNumber: 3, note: "C4"),
+        Burst(label: "B3", start: 8.350, end: 9.550, stringNumber: 3, note: "C4"),
+        Burst(label: "B4", start: 11.700, end: 12.650, stringNumber: 2, note: "E4"),
+        Burst(label: "B5", start: 15.300, end: 15.850, stringNumber: 1, note: "A4")
     ]
 
     /// `AudioTestHelpers.freshCoverageSeconds` restricted to frames the estimator
@@ -124,28 +125,34 @@ struct RealStrumStabilityTests {
         return runs
     }
 
-    /// The target index the display names for most of a burst's frames.
+    /// The String the display names for most of a burst's frames.
+    ///
+    /// Keyed by String number, which is what a **String** is: a position on the
+    /// instrument, not an index into whatever array the tuner happens to be holding.
+    /// In auto mode every Reading names one, and a Reading that named a **Note**
+    /// instead is excluded rather than filed under a sentinel — there is no String to
+    /// be dominant over.
     ///
     /// A mode, not a majority, because a handful of frames may legitimately show
     /// the previous note still held: the display is allowed to lag a note by up
     /// to `readingHoldDuration`, and the tail of one burst overlaps the window of
     /// the next. Requiring *every* frame to agree would test the hold duration
     /// rather than the assignment, and would fail on correct behaviour.
-    private static func dominantTargetIndex(
+    private static func dominantStringNumber(
         in frames: [AudioTestHelpers.ReplayFrame],
         from start: TimeInterval,
         to end: TimeInterval
-    ) -> (index: Int, frames: Int, note: String?)? {
+    ) -> (number: Int, frames: Int, note: String?)? {
         var counts: [Int: (frames: Int, note: String?)] = [:]
         for frame in frames {
             guard frame.captureEndSeconds >= start, frame.captureEndSeconds <= end else { continue }
-            guard let reading = frame.reading else { continue }
-            counts[reading.targetIndex, default: (0, nil)].frames += 1
-            if counts[reading.targetIndex]?.note == nil { counts[reading.targetIndex]?.note = reading.note }
+            guard let number = frame.reading?.aim.target?.number else { continue }
+            counts[number, default: (0, nil)].frames += 1
+            if counts[number]?.note == nil { counts[number]?.note = frame.reading?.note }
         }
         return counts
             .max { $0.value.frames < $1.value.frames }
-            .map { (index: $0.key, frames: $0.value.frames, note: $0.value.note) }
+            .map { (number: $0.key, frames: $0.value.frames, note: $0.value.note) }
     }
 
     /// The time at which the last strum on this file is over.
@@ -572,21 +579,21 @@ struct RealStrumStabilityTests {
         // indices, so a second C4 hit cannot inflate the total.
         var correctStrings: Set<Int> = []
         for burst in Self.bursts {
-            let observed = Self.dominantTargetIndex(in: frames, from: burst.start, to: burst.end)
-            let ok = observed?.index == burst.targetIndex
-            if ok { correctStrings.insert(burst.targetIndex) }
+            let observed = Self.dominantStringNumber(in: frames, from: burst.start, to: burst.end)
+            let ok = observed?.number == burst.stringNumber
+            if ok { correctStrings.insert(burst.stringNumber) }
 
             print(String(
                 format: "DETECT|%@|window=%.3f-%.3f|expected=%@#%d|observed=%@#%d|frames=%d|verdict=%@",
-                burst.label, burst.start, burst.end, burst.note, burst.targetIndex,
-                observed?.note ?? "—", observed?.index ?? -9, observed?.frames ?? 0,
+                burst.label, burst.start, burst.end, burst.note, burst.stringNumber,
+                observed?.note ?? "—", observed?.number ?? -9, observed?.frames ?? 0,
                 ok ? "OK" : "WRONG"
             ))
 
             #expect(observed != nil,
                     "\(burst.label) (\(burst.start)–\(burst.end)s) produced no display frames at all")
             #expect(ok,
-                    "\(burst.label) is the true \(burst.note) on string index \(burst.targetIndex); the display named \(observed?.note ?? "nothing") on index \(observed?.index ?? -9) for \(observed?.frames ?? 0) frames")
+                    "\(burst.label) is the true \(burst.note) on string \(burst.stringNumber); the display named \(observed?.note ?? "nothing") on string \(observed.map { String($0.number) } ?? "none") for \(observed?.frames ?? 0) frames")
         }
 
         // Four distinct strings, five bursts: the same guard for the count as for

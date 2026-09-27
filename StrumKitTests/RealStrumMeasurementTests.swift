@@ -124,11 +124,16 @@ struct RealStrumMeasurementTests {
             for frame in frames {
                 let reading = frame.reading
                 let hz = reading?.frequency ?? 0
-                let targetIndex = reading?.targetIndex ?? -9
+                // `tgt` is the String being measured against, by number, or 0 for a
+                // chromatic Reading — which names a Note and is measured against no
+                // String, so it has no number to report. `tf` is the frequency the
+                // cents are measured from: the String's, or the Note's own frequency
+                // in equal temperament under the same calibration.
+                let stringNumber = reading?.aim.target?.number ?? 0
                 let cents = reading.map { $0.cents } ?? Double.nan
                 let note = reading?.note ?? "-"
                 let displayCents = reading?.displayCents ?? Double.nan
-                let targetFrequency = reading?.target.frequency ?? 0
+                let referenceFrequency = reading?.aim.frequency ?? 0
                 let sustained = (reading?.evidence == .sustained) ? 1 : 0
 
                 lines.append(String(
@@ -137,13 +142,13 @@ struct RealStrumMeasurementTests {
                     frame.captureEndSeconds,
                     hz,
                     frame.displayState,
-                    targetIndex,
+                    stringNumber,
                     cents,
                     frame.confidence,
                     frame.rejection ?? "-",
                     frame.rawFrequency,
                     note,
-                    targetFrequency,
+                    referenceFrequency,
                     displayCents,
                     sustained,
                     frame.rawRMS

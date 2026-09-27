@@ -78,6 +78,9 @@ public enum SignalFeedbackState: String, Sendable {
     }
 }
 
+/// A **String** the player is trying to reach, with the frequency it is currently
+/// set to. It exists whether or not anything is sounding, and it is never a **Note**:
+/// a String is a position on the instrument, not a pitch.
 public struct StringTarget: Identifiable, Hashable, Sendable {
     public let note: String
     public let midi: Int
@@ -91,6 +94,65 @@ public struct StringTarget: Identifiable, Hashable, Sendable {
         self.midi = midi
         self.frequency = frequency
         self.number = number
+    }
+}
+
+/// What a **Reading** is measured against.
+///
+/// One question with two genuinely different answers, and the difference is the whole
+/// distinction the tuner's two modes rest on:
+///
+/// - `target(StringTarget, inTune:)` — a **String** the player is aiming at. The cents
+///   are how far short of it they are, which is advice: "turn the peg". The in-tune
+///   verdict rides along in the case rather than beside it, because a **Reading** is
+///   only ever in tune *with respect to a Target* — a Reading that has no Target cannot
+///   hold one, so "no verdict" is the only honest answer available and it is the
+///   answer the type gives for free.
+/// - `note(MusicalNote)` — **Chromatic** mode. Nothing is being aimed at, so the cents
+///   are a distance from the **Note**'s own frequency in equal temperament, and there
+///   is no verdict to give. `MusicalNote` is a pitch and nothing more; it names no
+///   String, and it is not a `StringTarget` with a missing string number.
+public enum ReadingAim: Sendable, Hashable {
+    case target(StringTarget, inTune: Bool)
+    case note(MusicalNote)
+
+    /// The **String** this **Reading** is measured against, or `nil` when it names a
+    /// **Note** and nothing is being aimed at.
+    public var target: StringTarget? {
+        switch self {
+        case .target(let target, _): target
+        case .note: nil
+        }
+    }
+
+    /// The in-tune verdict, or `nil` when this **Reading** names a **Note**.
+    ///
+    /// `nil` means *not applicable*, not *out of tune*. A consumer that needs a
+    /// colour or a piece of advice has to say what it does without one; that is the
+    /// point, because the alternative is a chromatic note being reported as wrong.
+    public var inTune: Bool? {
+        switch self {
+        case .target(_, let inTune): inTune
+        case .note: nil
+        }
+    }
+
+    /// The **Note** named, whether it is the **String** being aimed at or the pitch
+    /// heard in **Chromatic** mode. The Reading shows this and nothing else needs it.
+    public var name: String {
+        switch self {
+        case .target(let target, _): target.note
+        case .note(let note): note.displayName
+        }
+    }
+
+    /// The frequency the cents are measured from. Deviation from it is advice in the
+    /// **String** modes and a fact about equal temperament in **Chromatic** mode.
+    public var frequency: Double {
+        switch self {
+        case .target(let target, _): target.frequency
+        case .note(let note): note.frequency
+        }
     }
 }
 
@@ -144,13 +206,14 @@ public struct TunerReading: Sendable, Equatable {
     public let at: TimeInterval
     public let lastFreshAt: TimeInterval
     public let frequency: Double
-    public let note: String
-    public let target: StringTarget
-    public let targetIndex: Int
+    /// What this Reading is measured against: the **String** the player is aiming at,
+    /// or — in **Chromatic** mode, where nothing is being aimed at — the **Note** it
+    /// names instead. Never both, and never neither: a consumer that wants to know
+    /// which it is holding switches on this, and cannot get it wrong by reading a flag.
+    public let aim: ReadingAim
     public let cents: Double
     public let displayCents: Double
     public let freshness: Freshness
-    public let inTune: Bool
     public let evidence: Evidence
 
     public enum Freshness: String, Sendable {
@@ -162,13 +225,10 @@ public struct TunerReading: Sendable, Equatable {
         at: TimeInterval,
         lastFreshAt: TimeInterval,
         frequency: Double,
-        note: String,
-        target: StringTarget,
-        targetIndex: Int,
+        aim: ReadingAim,
         cents: Double,
         displayCents: Double,
         freshness: Freshness,
-        inTune: Bool,
         evidence: Evidence
     ) {
         self.at = at
@@ -177,15 +237,23 @@ public struct TunerReading: Sendable, Equatable {
         // expiry from it, silently reintroducing the bug this field exists to fix.
         self.lastFreshAt = lastFreshAt
         self.frequency = frequency
-        self.note = note
-        self.target = target
-        self.targetIndex = targetIndex
+        self.aim = aim
         self.cents = cents
         self.displayCents = displayCents
         self.freshness = freshness
-        self.inTune = inTune
         self.evidence = evidence
     }
+
+    /// The **Note** heard, named by whatever this Reading is measured against.
+    ///
+    /// Derived rather than stored: it used to be a second copy of
+    /// `aim.target.note`, which is two fields that can disagree about the same pitch.
+    /// There is now one place a Reading's name comes from.
+    public var note: String { aim.name }
+
+    /// The in-tune verdict, or `nil` in **Chromatic** mode, where nothing is being
+    /// aimed at and the question does not apply. See `ReadingAim.inTune`.
+    public var inTune: Bool? { aim.inTune }
 }
 
 public struct ToneMemory: Sendable, Equatable {
