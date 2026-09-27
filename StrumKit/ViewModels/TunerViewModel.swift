@@ -110,25 +110,36 @@ public final class TunerViewModel {
 
     /// Reacts to what the microphone reports.
     ///
-    /// The source has already been stopped and the analysis invalidated by the time
-    /// this runs; all that is left is the decision only this layer can make, which is
-    /// whether the player meant to be listening at all. Picking capture back up means
-    /// asking the session to start it, which re-arms both halves.
+    /// The source's tap has already been stopped and the analysis invalidated by the
+    /// time this runs; what is left is the decision only this layer can make. Whether
+    /// the player meant to be listening decides whether the event means anything at
+    /// all — a source keeps reporting after a stop, and a tuner that was deliberately
+    /// paused has nothing to interrupt. Picking capture up again means arming it,
+    /// which re-wires both halves.
     private func handleSourceEvent(_ event: MicrophoneEvent) {
+        guard listeningIntent else { return }
+
         switch event {
         case .interrupted(let resumable):
             self.engineStatus = .interrupted
             self.feedbackState = .inactive
-            if resumable && listeningIntent {
-                Task { [weak self] in
-                    await self?.start()
-                }
+            if resumable {
+                restartListening()
             }
         case .routeChanged:
-            guard listeningIntent else { return }
-            Task { [weak self] in
-                await self?.start()
-            }
+            restartListening()
+        }
+    }
+
+    /// Picks capture up again after the session stopped it.
+    ///
+    /// Deliberately not `start()`: a route change leaves the status saying
+    /// `.listening`, and `start()` guards on that status, so it would refuse to re-arm
+    /// a source that the event has already stopped. The status is not evidence about
+    /// the tap.
+    private func restartListening() {
+        Task { [weak self] in
+            await self?.beginListening()
         }
     }
 
@@ -141,7 +152,15 @@ public final class TunerViewModel {
     public func start() async {
         listeningIntent = true
         guard engineStatus != .listening && engineStatus != .requesting else { return }
+        await beginListening()
+    }
 
+    /// Asks the microphone for permission and arms capture, without deciding whether
+    /// the tuner should be listening at all.
+    ///
+    /// Split out of `start()` so a restart asked for by a microphone event can re-arm
+    /// a stopped source without first having to make the status admit it was stopped.
+    private func beginListening() async {
         let permStatus = source.permissionStatus
         if permStatus == .notDetermined {
             engineStatus = .requesting

@@ -244,6 +244,13 @@ public final class AudioCaptureService: @unchecked Sendable {
     }
 
     /// Stops audio capture and removes the tap.
+    ///
+    /// The interruption and route-change observers deliberately outlive the tap. An
+    /// interruption is reported whether or not a tap is installed, and the notification
+    /// that it *ended* — the one carrying the system's invitation to resume — arrives
+    /// after this has run, because stopping the tap is what the interruption caused.
+    /// Unregistering here meant the resume could never be heard, and the tuner sat at
+    /// "interrupted" until the player toggled it by hand.
     public func stopCapture() {
         queue.sync {
             guard self.isRunningInternal else { return }
@@ -254,14 +261,6 @@ public final class AudioCaptureService: @unchecked Sendable {
             self.isRunningInternal = false
 
             #if os(iOS)
-            if let obs = self.interruptionObserver {
-                NotificationCenter.default.removeObserver(obs)
-                self.interruptionObserver = nil
-            }
-            if let obs = self.routeChangeObserver {
-                NotificationCenter.default.removeObserver(obs)
-                self.routeChangeObserver = nil
-            }
             do {
                 try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
             } catch {
@@ -270,6 +269,21 @@ public final class AudioCaptureService: @unchecked Sendable {
             #endif
         }
     }
+
+    #if os(iOS)
+    /// Observers are registered once and live as long as this object.
+    ///
+    /// Deliberately not tied to the tap's lifetime — see `stopCapture`. They capture
+    /// `self` weakly, so unregistering here is tidiness rather than correctness.
+    deinit {
+        if let obs = interruptionObserver {
+            NotificationCenter.default.removeObserver(obs)
+        }
+        if let obs = routeChangeObserver {
+            NotificationCenter.default.removeObserver(obs)
+        }
+    }
+    #endif
 
     public var isCapturing: Bool {
         queue.sync { isRunningInternal }

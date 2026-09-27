@@ -23,6 +23,10 @@ public protocol MicrophoneSource: AnyObject, Sendable {
 
     /// Stops delivering. Idempotent, and must leave nothing installed: a "stop" that
     /// leaves the tap in place delivers silence that looks like live audio.
+    ///
+    /// Events may still be reported after this — an interruption arrives whether or
+    /// not the tap is running — so a caller that unhooks `onEvent` here cannot hear
+    /// the one that invites a resume.
     func stop()
 }
 

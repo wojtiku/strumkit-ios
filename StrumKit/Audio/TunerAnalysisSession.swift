@@ -131,9 +131,19 @@ public final class TunerAnalysisSession: @unchecked Sendable {
     /// to absorb. By the time this fires the source has already been stopped and this
     /// session's results invalidated; the callback decides whether to pick capture up
     /// again, which it can only do by calling `start(source:config:targets:)`.
+    ///
+    /// A callback that re-arms must not gate that on any status of its own: this
+    /// session has already stopped the source, so a status saying it is listening is
+    /// the thing that is out of date.
     public var onSourceEvent: (@MainActor (MicrophoneEvent) -> Void)? = nil
 
-    /// The microphone currently delivering into this session, if any.
+    /// The microphone this session is listening to, whether or not its tap is
+    /// running.
+    ///
+    /// Kept wired across a stop on purpose: an interruption is reported whether or
+    /// not the tap is installed, so the notification that it *ended* — the one that
+    /// invites a resume — can only reach the tuner if the source is still listened
+    /// to after the stop that the interruption itself caused.
     private var activeSource: MicrophoneSource?
 
     public init(
@@ -257,7 +267,7 @@ public final class TunerAnalysisSession: @unchecked Sendable {
         detector = nil
         previousFrameRms = 0.0
         lock.unlock()
-        detachSource()
+        stopCapture()
     }
 
     /// Applies a configuration change, invalidating in-flight results computed
@@ -308,7 +318,21 @@ public final class TunerAnalysisSession: @unchecked Sendable {
 
     // MARK: - Audio Edge Ownership
 
-    /// Unhooks the source and stops it, if one is wired.
+    /// Stops the tap, and only the tap.
+    ///
+    /// The source stays wired, so an event it reports after this — an interruption
+    /// that ended, a route that changed again — still reaches the tuner, which is the
+    /// only layer that can decide whether to pick capture up again.
+    private func stopCapture() {
+        lock.lock()
+        let source = activeSource
+        lock.unlock()
+
+        source?.stop()
+    }
+
+    /// Stops the tap *and* stops listening to the source: what a start that failed,
+    /// or a source being replaced, has to do.
     ///
     /// Stopping the *source* and not just the analysis is the point: leaving the tap
     /// installed means the engine keeps delivering frames stamped with the new
