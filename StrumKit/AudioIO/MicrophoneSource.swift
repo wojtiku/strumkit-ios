@@ -29,28 +29,3 @@ public protocol MicrophoneSource: AnyObject, Sendable {
     /// the one that invites a resume.
     func stop()
 }
-
-/// Something happened to the microphone that the tuner has to absorb.
-public enum MicrophoneEvent: Sendable, Equatable {
-    /// An interruption began, or ended. `resumable` is the system's own answer to
-    /// whether capture may be picked up again: it is `false` while the interruption
-    /// is in progress, and true when it ended with the system inviting a resume.
-    case interrupted(resumable: Bool)
-    /// The input device or its route changed, so a running tap is on the wrong input.
-    case routeChanged
-}
-
-/// One window of newly-captured audio.
-public struct CapturedWindow: Sendable {
-    public let samples: [Float]
-    public let sampleRate: Double
-    /// Host monotonic time of the window's *trailing edge*. The DSP's age maths
-    /// (`resultAgeMs`) is measured from here, so it must not be a media timeline.
-    public let captureEnd: TimeInterval
-
-    public init(samples: [Float], sampleRate: Double, captureEnd: TimeInterval) {
-        self.samples = samples
-        self.sampleRate = sampleRate
-        self.captureEnd = captureEnd
-    }
-}

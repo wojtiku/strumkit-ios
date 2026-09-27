@@ -360,18 +360,35 @@ one-shot scheduled task, not a poll.
 
 ```
 Domain/        InstrumentCategory, MusicalNote, PitchMath, PitchResult, TunerConstants,
-               StringTarget, TunerReading, TunerMode, TuningPreset, ToneMemory
-Tuning/        Tuning, TunerPreferences, TunerPreferencesStore
+               StringTarget, TunerReading, ReadingAim, Evidence, TunerMode, ToneMemory,
+               TuningPreset, Presets
+Tuning/        Tuning, TunerConfig, TunerPreferences, TunerPreferencesStore
 Detection/     AnalysisFrame, AnalysisSnapshot, TunerDiagnostics, PitchDetector,
                SpectralPitchScorer, PitchTracker, Resampler, HannProjection
 Analysis/      TunerAnalysisSession
-AudioIO/       MicrophoneSource, AVAudioEngineMicrophone, CapturedWindow, MicrophoneEvent,
-               AudioRingBuffer
-Presentation/  TunerPresentation, TunerTheme, ViewModels/, Views/
+AudioIO/       MicrophoneSource, MicrophoneEvent, CapturedWindow, AudioPermissionStatus,
+               AudioCaptureError, AVAudioEngineMicrophone, AudioRingBuffer,
+               AudioSessionConfiguration, ReferenceTonePlayer, AcousticStringSynthesizer
+Presentation/  TunerPresentation, TunerTheme, EngineStatus, SignalFeedbackState,
+               ViewModels/, Views/ (Components/ survives)
 ```
 
-`EngineStatus`, `SignalFeedbackState` and `AudioCaptureError` go wherever owns them — decide by
-who reads them, not by what they are.
+`App/` (entry point and `Info.plist`, which `project.yml` points at) and `Resources/` stay
+where they are — they are not part of the six ideas.
+
+Three placements this list did not settle, decided while doing the work:
+
+- **`ReferenceTonePlayer` and `AcousticStringSynthesizer` are in `AudioIO/`,** read as "the
+  audio device, both directions" rather than input-only. The synthesiser is an `AVAudioEngine`
+  and `AVAudioSession` adapter sharing the hardware edge with the microphone, and splitting a
+  protocol from its only implementation across two groups would be worse than either single
+  reading. If `AudioIO` should mean input-only, these two move to `Presentation/` and nothing
+  else changes.
+- **`TunerConfig` is in `Tuning/`,** not `Domain/`. It is the output of the resolution and an
+  input to detection, so it belongs to resolution rather than to vocabulary.
+- **`AudioCaptureError` is in `AudioIO/` while `EngineStatus` is in `Presentation/`,** which
+  looks inconsistent and is not. The error is thrown only by the audio edge and is part of
+  what the seam promises; the status is read only by things that render it.
 
 **Then drop the `public`s that are not needed.** One module, `@testable import` in every test
 file, so this costs nothing and the compiler starts rejecting reach-throughs. This is the
