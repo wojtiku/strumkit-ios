@@ -288,13 +288,22 @@ final class TunerAnalysisSession: @unchecked Sendable {
         lock.unlock()
     }
 
-    func updateTargets(_ targets: [StringTarget]) {
+    /// Adopts a resolved Tuning: the configuration and the Targets it was resolved
+    /// with, in one step.
+    ///
+    /// One call rather than two, deliberately. Applied separately they bump the
+    /// generation twice and reset the tracker twice, the first reset sizing itself from
+    /// the Targets still in place and the second immediately replacing them — and they
+    /// open a window in which the configuration is the new one and the Targets are the
+    /// old. A resolution is one decision, so adopting it should be one step.
+    func adopt(_ resolved: Tuning.Resolved, preservingGuidedProgress: Bool = false) {
         lock.lock()
         activeGeneration &+= 1
-        currentTargets = targets
+        currentConfig = resolved.config
+        currentTargets = resolved.targets
         pendingFrame = nil
         pendingEnqueuedAt = nil
-        tracker.reset(targetCount: targets.count)
+        tracker.reset(targetCount: resolved.targets.count, preservingGuidedProgress: preservingGuidedProgress)
         previousFrameRms = 0.0
         lock.unlock()
     }

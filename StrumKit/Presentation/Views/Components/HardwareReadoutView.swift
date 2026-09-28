@@ -57,7 +57,7 @@ struct HardwareReadoutView: View {
     /// the player can tell inferred evidence from measured evidence at a glance.
     private var evidenceOpacity: Double {
         if reading?.freshness == .held { return holdOpacity }
-        if reading?.evidence == .sustained { return TunerPresentation.recoveredOpacity }
+        if reading?.evidence == .sustained { return TunerPresentation.sustainedOpacity }
         return 1.0
     }
 

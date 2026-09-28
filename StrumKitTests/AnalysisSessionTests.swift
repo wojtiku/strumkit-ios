@@ -181,8 +181,7 @@ struct AnalysisSessionTests {
         let ukeTargets = Presets.ukulele[0].midi.enumerated().map { index, midi in
             StringTarget(note: PitchMath.midiNoteName(midi), midi: midi, frequency: PitchMath.midiFrequency(midi), number: 4 - index)
         }
-        session.updateConfiguration(ukeConfig)
-        session.updateTargets(ukeTargets)
+        session.adopt(Tuning.Resolved(config: ukeConfig, targets: ukeTargets))
 
         try await Task.sleep(nanoseconds: 120_000_000)
 

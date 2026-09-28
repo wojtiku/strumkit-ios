@@ -17,7 +17,7 @@ enum TunerPresentation: Sendable {
     /// Sustained evidence extends a Note's life into the decay, but its cents error
     /// is larger than YIN's, so the value is shown de-emphasised and is never turned
     /// into tuning advice.
-    static let recoveredOpacity: Double = 0.55
+    static let sustainedOpacity: Double = 0.55
 
     /// Returns human-readable guidance text for the current reading and feedback state.
     ///

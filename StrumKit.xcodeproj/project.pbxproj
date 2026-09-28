@@ -53,7 +53,6 @@
 		91F21502BE17BB30BFD2D476 /* PreferencesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2829779E0C8247F29DFFBE1 /* PreferencesTests.swift */; };
 		938B51460B0696F699DF7AAB /* TunerPresentationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32196A1344E1B81BC9B48A9F /* TunerPresentationTests.swift */; };
 		96A0B5B1806AE61BD03C28FB /* quiet_e.wav in Resources */ = {isa = PBXBuildFile; fileRef = EF0B2144304F8A498E4ED8F7 /* quiet_e.wav */; };
-		96BB3B5A51112979975410B6 /* SignalFeedbackState.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF4D3578A0046D739FCFEA74 /* SignalFeedbackState.swift */; };
 		97A32E0E77FA430CA0D1A509 /* TunerDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = D08ACF70BCB0CC6D830DAE7A /* TunerDiagnostics.swift */; };
 		97EE4C8FB027476A869ED66F /* quiet_a.m4a in Resources */ = {isa = PBXBuildFile; fileRef = B28195D6B35004A7A55202D3 /* quiet_a.m4a */; };
 		9830CDA328EA1B4B1EAB6AB9 /* SpectralPitchScorerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CADC48A2F52FE2D23DC527F7 /* SpectralPitchScorerTests.swift */; };
@@ -78,6 +77,7 @@
 		D113A9C4E137C93FBD4BDA0C /* StrumKitApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CD8553C0788E345EE166E2F /* StrumKitApp.swift */; };
 		D47AEAE97B890E2D17EA7E32 /* TunerPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC52903FBEB63DCBCEE01843 /* TunerPreferences.swift */; };
 		D4AC69922F9F63E04908046D /* quiet_e.m4a in Resources */ = {isa = PBXBuildFile; fileRef = F7962DE8A22F1088B105500E /* quiet_e.m4a */; };
+		D5BB44499602E026075A681B /* SignalFeedbackState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3223251403187FB167FDDB85 /* SignalFeedbackState.swift */; };
 		D7B42945F1ECC2BC7187AE39 /* SustainContinuityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 911E632731D51D44658C7EEA /* SustainContinuityTests.swift */; };
 		D81777358FE573ED3D6ACC22 /* EngineStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A8B59CAD3E0050F00ACD80D /* EngineStatus.swift */; };
 		D84551A8F0EC3A3992674C38 /* RealStrumStabilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E2EC88610804667F563783C /* RealStrumStabilityTests.swift */; };
@@ -127,6 +127,7 @@
 		30803C8F93D9DF0F4359072F /* HardwareGaugeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareGaugeView.swift; sourceTree = "<group>"; };
 		30EB1B11BD02A61C26F5E63C /* AnalysisSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisSessionTests.swift; sourceTree = "<group>"; };
 		32196A1344E1B81BC9B48A9F /* TunerPresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunerPresentationTests.swift; sourceTree = "<group>"; };
+		3223251403187FB167FDDB85 /* SignalFeedbackState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignalFeedbackState.swift; sourceTree = "<group>"; };
 		3F13C2F69F7B46F9DF1F3B12 /* uke_c.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = uke_c.wav; sourceTree = "<group>"; };
 		418954C0CAC0ABF08C6EC1EF /* PitchDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PitchDetector.swift; sourceTree = "<group>"; };
 		422C9CCCE7B91244C7C229B0 /* PitchTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PitchTracker.swift; sourceTree = "<group>"; };
@@ -194,7 +195,6 @@
 		F389ED061490B4139DA76A5F /* TunerConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunerConstants.swift; sourceTree = "<group>"; };
 		F58ECD875441BEB0C580378D /* guitar-chord.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "guitar-chord.wav"; sourceTree = "<group>"; };
 		F7962DE8A22F1088B105500E /* quiet_e.m4a */ = {isa = PBXFileReference; path = quiet_e.m4a; sourceTree = "<group>"; };
-		FF4D3578A0046D739FCFEA74 /* SignalFeedbackState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignalFeedbackState.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -225,6 +225,7 @@
 				1263B460200D5168BCC65E46 /* PitchResult.swift */,
 				2F51B32045794153285F340C /* Presets.swift */,
 				55CDAB3755E8DD7B21A8C31B /* ReadingAim.swift */,
+				3223251403187FB167FDDB85 /* SignalFeedbackState.swift */,
 				8A1DFC9E00A0CC0FD9A8DD7B /* StringTarget.swift */,
 				A79BC5EBE1FCD7F637CCA758 /* ToneMemory.swift */,
 				F389ED061490B4139DA76A5F /* TunerConstants.swift */,
@@ -342,7 +343,6 @@
 			isa = PBXGroup;
 			children = (
 				7A8B59CAD3E0050F00ACD80D /* EngineStatus.swift */,
-				FF4D3578A0046D739FCFEA74 /* SignalFeedbackState.swift */,
 				2551E2EB45BCA59A50839515 /* TunerPresentation.swift */,
 				4A7A42B20BA1E1C4019302C6 /* TunerTheme.swift */,
 				BC7B85181C1CCBDE5F36E852 /* ViewModels */,
@@ -551,7 +551,7 @@
 				6C06FB2753C2A47DB0AC7FB6 /* ReferenceTonePlayer.swift in Sources */,
 				11D51B6B1A11B457B776E07E /* Resampler.swift in Sources */,
 				47C7AA31FA36711649CFC1F3 /* SettingsView.swift in Sources */,
-				96BB3B5A51112979975410B6 /* SignalFeedbackState.swift in Sources */,
+				D5BB44499602E026075A681B /* SignalFeedbackState.swift in Sources */,
 				9B22B1376CE2D2BBBB26881B /* SpectralPitchScorer.swift in Sources */,
 				CA34355A2020A10E3B541B50 /* StringTarget.swift in Sources */,
 				D113A9C4E137C93FBD4BDA0C /* StrumKitApp.swift in Sources */,

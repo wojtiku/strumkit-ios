@@ -10,9 +10,13 @@ final class PitchTracker: @unchecked Sendable {
     private static let precisionEnterTuneCents: Double = 2.0
     private static let precisionExitTuneCents: Double = 3.0
 
-    // Acquisition & Stability
-    private static let acquireReadings: Int = 3
-    private static let onsetAcquireReadings: Int = 2
+    // Confirming a candidate String
+    //
+    // Named for what they count — readings of one candidate — and not for acquiring, which
+    // is a grade of Evidence the glossary withdrew: naming a Note nothing else confirmed
+    // is precisely what no longer exists here, and borrowing the word invites rebuilding it.
+    private static let candidateConfirmations: Int = 3
+    private static let onsetCandidateConfirmations: Int = 2
     private static let onsetRmsMultiplier: Double = 3.0
 
     // Guided mode requirements
@@ -439,11 +443,11 @@ final class PitchTracker: @unchecked Sendable {
         // long as you ask. Manual and chromatic mode still bypass this: manual's
         // player has already chosen the string, and chromatic's whole job is to
         // report whatever it hears.
-        let isConfirmed = (candidateCount >= Self.onsetAcquireReadings
-                           && (candidateIsOnset || elapsedSpan >= (neededSpan - 0.001) || candidateCount >= Self.acquireReadings))
-            && (isForeground || config.mode == .manual || (config.mode == .chromatic && candidateCount >= Self.onsetAcquireReadings))
+        let isConfirmed = (candidateCount >= Self.onsetCandidateConfirmations
+                           && (candidateIsOnset || elapsedSpan >= (neededSpan - 0.001) || candidateCount >= Self.candidateConfirmations))
+            && (isForeground || config.mode == .manual || (config.mode == .chromatic && candidateCount >= Self.onsetCandidateConfirmations))
 
-        guard isContinuingTarget || isConfirmed || config.mode == .manual || (config.mode == .chromatic && candidateCount >= Self.onsetAcquireReadings) else {
+        guard isContinuingTarget || isConfirmed || config.mode == .manual || (config.mode == .chromatic && candidateCount >= Self.onsetCandidateConfirmations) else {
             feedbackState = .checking
             let elapsed = now - lastReadingTime
             if elapsed > Self.priorGraceDuration {

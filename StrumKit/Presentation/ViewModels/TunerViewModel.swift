@@ -39,7 +39,7 @@ final class TunerViewModel {
     /// looks as authoritative as a measured one however far through the hold it is.
     func needleOpacity(holdFade: Double) -> Double {
         if currentReading?.evidence == .sustained {
-            return min(holdFade, TunerPresentation.recoveredOpacity)
+            return min(holdFade, TunerPresentation.sustainedOpacity)
         }
         return holdFade
     }
@@ -305,7 +305,7 @@ final class TunerViewModel {
     /// is recorded; the resolution then decides what that choice actually means. `edit`'s
     /// `tuningId` and `customMidi` are therefore ignored: only `config` and `targets` come
     /// out of `Tuning.resolve`, so there is nothing for a caller to keep in step by hand.
-    private func applyResolution(_ edit: (inout TunerConfig) -> Void) {
+    private func applyResolution(_ edit: (inout TunerConfig) -> Void = { _ in }) {
         var config = resolved.config
         edit(&config)
         let instrument = config.instrument
@@ -321,6 +321,20 @@ final class TunerViewModel {
         )
     }
 
+    /// Adopts the current resolution, clears the display, and pulls the guided
+    /// state back.
+    ///
+    /// The tail of every change that alters *which Strings the tuner is aiming at*:
+    /// those are the changes that make a reading in flight describe a tuning that no
+    /// longer exists, so the held Reading is dropped rather than re-aimed, and the
+    /// player's completed strings do not survive.
+    private func adoptResolutionAndClearDisplay() {
+        session.adopt(resolved)
+        cancelHoldExpiry()
+        currentReading = nil
+        syncGuidedStateFromSession()
+    }
+
     // MARK: - Instrument & Preset Selection
     func setInstrument(_ instrument: InstrumentCategory) {
         guard instrument != config.instrument else { return }
@@ -333,18 +347,9 @@ final class TunerViewModel {
                 config.mode = .auto
             }
         }
-        resetTrackerAndHold()
-        self.guidedProgress = session.guidedProgress
-        self.guidedTargetIndex = session.guidedTargetIndex
+        adoptResolutionAndClearDisplay()
         stopReferenceTone()
         savePreferences()
-    }
-
-    private func resetTrackerAndHold() {
-        session.updateConfiguration(config)
-        session.updateTargets(targets)
-        cancelHoldExpiry()
-        currentReading = nil
     }
 
     /// Pulls guided state back from the session after a configuration change, so
@@ -364,9 +369,7 @@ final class TunerViewModel {
                 config.mode = .auto
             }
         }
-        resetTrackerAndHold()
-        self.guidedProgress = session.guidedProgress
-        self.guidedTargetIndex = session.guidedTargetIndex
+        adoptResolutionAndClearDisplay()
         stopReferenceTone()
         savePreferences()
     }
@@ -452,8 +455,11 @@ final class TunerViewModel {
     func updateA4(_ newA4: Double) {
         let clamped = max(TunerConstants.minCalibrationHz, min(TunerConstants.maxCalibrationHz, newA4))
         applyResolution { $0.a4 = clamped }
-        session.updateConfiguration(config)
-        session.updateTargets(targets)
+        // Deliberately not clearing the display: a calibration change re-reads every
+        // String, but it is made while the player is aiming at a String they can still
+        // see, so the held Reading is left to expire on its own schedule rather than
+        // vanishing mid-adjustment.
+        session.adopt(resolved)
         preferences.a4 = clamped
         savePreferences()
     }
@@ -466,8 +472,10 @@ final class TunerViewModel {
         customMidi[stringIndex] = midi
         preferences.setTuning(Tuning.customTuningId, customMidi: customMidi, for: config.instrument)
 
-        applyResolution { _ in }
-        resetTrackerAndHold()
+        // The **Note**s are the choice, and they were just written to `preferences`, so
+        // there is nothing for the closure to adjust — the re-resolve *is* the work.
+        applyResolution()
+        adoptResolutionAndClearDisplay()
         savePreferences()
     }
 

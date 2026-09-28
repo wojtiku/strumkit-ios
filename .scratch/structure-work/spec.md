@@ -219,8 +219,12 @@ that a counter incremented.
 **Seams.** Two in total.
 
 - The existing highest seam, the session's synchronous frame-processing entry point, is where
-  all detection testing already happens and stays there. The 120 existing tests cross it and are
-  not modified by this work.
+  all detection testing already happens and stays there. The suite grew from 120 tests to 136
+  across this work, and the 120 originals were not reduced: no assertion was removed, and no
+  numeric threshold in any of them moved — verified mechanically, every numeric literal across
+  the test tree byte-identical before and after. Individual assertions were *re-pointed* where a
+  declaration they named was deleted (the hold-fade opacity, now derived by the view), always at
+  the same threshold and against the same policy function.
 - One new seam, at the audio edge, proposed at the highest point that works — the microphone —
   so that the ViewModel's entire lifecycle becomes reachable rather than just its configuration
   half.
@@ -249,9 +253,18 @@ there would be a hypothetical one.
 - The hardware adapter is not unit-tested. Its correctness is the fixture-replay suite's job,
   which exists.
 
-**Discipline on the new tests.** Four of the six must **fail** before the ViewModel's
-dependencies become injectable. If they pass already, the seam was not the problem and the test
-is not earning its keep — delete it rather than keep it.
+**Discipline on the new tests.** As originally written: four of the six must **fail** before the
+ViewModel's dependencies become injectable, and any that pass already are not earning their keep.
+
+**Amended after implementation.** Two of the six were red, not four, and the three that passed
+first were kept rather than deleted. The rule's premise turned out not to hold: before the seam
+these tests could not compile at all, so the "pre-wiring state" it asks about was never
+observable, and the interface and the ViewModel wiring landed in one commit rather than two. The
+three behaviours — removing the tap on interruption, not resuming without intent, clearing the
+Reading on an instrument change — were already correct in the pre-seam code; they were unpinned
+rather than broken. Deleting the tests would have left interruption, route change, reference tone
+and instrument change with no coverage at all. The rule stands for any future seam cut one step
+at a time; it cannot be applied retroactively to a seam cut in one commit.
 
 **Prior art.** The fixture-replay suites are the model: recorded audio, a deterministic frame
 trace, and assertions phrased as measured figures printed alongside the verdict rather than
@@ -278,18 +291,23 @@ change moves those, it is not a structure change.
   growth is not a goal.
 - **Swift concurrency rework.** Ten unchecked-sendable annotations, strict concurrency on, and
   the reasoning recorded at each site. Changing them is a separate and larger piece of work.
-- **Any change to the state machine.** It is the module the rest of the app should resemble: one
-  processing entry point, the largest test file in the suite crossing it.
+- **Any change to the state machine's *behaviour*.** It is the module the rest of the app should
+  resemble: one processing entry point, the largest test file in the suite crossing it. Its
+  *interface* did change — the evidence flag became a graded type, the in-tune verdict moved
+  inside the Target case, and two constants that were inlined as literals now name what they
+  count — and every numeric value in it is unmoved.
 - **View decomposition.** The existing component split is reasonable. A large view is not the
   same as a shallow one.
-- **Anything a player sees**, with one exception. No reading, colour, message, or timing a
-  player can perceive changes. That is what lets the first three phases be gated on existing
-  tests alone. The exception is the chromatic-mode verdict, which is a correction rather
-  than a change: the glossary says chromatic mode is never "in tune", and the player was
-  being told "Tune up" or "Tune down" about a String that mode never chose. Removing that
-  advice is the ticket's purpose, not a side effect of it. The cents deviation and the
-  needle direction are still shown — a chromatic tuner still reports distance from equal
-  temperament; only the instruction about a String it is not aiming at is gone.
+- **Anything a player sees**, with one exception, and the exception covers two changes rather
+  than one. No reading, colour, message, or timing a player can perceive changes, which is what
+  lets the first three phases be gated on existing tests alone. The exception is chromatic
+  mode, and it is a correction rather than a change: the glossary says chromatic mode is never
+  "in tune", and the player was being told "Tune up" or "Tune down" about a String that mode
+  never chose. So the guidance text stops giving that instruction, **and** the readout's
+  second-column label changes from naming a String to naming equal temperament, because the
+  value under it was always distance from equal temperament and the label was claiming
+  otherwise. Colour, haptics and the grid highlight are unchanged, as are the cents and the
+  needle direction.
 - **Acquiring new audio, hardware, or a physical device.** No phase requires one.
 
 ## Further Notes

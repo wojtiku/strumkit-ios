@@ -554,7 +554,10 @@ requires. Recorded rather than removed, because each answers a question no seam 
 
 ## Gates
 
-1. **The suite stays green after every phase.** No phase may reduce coverage.
+1. **The suite stays green after every phase, and never shrinks.** It was 120 tests in 21
+   suites at the start and is 136 in 22 at the end. The count was originally written as a
+   fixed number, which was wrong the moment a ticket added a test; the invariant is
+   monotonicity, not a literal. Every phase's actual count is in its commit message.
 2. **No constant changes value in Phases 1–3 or 5a.** Any threshold that moves is a rejected
    change; it belongs to the detection plan, on evidence.
 3. **No assertion is loosened to reach green.** `SustainContinuityTests` is the standing

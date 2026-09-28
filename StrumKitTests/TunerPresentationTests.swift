@@ -231,8 +231,8 @@ struct TunerPresentationTests {
 
     @Test("Recovered opacity is dimmer than fresh and dimmer than a hold in progress")
     func testRecoveredOpacityIsDistinct() {
-        #expect(TunerPresentation.recoveredOpacity < 1.0)
-        #expect(TunerPresentation.recoveredOpacity > TunerPresentation.minHoldOpacity,
+        #expect(TunerPresentation.sustainedOpacity < 1.0)
+        #expect(TunerPresentation.sustainedOpacity > TunerPresentation.minHoldOpacity,
                 "Recovered evidence should still be clearly visible")
     }
 
@@ -274,7 +274,7 @@ struct TunerPresentationTests {
         #expect(vm.currentReading?.evidence == .sustained)
         // The Reading is Fresh, so the fade the display derives is 1.0 and the only
         // thing dimming the needle is the Evidence behind it.
-        #expect(vm.needleOpacity(holdFade: 1.0) == TunerPresentation.recoveredOpacity)
+        #expect(vm.needleOpacity(holdFade: 1.0) == TunerPresentation.sustainedOpacity)
     }
 
     @Test("TunerViewModel hold presentation retains reading without premature expiration")
