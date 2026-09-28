@@ -530,6 +530,28 @@ already names `PitchTracker` as the module the rest of the app should look like.
 table, asserted as numbers. `TunerPreferencesStore.storageKey` is how a test plants corrupt
 data. `AudioCaptureError.errorDescription` is a `LocalizedError` requirement, not an interface.
 
+## Test-only entry points on production types
+
+Production members that exist because a test needs them, and so are wider than the app
+requires. Recorded rather than removed, because each answers a question no seam can:
+
+- The coordinator's synchronous frame-processing entry point, for replay. Replay only ever
+  happens in the suite, so it is a test seam end to end.
+- Its live-audio submission, which the suite also calls directly — *below* the microphone
+  seam, in a file that holds doubles for driving the same thing through the seam.
+- The coordinator's analysis hook, written only from the session tests, and lock-guarded:
+  the seam offers no way to observe work between submission and publication.
+- The coordinator's spectral-recovery switch, written only from a test helper. It gates an
+  experimental path that ships enabled, so no UI sets it.
+- The scorer's four scoring methods, which the Analysis group does not use: the suite checks
+  the scorer against itself through them, `directDFT` being the hand-written reference for
+  the accelerated path.
+- The stored preferences' active-config wrapper, with no app caller. It does go through the
+  real resolution, so the test is not asserting against a parallel implementation, but it
+  cannot be made private without rewriting the test.
+- The correlation helpers' two functions, which the detector does not use; the suite needs
+  them to check the normalisation and the phase convention.
+
 ## Gates
 
 1. **The suite stays green after every phase.** No phase may reduce coverage.
