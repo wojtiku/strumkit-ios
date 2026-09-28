@@ -17,6 +17,5 @@ enum TunerTheme {
     static let gaugeTrack = Color(red: 0.18, green: 0.22, blue: 0.29)
     /// Unused: every tick on the gauge is a minor one. Left in place rather than
     /// deleted — removing palette entries is not a visibility change.
-    private static let gaugeTickMajor = Color(red: 0.70, green: 0.75, blue: 0.82)
     static let gaugeTickMinor = Color(red: 0.35, green: 0.40, blue: 0.48)
 }

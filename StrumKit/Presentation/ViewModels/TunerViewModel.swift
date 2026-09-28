@@ -231,16 +231,6 @@ final class TunerViewModel {
         self.feedbackState = .inactive
     }
 
-    /// Nothing calls this: the header buttons drive `start()` and `stop()` directly.
-    /// Left in place rather than deleted, and narrowed to the file it is dead in.
-    private func toggleListening() async {
-        if engineStatus == .listening || engineStatus == .requesting {
-            stop()
-        } else {
-            await start()
-        }
-    }
-
     // MARK: - Snapshot Handler (Serial Session -> UI)
     internal func handleSnapshot(_ snapshot: AnalysisSnapshot) {
         guard snapshot.generation == session.generation else { return }

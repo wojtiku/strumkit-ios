@@ -86,7 +86,6 @@
 		DAE10F4873A7DE94A7B006AD /* TunerConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F98FE3E635BC0A75AD534C0 /* TunerConfig.swift */; };
 		DD8FEA0DACAF8F73CA0C37CC /* TunerAnalysisSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 031E6C3A15D93581DB6C366C /* TunerAnalysisSession.swift */; };
 		E07B8CA689377914D2C373AD /* Presets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F51B32045794153285F340C /* Presets.swift */; };
-		E32BD56B3622B4963ACB97CF /* AudioLevelMeter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ECF7E56910DA1F1D52D7EC5 /* AudioLevelMeter.swift */; };
 		ECF4D8EEAFF0033CA3FAF1D5 /* MusicalNoteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AECC7DF1BA2D4B95A1958BB7 /* MusicalNoteTests.swift */; };
 		EE431589DC9ECBA4E7DE9FA2 /* all-4-with-noise.wav in Resources */ = {isa = PBXBuildFile; fileRef = F23D0FA3335EBD3143A73417 /* all-4-with-noise.wav */; };
 		EF653ABD4DAE3FC4A17B04CF /* TunerPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2551E2EB45BCA59A50839515 /* TunerPresentation.swift */; };
@@ -124,7 +123,6 @@
 		29536BF2D48530651C9D7629 /* StrumKitTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = StrumKitTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2978142A5FF3E426B1F1730A /* SpectralPitchScorer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectralPitchScorer.swift; sourceTree = "<group>"; };
 		2E2EC88610804667F563783C /* RealStrumStabilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealStrumStabilityTests.swift; sourceTree = "<group>"; };
-		2ECF7E56910DA1F1D52D7EC5 /* AudioLevelMeter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioLevelMeter.swift; sourceTree = "<group>"; };
 		2F51B32045794153285F340C /* Presets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Presets.swift; sourceTree = "<group>"; };
 		30803C8F93D9DF0F4359072F /* HardwareGaugeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareGaugeView.swift; sourceTree = "<group>"; };
 		30EB1B11BD02A61C26F5E63C /* AnalysisSessionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisSessionTests.swift; sourceTree = "<group>"; };
@@ -399,7 +397,6 @@
 		E357617533D46EE17745B72D /* Components */ = {
 			isa = PBXGroup;
 			children = (
-				2ECF7E56910DA1F1D52D7EC5 /* AudioLevelMeter.swift */,
 				30803C8F93D9DF0F4359072F /* HardwareGaugeView.swift */,
 				A2811F039BAFB17CE6A8214A /* HardwareModeBarView.swift */,
 				ECB0E16A71867909A8ACEFAF /* HardwareReadoutView.swift */,
@@ -530,7 +527,6 @@
 				B674810118B6EFB35B12E268 /* AnalysisFrame.swift in Sources */,
 				3A0C73441786D7EDD5AEB11C /* AnalysisSnapshot.swift in Sources */,
 				5ED29FB7524AF56C97EE20E7 /* AudioCaptureError.swift in Sources */,
-				E32BD56B3622B4963ACB97CF /* AudioLevelMeter.swift in Sources */,
 				2CB5F684A1046AB9F461CBB4 /* AudioPermissionStatus.swift in Sources */,
 				399EC42C48EE35780911C058 /* AudioRingBuffer.swift in Sources */,
 				1F4E99175253BE8DEBE5E050 /* AudioSessionConfiguration.swift in Sources */,

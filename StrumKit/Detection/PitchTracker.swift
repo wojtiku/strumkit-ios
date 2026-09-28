@@ -439,10 +439,11 @@ final class PitchTracker: @unchecked Sendable {
         // long as you ask. Manual and chromatic mode still bypass this: manual's
         // player has already chosen the string, and chromatic's whole job is to
         // report whatever it hears.
-        let isConfirmed = (candidateCount >= 2 && (candidateIsOnset || elapsedSpan >= (neededSpan - 0.001) || candidateCount >= 3))
-            && (isForeground || config.mode == .manual || (config.mode == .chromatic && candidateCount >= 2))
+        let isConfirmed = (candidateCount >= Self.onsetAcquireReadings
+                           && (candidateIsOnset || elapsedSpan >= (neededSpan - 0.001) || candidateCount >= Self.acquireReadings))
+            && (isForeground || config.mode == .manual || (config.mode == .chromatic && candidateCount >= Self.onsetAcquireReadings))
 
-        guard isContinuingTarget || isConfirmed || config.mode == .manual || (config.mode == .chromatic && candidateCount >= 2) else {
+        guard isContinuingTarget || isConfirmed || config.mode == .manual || (config.mode == .chromatic && candidateCount >= Self.onsetAcquireReadings) else {
             feedbackState = .checking
             let elapsed = now - lastReadingTime
             if elapsed > Self.priorGraceDuration {
