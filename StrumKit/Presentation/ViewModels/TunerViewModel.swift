@@ -424,8 +424,7 @@ final class TunerViewModel {
         session.resetGuidedSession()
         cancelHoldExpiry()
         currentReading = nil
-        self.guidedProgress = session.guidedProgress
-        self.guidedTargetIndex = session.guidedTargetIndex
+        syncGuidedStateFromSession()
     }
 
     // MARK: - Reference Tones (Acoustic Pluck)
