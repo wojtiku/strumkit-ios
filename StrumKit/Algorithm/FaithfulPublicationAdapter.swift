@@ -102,9 +102,14 @@ final class FaithfulReadingAdapter: @unchecked Sendable {
     let feedback: TuningFeedback
 
     var mode: TunerMode
+    var calibrationA4: Double = TunerConstants.defaultA4Hz
     var tuning: String {
         get { tracker.tuning }
         set { tracker.tuning = newValue }
+    }
+    var targets: [Target]? {
+        get { tracker.targets }
+        set { tracker.targets = newValue }
     }
 
     struct Output: Sendable, Equatable {
@@ -133,12 +138,14 @@ final class FaithfulReadingAdapter: @unchecked Sendable {
         tracker: FaithfulTracker = FaithfulTracker(),
         presentation: FaithfulPresentation = FaithfulPresentation(),
         feedback: TuningFeedback = TuningFeedback(),
-        mode: TunerMode = .auto
+        mode: TunerMode = .auto,
+        calibrationA4: Double = TunerConstants.defaultA4Hz
     ) {
         self.tracker = tracker
         self.presentation = presentation
         self.feedback = feedback
         self.mode = mode
+        self.calibrationA4 = calibrationA4
     }
 
     func reset() {
@@ -156,7 +163,8 @@ final class FaithfulReadingAdapter: @unchecked Sendable {
         freshness: TunerReading.Freshness,
         targets: [Target],
         mode: TunerMode = .auto,
-        evidence: Evidence? = nil
+        evidence: Evidence? = nil,
+        calibrationA4: Double = TunerConstants.defaultA4Hz
     ) -> TunerReading {
         let at = timeMs / 1000.0
         let lastFreshAt = lastFreshTimeMs / 1000.0
@@ -173,26 +181,40 @@ final class FaithfulReadingAdapter: @unchecked Sendable {
             reconstructedFrequency = reading.frequency
         }
 
-        let centsVal: Double
-        if let rawFreq = rawFrequency, rawFreq > 0, let target = targetObj, target.frequency > 0 {
-            centsVal = centsBetween(frequency: rawFreq, reference: target.frequency)
-        } else {
-            centsVal = displayCents
-        }
-
+        var centsVal: Double = displayCents
+        var outputDisplayCents: Double = displayCents
         let resolvedEvidence = evidence ?? (freshness == .fresh ? .measured : .sustained)
 
         let aim: ReadingAim
         switch mode {
         case .chromatic:
-            if let closest = MusicalNote.closest(to: reconstructedFrequency) {
+            let queryFreq = rawFrequency ?? reconstructedFrequency
+            if let closest = MusicalNote.closest(to: queryFreq, referenceA4: calibrationA4) {
                 aim = .note(closest.note)
+                centsVal = closest.cents
+                outputDisplayCents = closest.cents
+            } else if let closest = MusicalNote.closest(to: reconstructedFrequency, referenceA4: calibrationA4) {
+                aim = .note(closest.note)
+                centsVal = closest.cents
+                outputDisplayCents = closest.cents
             } else if let target = targetObj {
-                aim = .note(MusicalNote(midiNoteNumber: target.midi))
+                let note = MusicalNote(midiNoteNumber: target.midi, referenceA4: calibrationA4)
+                aim = .note(note)
+                let c = 1200.0 * log2(queryFreq / note.frequency)
+                centsVal = c
+                outputDisplayCents = c
             } else {
-                aim = .note(MusicalNote(midiNoteNumber: 60))
+                let note = MusicalNote(midiNoteNumber: 60, referenceA4: calibrationA4)
+                aim = .note(note)
+                centsVal = 0.0
+                outputDisplayCents = 0.0
             }
         default:
+            if let rawFreq = rawFrequency, rawFreq > 0, let target = targetObj, target.frequency > 0 {
+                centsVal = centsBetween(frequency: rawFreq, reference: target.frequency)
+            } else {
+                centsVal = displayCents
+            }
             if let target = targetObj {
                 let stringTarget = StringTarget(
                     note: target.note,
@@ -218,7 +240,7 @@ final class FaithfulReadingAdapter: @unchecked Sendable {
             frequency: reconstructedFrequency,
             aim: aim,
             cents: centsVal,
-            displayCents: displayCents,
+            displayCents: outputDisplayCents,
             freshness: freshness,
             evidence: resolvedEvidence
         )
@@ -246,7 +268,7 @@ final class FaithfulReadingAdapter: @unchecked Sendable {
         let nativeReading: TunerReading?
         switch action {
         case .published(let pubReading, let freshness):
-            let targets = TUNINGS[tracker.tuning] ?? TUNINGS["standard"]!
+            let targets = tracker.currentTargets
             nativeReading = Self.adapt(
                 reading: pubReading,
                 rawFrequency: (freshness == .fresh ? candidate?.frequency : nil),
@@ -254,7 +276,8 @@ final class FaithfulReadingAdapter: @unchecked Sendable {
                 lastFreshTimeMs: presentation.lastFreshTime,
                 freshness: freshness,
                 targets: targets,
-                mode: mode
+                mode: mode,
+                calibrationA4: calibrationA4
             )
         case .skipped, .empty:
             nativeReading = nil

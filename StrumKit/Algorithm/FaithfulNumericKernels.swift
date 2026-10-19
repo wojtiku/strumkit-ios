@@ -81,19 +81,54 @@ public enum FaithfulNumericKernels {
     // MARK: - Three-Section Bandpass Filter
 
     /// Three-section biquad bandpass filter:
-    /// Section 1: 100 Hz highpass, Q = 1 / sqrt(2)
-    /// Section 2: 1200 Hz lowpass, Q = 0.541196
-    /// Section 3: 1200 Hz lowpass, Q = 1.306563
-    public static func bandpassFilterInPlace(_ samples: inout [Double], sampleRate: Double) {
-        biquadFilterInPlace(&samples, sampleRate: sampleRate, cutoff: 100.0, q: 1.0 / sqrt(2.0), highpass: true)
-        biquadFilterInPlace(&samples, sampleRate: sampleRate, cutoff: 1200.0, q: 0.541196, highpass: false)
-        biquadFilterInPlace(&samples, sampleRate: sampleRate, cutoff: 1200.0, q: 1.306563, highpass: false)
+    /// Section 1: highpass (default 100 Hz), Q = 1 / sqrt(2)
+    /// Section 2: lowpass (default 1200 Hz), Q = 0.541196
+    /// Section 3: lowpass (default 1200 Hz), Q = 1.306563
+    public static func bandpassFilterInPlace(
+        _ samples: inout [Double],
+        sampleRate: Double,
+        highpassCutoff: Double = 100.0,
+        lowpassCutoff: Double = 1200.0
+    ) {
+        biquadFilterInPlace(&samples, sampleRate: sampleRate, cutoff: highpassCutoff, q: 1.0 / sqrt(2.0), highpass: true)
+        biquadFilterInPlace(&samples, sampleRate: sampleRate, cutoff: lowpassCutoff, q: 0.541196, highpass: false)
+        biquadFilterInPlace(&samples, sampleRate: sampleRate, cutoff: lowpassCutoff, q: 1.306563, highpass: false)
+    }
+
+    /// Overload for FaithfulEngineProfile.
+    public static func bandpassFilterInPlace(
+        _ samples: inout [Double],
+        sampleRate: Double,
+        profile: FaithfulEngineProfile
+    ) {
+        bandpassFilterInPlace(
+            &samples,
+            sampleRate: sampleRate,
+            highpassCutoff: profile.highpassCutoff,
+            lowpassCutoff: profile.lowpassCutoff
+        )
     }
 
     /// Functional wrapper for three-section bandpass filter.
-    public static func bandpassFilter(samples: [Double], sampleRate: Double) -> [Double] {
+    public static func bandpassFilter(
+        samples: [Double],
+        sampleRate: Double,
+        highpassCutoff: Double = 100.0,
+        lowpassCutoff: Double = 1200.0
+    ) -> [Double] {
         var copy = samples
-        bandpassFilterInPlace(&copy, sampleRate: sampleRate)
+        bandpassFilterInPlace(&copy, sampleRate: sampleRate, highpassCutoff: highpassCutoff, lowpassCutoff: lowpassCutoff)
+        return copy
+    }
+
+    /// Functional wrapper for three-section bandpass filter with profile.
+    public static func bandpassFilter(
+        samples: [Double],
+        sampleRate: Double,
+        profile: FaithfulEngineProfile
+    ) -> [Double] {
+        var copy = samples
+        bandpassFilterInPlace(&copy, sampleRate: sampleRate, profile: profile)
         return copy
     }
 

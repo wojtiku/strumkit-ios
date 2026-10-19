@@ -204,14 +204,15 @@ public enum FaithfulSpectralKernels {
     public static func spectralPeaks(
         input: [Float],
         sampleRate: Double,
-        power: [Double]? = nil
+        power: [Double]? = nil,
+        minFrequency: Double = 110.0
     ) -> [SpectralPeak] {
         let spectrum = power ?? powerSpectrum(input)
         guard spectrum.count >= 21 else { return [] }
         let binHz = sampleRate / Double(spectrum.count * 2)
         var peaks: [SpectralPeak] = []
 
-        let startBin = Int(ceil(110.0 / binHz))
+        let startBin = Int(ceil(minFrequency / binHz))
         var i = startBin
         while Double(i) < min(Double(spectrum.count - 20), 6000.0 / binHz) {
             if spectrum[i] <= spectrum[i - 1] || spectrum[i] <= spectrum[i + 1] {
@@ -258,14 +259,15 @@ public enum FaithfulSpectralKernels {
     public static func spectralPeaks(
         input: [Double],
         sampleRate: Double,
-        power: [Double]? = nil
+        power: [Double]? = nil,
+        minFrequency: Double = 110.0
     ) -> [SpectralPeak] {
         let spectrum = power ?? powerSpectrum(input)
         guard spectrum.count >= 21 else { return [] }
         let binHz = sampleRate / Double(spectrum.count * 2)
         var peaks: [SpectralPeak] = []
 
-        let startBin = Int(ceil(110.0 / binHz))
+        let startBin = Int(ceil(minFrequency / binHz))
         var i = startBin
         while Double(i) < min(Double(spectrum.count - 20), 6000.0 / binHz) {
             if spectrum[i] <= spectrum[i - 1] || spectrum[i] <= spectrum[i + 1] {

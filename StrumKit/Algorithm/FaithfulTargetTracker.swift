@@ -10,10 +10,10 @@ public struct Target: Sendable, Codable, Equatable {
     public var midi: Int
     public var stringNumber: Int?
 
-    public init(note: String, midi: Int, stringNumber: Int? = nil) {
+    public init(note: String, midi: Int, stringNumber: Int? = nil, calibrationA4: Double = 440.0) {
         self.note = note
         self.midi = midi
-        self.frequency = 440.0 * pow(2.0, Double(midi - 69) / 12.0)
+        self.frequency = calibrationA4 * pow(2.0, Double(midi - 69) / 12.0)
         self.stringNumber = stringNumber
     }
 
@@ -158,6 +158,7 @@ public final class FaithfulTracker: @unchecked Sendable {
     public var tuning: String = "standard"
     public var auto: Bool = true
     public var selected: Int = 0
+    public var targets: [Target]? = nil
 
     // History & Target Identity
     public internal(set) var history: [Double] = []
@@ -254,7 +255,10 @@ public final class FaithfulTracker: @unchecked Sendable {
 
     /// Returns the target list for current tuning.
     public var currentTargets: [Target] {
-        TUNINGS[tuning] ?? TUNINGS["standard"]!
+        if let targets = self.targets {
+            return targets
+        }
+        return TUNINGS[tuning] ?? TUNINGS["standard"]!
     }
 
     /// Maps positional target index (0..<totalStrings) to instrument string number (totalStrings...1).

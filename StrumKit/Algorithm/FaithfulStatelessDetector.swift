@@ -66,6 +66,7 @@ public struct SpectralPitchResult: Sendable, Codable, Equatable {
 /// An input buffer's identity is not its contents: callers may reuse the buffer.
 /// Transformed anti-alias input is a distinct frame and bypasses these caches.
 public final class FaithfulFrameAnalysis: @unchecked Sendable {
+    public let profile: FaithfulEngineProfile
     private var inputPtr: UnsafeRawPointer?
     private var inputCount: Int = 0
     private var rate: Double = 0.0
@@ -75,7 +76,9 @@ public final class FaithfulFrameAnalysis: @unchecked Sendable {
     private var filteredSamples: [Double] = []
     private var cachedSpectral: [SpectralRanking: SpectralPitchResult?]?
 
-    public init() {}
+    public init(profile: FaithfulEngineProfile = .strictUkulele) {
+        self.profile = profile
+    }
 
     /// Explicitly resets scratch state for a new public frame.
     public func begin(input: [Float], rate: Double) {
@@ -102,14 +105,14 @@ public final class FaithfulFrameAnalysis: @unchecked Sendable {
         if !isCurrentInput(input, rate: rate) {
             var filtered = [Double](repeating: 0.0, count: input.count)
             for i in 0..<input.count { filtered[i] = Double(input[i]) }
-            FaithfulNumericKernels.bandpassFilterInPlace(&filtered, sampleRate: rate)
+            FaithfulNumericKernels.bandpassFilterInPlace(&filtered, sampleRate: rate, profile: profile)
             return filtered
         }
         if !filteredReady {
             for i in 0..<input.count {
                 filteredSamples[i] = Double(input[i])
             }
-            FaithfulNumericKernels.bandpassFilterInPlace(&filteredSamples, sampleRate: rate)
+            FaithfulNumericKernels.bandpassFilterInPlace(&filteredSamples, sampleRate: rate, profile: profile)
             filteredReady = true
         }
         return filteredSamples
@@ -118,7 +121,7 @@ public final class FaithfulFrameAnalysis: @unchecked Sendable {
     /// Lazily computes power spectrum and spectral peaks for the current frame.
     public func peaks(input: [Float], rate: Double) -> [FaithfulSpectralKernels.SpectralPeak] {
         if !isCurrentInput(input, rate: rate) {
-            return FaithfulSpectralKernels.spectralPeaks(input: input, sampleRate: rate)
+            return FaithfulSpectralKernels.spectralPeaks(input: input, sampleRate: rate, minFrequency: profile.minFrequency)
         }
         if power == nil {
             power = FaithfulSpectralKernels.powerSpectrum(input)
@@ -126,7 +129,7 @@ public final class FaithfulFrameAnalysis: @unchecked Sendable {
         if let peaks = detectedPeaks {
             return peaks
         }
-        let peaks = FaithfulSpectralKernels.spectralPeaks(input: input, sampleRate: rate, power: power)
+        let peaks = FaithfulSpectralKernels.spectralPeaks(input: input, sampleRate: rate, power: power, minFrequency: profile.minFrequency)
         detectedPeaks = peaks
         return peaks
     }
@@ -138,7 +141,7 @@ public final class FaithfulFrameAnalysis: @unchecked Sendable {
         ranking: SpectralRanking = .prominence
     ) -> SpectralPitchResult? {
         if !isCurrentInput(input, rate: rate) {
-            return FaithfulStatelessDetector.detectSpectralPitch(input: input, sampleRate: rate, ranking: ranking)
+            return FaithfulStatelessDetector.detectSpectralPitch(input: input, sampleRate: rate, ranking: ranking, profile: profile)
         }
         if let cached = cachedSpectral?[ranking] {
             return cached
@@ -149,7 +152,8 @@ public final class FaithfulFrameAnalysis: @unchecked Sendable {
             sampleRate: rate,
             ranking: ranking,
             power: self.power!,
-            peaks: peaks
+            peaks: peaks,
+            profile: profile
         )
         if cachedSpectral == nil {
             cachedSpectral = [:]
@@ -167,10 +171,10 @@ public enum FaithfulStatelessDetector {
 
     // MARK: - Frequency Validity
 
-    /// Validates frequency within the strict ukulele profile [110, 1100] Hz.
+    /// Validates frequency within an engine profile (default: strict ukulele profile [110, 1100] Hz).
     @inline(__always)
-    public static func validFrequency(_ frequency: Double) -> Bool {
-        return frequency.isFinite && frequency >= 110.0 && frequency <= 1100.0
+    public static func validFrequency(_ frequency: Double, profile: FaithfulEngineProfile = .strictUkulele) -> Bool {
+        return profile.validFrequency(frequency)
     }
 
     // MARK: - Spectral Pitch Detection
@@ -182,10 +186,11 @@ public enum FaithfulStatelessDetector {
         sampleRate: Double,
         ranking: SpectralRanking = .prominence,
         power: [Double]? = nil,
-        peaks: [FaithfulSpectralKernels.SpectralPeak]? = nil
+        peaks: [FaithfulSpectralKernels.SpectralPeak]? = nil,
+        profile: FaithfulEngineProfile = .strictUkulele
     ) -> SpectralPitchResult? {
         let spectrumPower = power ?? FaithfulSpectralKernels.powerSpectrum(input)
-        let detectedPeaks = peaks ?? FaithfulSpectralKernels.spectralPeaks(input: input, sampleRate: sampleRate, power: spectrumPower)
+        let detectedPeaks = peaks ?? FaithfulSpectralKernels.spectralPeaks(input: input, sampleRate: sampleRate, power: spectrumPower, minFrequency: profile.minFrequency)
         guard !detectedPeaks.isEmpty else { return nil }
 
         var totalPower = 0.0
@@ -210,7 +215,7 @@ public enum FaithfulStatelessDetector {
         for peak in detectedPeaks {
             for harmonic in 1...8 {
                 let candidate = peak.frequency / Double(harmonic)
-                if candidate < 110.0 || candidate > 1100.0 {
+                if candidate < profile.minFrequency || candidate > profile.maxFrequency {
                     continue
                 }
 
@@ -338,9 +343,11 @@ public enum FaithfulStatelessDetector {
         input: [Float],
         sampleRate: Double,
         ranking: SpectralRanking = .prominence,
-        analysis: FaithfulFrameAnalysis? = nil
+        analysis: FaithfulFrameAnalysis? = nil,
+        profile: FaithfulEngineProfile? = nil
     ) -> FaithfulPitchCandidate? {
         guard input.count >= 2, sampleRate > 0 else { return nil }
+        let effectiveProfile = profile ?? analysis?.profile ?? .strictUkulele
 
         // Independently measure the capture-rate band before interpreting a decimated period.
         var filteredInput: [Double]
@@ -349,7 +356,7 @@ public enum FaithfulStatelessDetector {
         } else {
             var raw = [Double](repeating: 0.0, count: input.count)
             for i in 0..<input.count { raw[i] = Double(input[i]) }
-            FaithfulNumericKernels.bandpassFilterInPlace(&raw, sampleRate: sampleRate)
+            FaithfulNumericKernels.bandpassFilterInPlace(&raw, sampleRate: sampleRate, profile: effectiveProfile)
             filteredInput = raw
         }
 
@@ -382,7 +389,7 @@ public enum FaithfulStatelessDetector {
         }
 
         let rate = sampleRate / Double(stride)
-        FaithfulNumericKernels.bandpassFilterInPlace(&samples, sampleRate: rate)
+        FaithfulNumericKernels.bandpassFilterInPlace(&samples, sampleRate: rate, profile: effectiveProfile)
 
         let start = Int(floor(rate * 0.012))
         let physicalStart = Int(ceil(sampleRate * 0.012))
@@ -420,7 +427,7 @@ public enum FaithfulStatelessDetector {
             let minimumPeakPower = Double(input.count * input.count) * (0.000015 * 0.000015) / 16.0
             let peaks = analysis != nil
                 ? analysis!.peaks(input: input, rate: sampleRate)
-                : FaithfulSpectralKernels.spectralPeaks(input: input, sampleRate: sampleRate)
+                : FaithfulSpectralKernels.spectralPeaks(input: input, sampleRate: sampleRate, minFrequency: effectiveProfile.minFrequency)
             if !FaithfulSpectralKernels.hasUnfoldedPitchSupport(peaks: peaks, minimumPower: minimumPeakPower) {
                 return nil
             }
@@ -437,7 +444,7 @@ public enum FaithfulStatelessDetector {
             )
             currentInput = transformed.asFloat
             currentFilteredInput = transformed.asDouble
-            FaithfulNumericKernels.bandpassFilterInPlace(&currentFilteredInput, sampleRate: sampleRate)
+            FaithfulNumericKernels.bandpassFilterInPlace(&currentFilteredInput, sampleRate: sampleRate, profile: effectiveProfile)
 
             for i in 0..<length {
                 var sum = 0.0
@@ -447,18 +454,18 @@ public enum FaithfulStatelessDetector {
                 }
                 samples[i] = sum / Double(stride)
             }
-            FaithfulNumericKernels.bandpassFilterInPlace(&samples, sampleRate: rate)
+            FaithfulNumericKernels.bandpassFilterInPlace(&samples, sampleRate: rate, profile: effectiveProfile)
             rms = sqrt(physicalPower)
         }
 
-        let maxLag = min(Int(floor(rate / 110.0)), length / 2 - 1)
-        let minLag = max(2, Int(floor(rate / 1100.0)))
+        let maxLag = effectiveProfile.maxLag(rate: rate, length: length)
+        let minLag = effectiveProfile.minLag(rate: rate)
         let window = length - maxLag
 
         guard maxLag >= minLag, maxLag >= 1, window > start else {
             let spectral = analysis != nil
                 ? analysis!.spectral(input: currentInput, rate: sampleRate, ranking: ranking)
-                : detectSpectralPitch(input: currentInput, sampleRate: sampleRate, ranking: ranking)
+                : detectSpectralPitch(input: currentInput, sampleRate: sampleRate, ranking: ranking, profile: effectiveProfile)
             return spectral?.asCandidate(rms: rms)
         }
 
@@ -497,7 +504,7 @@ public enum FaithfulStatelessDetector {
             if best < 0 || difference[best] > 0.25 {
                 let spectral = analysis != nil
                     ? analysis!.spectral(input: currentInput, rate: sampleRate, ranking: ranking)
-                    : detectSpectralPitch(input: currentInput, sampleRate: sampleRate, ranking: ranking)
+                    : detectSpectralPitch(input: currentInput, sampleRate: sampleRate, ranking: ranking, profile: effectiveProfile)
                 return spectral?.asCandidate(rms: rms)
             }
         }
@@ -523,7 +530,7 @@ public enum FaithfulStatelessDetector {
         guard first <= Int(last), originalWindow > scoreStart, originalWindow > 0 else {
             let spectral = analysis != nil
                 ? analysis!.spectral(input: currentInput, rate: sampleRate, ranking: ranking)
-                : detectSpectralPitch(input: currentInput, sampleRate: sampleRate, ranking: ranking)
+                : detectSpectralPitch(input: currentInput, sampleRate: sampleRate, ranking: ranking, profile: effectiveProfile)
             return spectral?.asCandidate(rms: rms)
         }
 
@@ -537,10 +544,10 @@ public enum FaithfulStatelessDetector {
             scoreStart: scoreStart
         )
 
-        if !validFrequency(raw.frequency) {
+        if !validFrequency(raw.frequency, profile: effectiveProfile) {
             let spectral = analysis != nil
                 ? analysis!.spectral(input: currentInput, rate: sampleRate, ranking: ranking)
-                : detectSpectralPitch(input: currentInput, sampleRate: sampleRate, ranking: ranking)
+                : detectSpectralPitch(input: currentInput, sampleRate: sampleRate, ranking: ranking, profile: effectiveProfile)
             if let spectral = spectral, spectral.oddOnly {
                 return spectral.asCandidate(rms: rms)
             }
@@ -557,20 +564,20 @@ public enum FaithfulStatelessDetector {
             scoreStart: scoreStart
         )
 
-        let frequency = validFrequency(filtered.frequency) && (aliasFiltered || filtered.residual < 0.25 * raw.residual)
+        let frequency = validFrequency(filtered.frequency, profile: effectiveProfile) && (aliasFiltered || filtered.residual < 0.25 * raw.residual)
             ? filtered.frequency : raw.frequency
 
         if aliasFiltered || (1.0 - center < 0.95) {
             let spectral = analysis != nil
                 ? analysis!.spectral(input: currentInput, rate: sampleRate, ranking: ranking)
-                : detectSpectralPitch(input: currentInput, sampleRate: sampleRate, ranking: ranking)
+                : detectSpectralPitch(input: currentInput, sampleRate: sampleRate, ranking: ranking, profile: effectiveProfile)
             if let spectral = spectral, spectral.oddOnly {
                 return spectral.asCandidate(rms: rms)
             }
             if let spectral = spectral, abs(1200.0 * log2(spectral.frequency / (2.0 * frequency))) <= 50.0 {
                 let peaks = analysis != nil
                     ? analysis!.peaks(input: currentInput, rate: sampleRate)
-                    : FaithfulSpectralKernels.spectralPeaks(input: currentInput, sampleRate: sampleRate)
+                    : FaithfulSpectralKernels.spectralPeaks(input: currentInput, sampleRate: sampleRate, minFrequency: effectiveProfile.minFrequency)
                 func peakPower(_ hz: Double) -> Double {
                     var power = 0.0
                     for peak in peaks {
@@ -606,13 +613,15 @@ public enum FaithfulStatelessDetector {
         input: [Float],
         sampleRate: Double,
         pitch: FaithfulPitchCandidate?,
-        analysis: FaithfulFrameAnalysis? = nil
+        analysis: FaithfulFrameAnalysis? = nil,
+        profile: FaithfulEngineProfile? = nil
     ) -> FaithfulPitchCandidate? {
         guard let pitch = pitch else { return nil }
         if pitch.confidence < 0.75 || pitch.confidence >= 0.98 { return pitch }
+        let effectiveProfile = profile ?? analysis?.profile ?? .strictUkulele
         let spectral = analysis != nil
             ? analysis!.spectral(input: input, rate: sampleRate, ranking: .prominence)
-            : detectSpectralPitch(input: input, sampleRate: sampleRate, ranking: .prominence)
+            : detectSpectralPitch(input: input, sampleRate: sampleRate, ranking: .prominence, profile: effectiveProfile)
         guard let spectral = spectral else { return pitch }
         if abs(1200.0 * log2(spectral.frequency / pitch.frequency)) > 50.0 { return pitch }
         var refined = pitch
@@ -628,15 +637,17 @@ public enum FaithfulStatelessDetector {
         input: [Float],
         sampleRate: Double,
         frequency: Double,
-        analysis: FaithfulFrameAnalysis? = nil
+        analysis: FaithfulFrameAnalysis? = nil,
+        profile: FaithfulEngineProfile? = nil
     ) -> Double {
+        let effectiveProfile = profile ?? analysis?.profile ?? .strictUkulele
         let signal: [Double]
         if let analysis = analysis {
             signal = analysis.filtered(input: input, rate: sampleRate)
         } else {
             var copy = [Double](repeating: 0.0, count: input.count)
             for i in 0..<input.count { copy[i] = Double(input[i]) }
-            FaithfulNumericKernels.bandpassFilterInPlace(&copy, sampleRate: sampleRate)
+            FaithfulNumericKernels.bandpassFilterInPlace(&copy, sampleRate: sampleRate, profile: effectiveProfile)
             signal = copy
         }
         return FaithfulNumericKernels.filteredPeriodResidual(

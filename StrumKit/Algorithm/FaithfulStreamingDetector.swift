@@ -148,7 +148,7 @@ public final class PitchDetectorCore: @unchecked Sendable {
                 for harmonic in 1...12 where harmonic % 2 != 0 {
                     unexplained = max(unexplained, powerAt(lower * Double(harmonic)))
                 }
-                if FaithfulStatelessDetector.validFrequency(frequency) && !visibleFundamental && unexplained < peak.power * 0.1 &&
+                if FaithfulStatelessDetector.validFrequency(frequency, profile: analysis.profile) && !visibleFundamental && unexplained < peak.power * 0.1 &&
                     FaithfulStatelessDetector.filteredPeriodResidual(input: input, sampleRate: sampleRate, frequency: frequency, analysis: analysis) <= 0.35 {
                     var modified = res
                     modified.frequency = frequency
@@ -172,7 +172,7 @@ public final class PitchDetectorCore: @unchecked Sendable {
 
         let peaks = analysis.peaks(input: input, rate: sampleRate)
         guard let peak = peaks.first(where: { p in
-            FaithfulStatelessDetector.validFrequency(p.frequency) && p.prominence >= 1000.0 && agreesPitch(p.frequency, res.frequency, cents: 20.0)
+            FaithfulStatelessDetector.validFrequency(p.frequency, profile: analysis.profile) && p.prominence >= 1000.0 && agreesPitch(p.frequency, res.frequency, cents: 20.0)
         }) else {
             precisionEvidence = nil
             return result
@@ -316,7 +316,7 @@ public final class RecoveredPitchDetector: @unchecked Sendable {
                   observedRms() >= 0.000015 {
             peaks = analysis.peaks(input: input, rate: sampleRate)
             if let peak = peaks?.first,
-               FaithfulStatelessDetector.validFrequency(peak.frequency),
+               FaithfulStatelessDetector.validFrequency(peak.frequency, profile: analysis.profile),
                peak.prominence >= 500.0,
                agreesPitch(peak.frequency, sa.frequency, cents: 5.0),
                FaithfulStatelessDetector.filteredPeriodResidual(input: input, sampleRate: sampleRate, frequency: peak.frequency, analysis: analysis) <= 0.5 {
@@ -345,7 +345,7 @@ public final class RecoveredPitchDetector: @unchecked Sendable {
         }
         let currentPeaks = peaks ?? []
         guard let fundamental = currentPeaks.first(where: { p in
-            FaithfulStatelessDetector.validFrequency(p.frequency) && p.prominence >= 4.5 && agreesPitch(p.frequency, pa.frequency, cents: 30.0)
+            FaithfulStatelessDetector.validFrequency(p.frequency, profile: analysis.profile) && p.prominence >= 4.5 && agreesPitch(p.frequency, pa.frequency, cents: 30.0)
         }) else { return nil }
 
         guard let second = currentPeaks.first(where: { p in
@@ -357,14 +357,14 @@ public final class RecoveredPitchDetector: @unchecked Sendable {
         }
 
         let hasConflicting = currentPeaks.contains { p in
-            p.frequency >= 110.0 && p.frequency < fundamental.frequency * 0.75 && p.prominence >= 6.0 && p.power >= fundamental.power * 0.1
+            p.frequency >= analysis.profile.minFrequency && p.frequency < fundamental.frequency * 0.75 && p.prominence >= 6.0 && p.power >= fundamental.power * 0.1
         }
         if hasConflicting {
             return nil
         }
 
         let frequency = (fundamental.frequency * fundamental.power + (second.frequency / 2.0) * second.power) / (fundamental.power + second.power)
-        if !FaithfulStatelessDetector.validFrequency(frequency) ||
+        if !FaithfulStatelessDetector.validFrequency(frequency, profile: analysis.profile) ||
             FaithfulStatelessDetector.filteredPeriodResidual(input: input, sampleRate: sampleRate, frequency: frequency, analysis: analysis) > 0.7 ||
             observedRms() < 0.000015 {
             return nil
@@ -465,12 +465,12 @@ public final class CanonicalPitchDetector: @unchecked Sendable {
             }
             var voicedMaximum = 0.0
             for p in peaks {
-                if p.frequency <= 1100.0 && p.prominence >= 50.0 {
+                if p.frequency <= analysis.profile.maxFrequency && p.prominence >= 50.0 {
                     if p.power > voicedMaximum { voicedMaximum = p.power }
                 }
             }
 
-            if !lowerVisible && FaithfulStatelessDetector.validFrequency(frequency),
+            if !lowerVisible && FaithfulStatelessDetector.validFrequency(frequency, profile: analysis.profile),
                let cand = candidate, cand.power >= voicedMaximum {
                 struct MatchedPeak {
                     let peak: FaithfulSpectralKernels.SpectralPeak
@@ -556,8 +556,10 @@ public final class FaithfulStreamingDetector: @unchecked Sendable {
         recoverNull: Bool? = nil,
         repairSpectralOctave: Bool? = nil,
         refineForeground: Bool? = nil,
-        analysis: FaithfulFrameAnalysis = FaithfulFrameAnalysis()
+        analysis: FaithfulFrameAnalysis? = nil,
+        profile: FaithfulEngineProfile = .strictUkulele
     ) {
+        let frameAnalysis = analysis ?? FaithfulFrameAnalysis(profile: profile)
         let repairWaveformVal = repairWaveform ?? repairFallback
         let refineWeakVal = refineWeak ?? repairWaveformVal
         let recoverNullVal = recoverNull ?? refineWeakVal
@@ -571,7 +573,7 @@ public final class FaithfulStreamingDetector: @unchecked Sendable {
         self.recoverNull = recoverNullVal
         self.repairSpectralOctave = repairSpectralOctaveVal
         self.refineForeground = refineForegroundVal
-        self.analysis = analysis
+        self.analysis = frameAnalysis
 
         self.canonicalDetector = CanonicalPitchDetector(
             ranking: ranking,
@@ -581,7 +583,7 @@ public final class FaithfulStreamingDetector: @unchecked Sendable {
             recoverNull: recoverNullVal,
             repairSpectralOctave: repairSpectralOctaveVal,
             repairThird: refineForegroundVal,
-            analysis: analysis
+            analysis: frameAnalysis
         )
     }
 
@@ -620,7 +622,7 @@ public final class FaithfulStreamingDetector: @unchecked Sendable {
         if let r = raw, r.oddOnly == nil, r.confidence >= 0.75 && r.confidence < 0.95,
            let a = anchor, time - a.time <= 64.0, agreesPitch(r.frequency * 3.0, a.frequency, cents: 20.0) {
             peaks = analysis.peaks(input: input, rate: sampleRate)
-            if let peak = peaks?.first, FaithfulStatelessDetector.validFrequency(peak.frequency),
+            if let peak = peaks?.first, FaithfulStatelessDetector.validFrequency(peak.frequency, profile: analysis.profile),
                peak.prominence >= 50.0, agreesPitch(peak.frequency, r.frequency * 3.0, cents: 50.0) {
                 let lower = peak.frequency / 3.0
                 let lowerVisible = peaks?.contains { p in
@@ -668,7 +670,7 @@ public final class FaithfulStreamingDetector: @unchecked Sendable {
             if peaks == nil { peaks = analysis.peaks(input: input, rate: sampleRate) }
             let currentPeaks = peaks ?? []
             let peak = currentPeaks.first { p in
-                FaithfulStatelessDetector.validFrequency(p.frequency) && p.prominence >= 1000.0 && agreesPitch(p.frequency, validRaw.frequency, cents: 15.0)
+                FaithfulStatelessDetector.validFrequency(p.frequency, profile: analysis.profile) && p.prominence >= 1000.0 && agreesPitch(p.frequency, validRaw.frequency, cents: 15.0)
             }
             let conflicting = peak != nil && currentPeaks.contains { p in
                 let h = Int(FaithfulSpectralKernels.jsRound(p.frequency / peak!.frequency))
@@ -788,7 +790,8 @@ public func createPitchDetector(
     recoverNull: Bool? = nil,
     repairSpectralOctave: Bool? = nil,
     refineForeground: Bool? = nil,
-    analysis: FaithfulFrameAnalysis = FaithfulFrameAnalysis()
+    analysis: FaithfulFrameAnalysis? = nil,
+    profile: FaithfulEngineProfile = .strictUkulele
 ) -> FaithfulStreamingDetector {
     FaithfulStreamingDetector(
         ranking: ranking,
@@ -798,6 +801,7 @@ public func createPitchDetector(
         recoverNull: recoverNull,
         repairSpectralOctave: repairSpectralOctave,
         refineForeground: refineForeground,
-        analysis: analysis
+        analysis: analysis,
+        profile: profile
     )
 }
