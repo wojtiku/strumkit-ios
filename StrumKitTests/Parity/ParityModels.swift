@@ -1,5 +1,6 @@
 // StrumKitTests/Parity/ParityModels.swift
 import Foundation
+@testable import StrumKit
 
 // MARK: - Numeric Budgets
 
@@ -108,6 +109,16 @@ public struct ParityDetectorOutput: Sendable, Codable, Equatable {
         self.rms = rms
         self.foregroundAgrees = foregroundAgrees
         self.oddOnly = oddOnly
+    }
+
+    public init(candidate: FaithfulPitchCandidate) {
+        self.init(
+            frequency: candidate.frequency,
+            confidence: candidate.confidence,
+            rms: candidate.rms,
+            foregroundAgrees: candidate.foregroundAgrees,
+            oddOnly: candidate.oddOnly
+        )
     }
 }
 
