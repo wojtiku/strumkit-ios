@@ -1,5 +1,5 @@
-// StrumKitTests/Parity/ParityComparator.swift
 import Foundation
+@testable import StrumKit
 
 /// Detailed description of a divergence between expected and actual traces.
 public struct ParityDivergence: Sendable, CustomStringConvertible, Equatable {
@@ -283,6 +283,151 @@ public struct ParityComparator: Sendable {
         return ParityComparisonResult(divergences: divergences)
     }
 
+    /// Compares expected trace tracker frames against actual tracker outputs.
+    public func compareTrackerOutputs(
+        expectedFrames: [ParityFrame],
+        actualOutputs: [ParityTrackerOutput]
+    ) -> ParityComparisonResult {
+        var divergences: [ParityDivergence] = []
+
+        if expectedFrames.count != actualOutputs.count {
+            divergences.append(ParityDivergence(
+                frameIndex: min(expectedFrames.count, actualOutputs.count),
+                fieldPath: "trackerFrames.count",
+                expected: "\(expectedFrames.count)",
+                actual: "\(actualOutputs.count)",
+                message: "Tracker frame count mismatch: expected \(expectedFrames.count), got \(actualOutputs.count)"
+            ))
+        }
+
+        let count = min(expectedFrames.count, actualOutputs.count)
+        for i in 0..<count {
+            if divergences.count >= maxRecordedDivergences {
+                break
+            }
+            let exp = expectedFrames[i]
+            compareTracker(
+                expected: exp.tracker,
+                actual: actualOutputs[i],
+                frameIndex: i,
+                sampleIndex: exp.sampleIndex,
+                timeMs: exp.timeMs,
+                divergences: &divergences
+            )
+        }
+
+        return ParityComparisonResult(divergences: divergences)
+    }
+
+    /// Compares expected trace tracker frames and confirmation outputs against actual outputs.
+    public func compareTrackerAndConfirmationOutputs(
+        expectedFrames: [ParityFrame],
+        actualTrackers: [ParityTrackerOutput],
+        actualConfirmations: [ParityConfirmationOutput]? = nil
+    ) -> ParityComparisonResult {
+        var divergences: [ParityDivergence] = []
+
+        if expectedFrames.count != actualTrackers.count {
+            divergences.append(ParityDivergence(
+                frameIndex: min(expectedFrames.count, actualTrackers.count),
+                fieldPath: "trackerFrames.count",
+                expected: "\(expectedFrames.count)",
+                actual: "\(actualTrackers.count)",
+                message: "Tracker frame count mismatch: expected \(expectedFrames.count), got \(actualTrackers.count)"
+            ))
+        }
+
+        if let actualConfirmations = actualConfirmations, expectedFrames.count != actualConfirmations.count {
+            divergences.append(ParityDivergence(
+                frameIndex: min(expectedFrames.count, actualConfirmations.count),
+                fieldPath: "confirmationFrames.count",
+                expected: "\(expectedFrames.count)",
+                actual: "\(actualConfirmations.count)",
+                message: "Confirmation frame count mismatch: expected \(expectedFrames.count), got \(actualConfirmations.count)"
+            ))
+        }
+
+        let count = min(expectedFrames.count, actualTrackers.count)
+        for i in 0..<count {
+            if divergences.count >= maxRecordedDivergences {
+                break
+            }
+            let exp = expectedFrames[i]
+            let sampleIndex = exp.sampleIndex
+            let timeMs = exp.timeMs
+
+            compareTracker(
+                expected: exp.tracker,
+                actual: actualTrackers[i],
+                frameIndex: i,
+                sampleIndex: sampleIndex,
+                timeMs: timeMs,
+                divergences: &divergences
+            )
+
+            if let actualConfirmations = actualConfirmations, i < actualConfirmations.count {
+                compareConfirmation(
+                    expected: exp.confirmation,
+                    actual: actualConfirmations[i],
+                    frameIndex: i,
+                    sampleIndex: sampleIndex,
+                    timeMs: timeMs,
+                    divergences: &divergences
+                )
+            }
+        }
+
+        return ParityComparisonResult(divergences: divergences)
+    }
+
+    /// Replays detector outputs from a golden trace through FaithfulTracker and TuningFeedback,
+    /// comparing every frame's tracker and confirmation outputs against the trace.
+    public func compareTrackerReplay(
+        trace: ParityTrace,
+        tracker: FaithfulTracker = FaithfulTracker(),
+        feedback: TuningFeedback? = TuningFeedback()
+    ) -> ParityComparisonResult {
+        var actualTrackers: [ParityTrackerOutput] = []
+        var actualConfirmations: [ParityConfirmationOutput] = []
+
+        for frame in trace.frames {
+            let candidate: FaithfulPitchCandidate?
+            if let freq = frame.detector.frequency, let conf = frame.detector.confidence {
+                candidate = FaithfulPitchCandidate(
+                    frequency: freq,
+                    confidence: conf,
+                    rms: frame.detector.rms,
+                    oddOnly: frame.detector.oddOnly,
+                    foregroundAgrees: frame.detector.foregroundAgrees
+                )
+            } else {
+                candidate = nil
+            }
+
+            let reading = tracker.push(pitch: candidate, time: frame.timeMs)
+            let confirmed = feedback?.observe(reading) ?? false
+
+            let trackerOutput = ParityTrackerOutput(
+                reading: reading,
+                rawDetector: frame.detector,
+                tuning: tracker.tuning
+            )
+            actualTrackers.append(trackerOutput)
+
+            let confirmationOutput = ParityConfirmationOutput(
+                event: confirmed,
+                reading: reading
+            )
+            actualConfirmations.append(confirmationOutput)
+        }
+
+        return compareTrackerAndConfirmationOutputs(
+            expectedFrames: trace.frames,
+            actualTrackers: actualTrackers,
+            actualConfirmations: actualConfirmations
+        )
+    }
+
     private func compareFrame(
         expected exp: ParityFrame,
         actual act: ParityFrame,
@@ -399,7 +544,92 @@ public struct ParityComparator: Sendable {
         }
 
         // MARK: - Tracker
-        switch (exp.tracker.target, act.tracker.target) {
+        compareTracker(
+            expected: exp.tracker,
+            actual: act.tracker,
+            frameIndex: i,
+            sampleIndex: sampleIndex,
+            timeMs: timeMs,
+            divergences: &divergences
+        )
+
+        // MARK: - Publication
+        if discreteRules.publicationSlotsExact && exp.publication.action != act.publication.action {
+            recordDiscreteMismatch(
+                expected: exp.publication.action.rawValue,
+                actual: act.publication.action.rawValue,
+                fieldPath: "publication.action",
+                frameIndex: i,
+                sampleIndex: sampleIndex,
+                timeMs: timeMs,
+                divergences: &divergences
+            )
+        }
+
+        checkOptionalEqual(
+            expected: exp.publication.note,
+            actual: act.publication.note,
+            fieldPath: "publication.note",
+            frameIndex: i,
+            sampleIndex: sampleIndex,
+            timeMs: timeMs,
+            divergences: &divergences
+        )
+
+        checkOptionalNumeric(
+            expected: exp.publication.cents,
+            actual: act.publication.cents,
+            budget: budgets.smoothedCentsAbsolute,
+            fieldPath: "publication.cents",
+            frameIndex: i,
+            sampleIndex: sampleIndex,
+            timeMs: timeMs,
+            divergences: &divergences
+        )
+
+        checkOptionalNumeric(
+            expected: exp.publication.frequency,
+            actual: act.publication.frequency,
+            budget: budgets.frequencyAbsoluteHz,
+            fieldPath: "publication.frequency",
+            frameIndex: i,
+            sampleIndex: sampleIndex,
+            timeMs: timeMs,
+            divergences: &divergences
+        )
+
+        if discreteRules.inTuneTransitionsExact {
+            checkOptionalEqual(
+                expected: exp.publication.inTune,
+                actual: act.publication.inTune,
+                fieldPath: "publication.inTune",
+                frameIndex: i,
+                sampleIndex: sampleIndex,
+                timeMs: timeMs,
+                divergences: &divergences
+            )
+        }
+
+        // MARK: - Confirmation
+        compareConfirmation(
+            expected: exp.confirmation,
+            actual: act.confirmation,
+            frameIndex: i,
+            sampleIndex: sampleIndex,
+            timeMs: timeMs,
+            divergences: &divergences
+        )
+    }
+
+    private func compareTracker(
+        expected expTracker: ParityTrackerOutput,
+        actual actTracker: ParityTrackerOutput,
+        frameIndex i: Int,
+        sampleIndex: Int?,
+        timeMs: Double?,
+        divergences: inout [ParityDivergence]
+    ) {
+        switch (expTracker.target, actTracker.target) {
         case (nil, nil):
             break
         case (.some(let expTarget), nil):
@@ -462,8 +692,8 @@ public struct ParityComparator: Sendable {
         }
 
         checkOptionalNumeric(
-            expected: exp.tracker.rawCents,
-            actual: act.tracker.rawCents,
+            expected: expTracker.rawCents,
+            actual: actTracker.rawCents,
             budget: budgets.rawCentsAbsolute,
             fieldPath: "tracker.rawCents",
             frameIndex: i,
@@ -473,8 +703,8 @@ public struct ParityComparator: Sendable {
         )
 
         checkOptionalNumeric(
-            expected: exp.tracker.smoothedCents,
-            actual: act.tracker.smoothedCents,
+            expected: expTracker.smoothedCents,
+            actual: actTracker.smoothedCents,
             budget: budgets.smoothedCentsAbsolute,
             fieldPath: "tracker.smoothedCents",
             frameIndex: i,
@@ -484,8 +714,8 @@ public struct ParityComparator: Sendable {
         )
 
         checkOptionalNumeric(
-            expected: exp.tracker.readingFrequency,
-            actual: act.tracker.readingFrequency,
+            expected: expTracker.readingFrequency,
+            actual: actTracker.readingFrequency,
             budget: budgets.frequencyAbsoluteHz,
             fieldPath: "tracker.readingFrequency",
             frameIndex: i,
@@ -494,10 +724,10 @@ public struct ParityComparator: Sendable {
             divergences: &divergences
         )
 
-        if discreteRules.inTuneTransitionsExact && exp.tracker.inTune != act.tracker.inTune {
+        if discreteRules.inTuneTransitionsExact && expTracker.inTune != actTracker.inTune {
             recordDiscreteMismatch(
-                expected: "\(exp.tracker.inTune)",
-                actual: "\(act.tracker.inTune)",
+                expected: "\(expTracker.inTune)",
+                actual: "\(actTracker.inTune)",
                 fieldPath: "tracker.inTune",
                 frameIndex: i,
                 sampleIndex: sampleIndex,
@@ -505,69 +735,20 @@ public struct ParityComparator: Sendable {
                 divergences: &divergences
             )
         }
+    }
 
-        // MARK: - Publication
-        if discreteRules.publicationSlotsExact && exp.publication.action != act.publication.action {
+    private func compareConfirmation(
+        expected expConf: ParityConfirmationOutput,
+        actual actConf: ParityConfirmationOutput,
+        frameIndex i: Int,
+        sampleIndex: Int?,
+        timeMs: Double?,
+        divergences: inout [ParityDivergence]
+    ) {
+        if discreteRules.confirmationEventsExact && expConf.event != actConf.event {
             recordDiscreteMismatch(
-                expected: exp.publication.action.rawValue,
-                actual: act.publication.action.rawValue,
-                fieldPath: "publication.action",
-                frameIndex: i,
-                sampleIndex: sampleIndex,
-                timeMs: timeMs,
-                divergences: &divergences
-            )
-        }
-
-        checkOptionalEqual(
-            expected: exp.publication.note,
-            actual: act.publication.note,
-            fieldPath: "publication.note",
-            frameIndex: i,
-            sampleIndex: sampleIndex,
-            timeMs: timeMs,
-            divergences: &divergences
-        )
-
-        checkOptionalNumeric(
-            expected: exp.publication.cents,
-            actual: act.publication.cents,
-            budget: budgets.smoothedCentsAbsolute,
-            fieldPath: "publication.cents",
-            frameIndex: i,
-            sampleIndex: sampleIndex,
-            timeMs: timeMs,
-            divergences: &divergences
-        )
-
-        checkOptionalNumeric(
-            expected: exp.publication.frequency,
-            actual: act.publication.frequency,
-            budget: budgets.frequencyAbsoluteHz,
-            fieldPath: "publication.frequency",
-            frameIndex: i,
-            sampleIndex: sampleIndex,
-            timeMs: timeMs,
-            divergences: &divergences
-        )
-
-        if discreteRules.inTuneTransitionsExact {
-            checkOptionalEqual(
-                expected: exp.publication.inTune,
-                actual: act.publication.inTune,
-                fieldPath: "publication.inTune",
-                frameIndex: i,
-                sampleIndex: sampleIndex,
-                timeMs: timeMs,
-                divergences: &divergences
-            )
-        }
-
-        // MARK: - Confirmation
-        if discreteRules.confirmationEventsExact && exp.confirmation.event != act.confirmation.event {
-            recordDiscreteMismatch(
-                expected: "\(exp.confirmation.event)",
-                actual: "\(act.confirmation.event)",
+                expected: "\(expConf.event)",
+                actual: "\(actConf.event)",
                 fieldPath: "confirmation.event",
                 frameIndex: i,
                 sampleIndex: sampleIndex,
@@ -577,8 +758,8 @@ public struct ParityComparator: Sendable {
         }
 
         checkOptionalEqual(
-            expected: exp.confirmation.stringIndex,
-            actual: act.confirmation.stringIndex,
+            expected: expConf.stringIndex,
+            actual: actConf.stringIndex,
             fieldPath: "confirmation.stringIndex",
             frameIndex: i,
             sampleIndex: sampleIndex,
@@ -587,8 +768,8 @@ public struct ParityComparator: Sendable {
         )
 
         checkOptionalEqual(
-            expected: exp.confirmation.note,
-            actual: act.confirmation.note,
+            expected: expConf.note,
+            actual: actConf.note,
             fieldPath: "confirmation.note",
             frameIndex: i,
             sampleIndex: sampleIndex,

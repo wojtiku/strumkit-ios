@@ -109,6 +109,7 @@
 		F9594706C0049395A6BB6222 /* quiet_a.wav in Resources */ = {isa = PBXBuildFile; fileRef = 9169DFF8A7DB665A364BD9BE /* quiet_a.wav */; };
 		FA27A30E87988885631B2BE9 /* CorrelationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 938C2B2CB7513BACB9289BD6 /* CorrelationTests.swift */; };
 		FAA0C70D8435035F2E10EAA7 /* TunerTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A7A42B20BA1E1C4019302C6 /* TunerTheme.swift */; };
+		FC28248E37F8B8EF7DB3EC19 /* TrackerMotionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46A06CA8C9C2F5E5C54C0D9B /* TrackerMotionTests.swift */; };
 		FCF674F834C89C52ECE99BC2 /* quiet_g.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 17D0040419FF3634ED04ECD5 /* quiet_g.m4a */; };
 /* End PBXBuildFile section */
 
@@ -156,6 +157,7 @@
 		422C9CCCE7B91244C7C229B0 /* PitchTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PitchTracker.swift; sourceTree = "<group>"; };
 		429588172E1E3B786EDD60AB /* AudioSeamDoubles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioSeamDoubles.swift; sourceTree = "<group>"; };
 		46392009556A225043E27FDA /* uke_a.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = uke_a.wav; sourceTree = "<group>"; };
+		46A06CA8C9C2F5E5C54C0D9B /* TrackerMotionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerMotionTests.swift; sourceTree = "<group>"; };
 		48A2893FA92738A43C73FB9F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		4A7A42B20BA1E1C4019302C6 /* TunerTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunerTheme.swift; sourceTree = "<group>"; };
 		51F0086D6CE8B695E3E2542E /* quiet_c.m4a */ = {isa = PBXFileReference; path = quiet_c.m4a; sourceTree = "<group>"; };
@@ -244,6 +246,7 @@
 				F9EED0F936BBC1B84271A067 /* StatelessDetectorTests.swift */,
 				1FD4A6700F8E8787EE545208 /* StreamingDetectorTests.swift */,
 				14C512737D4E5F4ABA9E70E3 /* TargetTrackerTests.swift */,
+				46A06CA8C9C2F5E5C54C0D9B /* TrackerMotionTests.swift */,
 			);
 			path = Parity;
 			sourceTree = "<group>";
@@ -679,6 +682,7 @@
 				F238AEF4EC214BAD7504BEE4 /* StreamingDetectorTests.swift in Sources */,
 				D7B42945F1ECC2BC7187AE39 /* SustainContinuityTests.swift in Sources */,
 				2F2FABE0DA44AA49D524589B /* TargetTrackerTests.swift in Sources */,
+				FC28248E37F8B8EF7DB3EC19 /* TrackerMotionTests.swift in Sources */,
 				121C02413A7863626F04FC9D /* TrackerTests.swift in Sources */,
 				938B51460B0696F699DF7AAB /* TunerPresentationTests.swift in Sources */,
 				E5E6B7F3D153305CADD34D6E /* TuningResponsivenessTests.swift in Sources */,

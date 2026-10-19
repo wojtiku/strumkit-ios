@@ -762,3 +762,51 @@ public final class FaithfulTracker: @unchecked Sendable {
 
 public typealias FaithfulTargetTracker = FaithfulTracker
 public typealias TunerTracker = FaithfulTracker
+
+// MARK: - Tuning Feedback
+
+/// Faithful implementation of reference-source/feedback.ts TuningFeedback.
+/// Tracks visual proximity and awards exactly one confirmation event per string index.
+public final class TuningFeedback: @unchecked Sendable {
+    public private(set) var nearby: (note: String, index: Int)? = nil
+    public private(set) var completed: Set<Int> = []
+
+    public init() {}
+
+    public func reset() {
+        completed.removeAll()
+        clearReading()
+    }
+
+    public func clearReading() {
+        nearby = nil
+    }
+
+    @discardableResult
+    public func observe(_ reading: FaithfulReading?) -> Bool {
+        guard let reading else { return false }
+        if reading.cents.isFinite && abs(reading.cents) <= 5.0 {
+            nearby = (note: reading.note, index: reading.index)
+        } else {
+            nearby = nil
+        }
+        guard reading.inTune && !completed.contains(reading.index) else {
+            return false
+        }
+        completed.insert(reading.index)
+        return true
+    }
+
+    public func green(note: String, cents: Double, index: Int? = nil, inTune: Bool? = nil) -> Bool {
+        if let inTune = inTune, inTune, let index = index, completed.contains(index) {
+            return true
+        }
+        guard let nearby = nearby else { return false }
+        guard nearby.note == note else { return false }
+        if let index = index, index != nearby.index { return false }
+        return cents.isFinite && abs(cents) <= 5.0
+    }
+}
+
+public typealias FaithfulFeedback = TuningFeedback
+

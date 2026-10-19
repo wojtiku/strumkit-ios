@@ -158,6 +158,36 @@ public struct ParityTrackerOutput: Sendable, Codable, Equatable {
         self.readingFrequency = readingFrequency
         self.inTune = inTune
     }
+
+    public init(reading: FaithfulReading?, rawDetector: ParityDetectorOutput? = nil, tuning: String = "standard") {
+        let targets = TUNINGS[tuning] ?? TUNINGS["standard"]!
+        if let reading = reading {
+            let targetObj = (reading.index >= 0 && reading.index < targets.count)
+                ? ParityTarget(note: reading.note, frequency: targets[reading.index].frequency, index: reading.index)
+                : nil
+            let rawCents: Double?
+            if let rawFreq = rawDetector?.frequency, let targetObj = targetObj {
+                rawCents = centsBetween(frequency: rawFreq, reference: targetObj.frequency)
+            } else {
+                rawCents = nil
+            }
+            self.init(
+                target: targetObj,
+                rawCents: rawCents,
+                smoothedCents: reading.cents,
+                readingFrequency: reading.frequency,
+                inTune: reading.inTune
+            )
+        } else {
+            self.init(
+                target: nil,
+                rawCents: nil,
+                smoothedCents: nil,
+                readingFrequency: nil,
+                inTune: false
+            )
+        }
+    }
 }
 
 // MARK: - Publication Action & Output
@@ -206,6 +236,14 @@ public struct ParityConfirmationOutput: Sendable, Codable, Equatable {
         self.event = event
         self.stringIndex = stringIndex
         self.note = note
+    }
+
+    public init(event: Bool, reading: FaithfulReading?) {
+        self.init(
+            event: event,
+            stringIndex: reading?.index,
+            note: reading?.note
+        )
     }
 }
 
