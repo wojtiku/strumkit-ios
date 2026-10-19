@@ -221,6 +221,36 @@ public struct ParityPublicationOutput: Sendable, Codable, Equatable {
     }
 }
 
+extension FaithfulPresentation.Action {
+    public var parityAction: ParityPublicationAction {
+        switch self {
+        case .skipped:
+            return .skipped
+        case .empty:
+            return .empty
+        case .published(_, let freshness):
+            return freshness == .fresh ? .published : .held
+        }
+    }
+
+    public var parityOutput: ParityPublicationOutput {
+        switch self {
+        case .skipped:
+            return ParityPublicationOutput(action: .skipped)
+        case .empty:
+            return ParityPublicationOutput(action: .empty)
+        case .published(let reading, let freshness):
+            return ParityPublicationOutput(
+                action: freshness == .fresh ? .published : .held,
+                note: reading.note,
+                cents: reading.cents,
+                frequency: reading.frequency,
+                inTune: reading.inTune
+            )
+        }
+    }
+}
+
 // MARK: - Confirmation Output
 
 public struct ParityConfirmationOutput: Sendable, Codable, Equatable {

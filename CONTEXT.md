@@ -50,8 +50,10 @@ How loud the input is, and how loud what was heard within it. Determines whether
 _Avoid_: Volume, Amplitude, Signal strength, Gain
 
 **In tune**:
-A **Reading** is in tune when it falls inside a tolerance of its **Target**. The tolerance
-is wider to leave than to stay in, so a **Reading** hovering at the edge does not flicker.
+A **Reading** is in tune when it is confirmed by 400 ms of continuous measured evidence
+within tolerance of its **Target**. Visual proximity (within ±5 cents) provides needle feedback,
+but completion and the in-tune verdict require sustained measured confirmation over this 400 ms
+window, preventing spurious transitions from brief frequency crossings or noise.
 _Avoid_: Accurate, Correct, Tuned
 
 ### What the player is aiming at
@@ -75,10 +77,12 @@ _Avoid_: (for the Chromatic-mode case) Target, Detected target
 ### How much a Reading can be trusted
 
 **Evidence**:
-Where a **Reading** came from, graded in two levels. **Measured** evidence is periodicity
-found in the audio itself. **Sustained** evidence extends a **Note** already being tracked,
-when fresh detection has gone quiet but the **Note** has not. Only **Measured** evidence may
-declare a **String** in tune; **Sustained** evidence may show a reading and nothing more.
+Where a **Reading** came from, graded in two levels. **Measured** evidence includes
+current-window audio observations accepted by the detector — whether established by periodicity
+autocorrelation or supported spectral energy in the current window. **Sustained** evidence extends
+a **Note** already being tracked across missing, quiet, or held frames when fresh detection has gone
+quiet but the note has not. Only **Measured** evidence may declare a **String** in tune or complete
+a **Tuning** sequence; **Sustained** evidence may show a reading and nothing more.
 A **Reading** always states its grade and there is no default one, so a path that produces a
 **Reading** has to choose a level rather than inherit whichever the last path happened to use.
 _Avoid_: Confidence, Score, Trust, Certainty, Quality
@@ -99,12 +103,15 @@ _Avoid_ (as a grade): Recovered, Salient
 ### Over time
 
 **Fresh reading**:
-A **Reading** backed by evidence from audio heard just now. Fully authoritative.
+A **Reading** backed by **Measured** evidence from audio observed in the current window.
+Fully authoritative.
 _Avoid_: Current, Live, New
 
 **Held reading**:
-The last **Fresh reading**, still on screen after the sound stopped, deliberately
-de-emphasised. It is a memory of what was heard, not a claim about what is being heard now.
+The last **Fresh reading**, retained on screen for up to 1000 ms after audio detection ceases,
+deliberately de-emphasised with **Sustained** evidence. It preserves the last observed values
+and its original `lastFreshAt` timestamp without re-aging as fresh, serving as a memory of what
+was heard rather than a claim about what is being heard now.
 _Avoid_: Stale, Cached, Last seen
 
 **Sustain**:

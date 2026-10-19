@@ -428,6 +428,116 @@ public struct ParityComparator: Sendable {
         )
     }
 
+    /// Compares expected trace publication and confirmation frames against actual outputs.
+    public func comparePublicationAndConfirmationOutputs(
+        expectedFrames: [ParityFrame],
+        actualPublications: [ParityPublicationOutput],
+        actualConfirmations: [ParityConfirmationOutput]? = nil
+    ) -> ParityComparisonResult {
+        var divergences: [ParityDivergence] = []
+
+        if expectedFrames.count != actualPublications.count {
+            divergences.append(ParityDivergence(
+                frameIndex: min(expectedFrames.count, actualPublications.count),
+                fieldPath: "publicationFrames.count",
+                expected: "\(expectedFrames.count)",
+                actual: "\(actualPublications.count)",
+                message: "Publication frame count mismatch: expected \(expectedFrames.count), got \(actualPublications.count)"
+            ))
+        }
+
+        if let actualConfirmations = actualConfirmations, expectedFrames.count != actualConfirmations.count {
+            divergences.append(ParityDivergence(
+                frameIndex: min(expectedFrames.count, actualConfirmations.count),
+                fieldPath: "confirmationFrames.count",
+                expected: "\(expectedFrames.count)",
+                actual: "\(actualConfirmations.count)",
+                message: "Confirmation frame count mismatch: expected \(expectedFrames.count), got \(actualConfirmations.count)"
+            ))
+        }
+
+        let count = min(expectedFrames.count, actualPublications.count)
+        for i in 0..<count {
+            if divergences.count >= maxRecordedDivergences {
+                break
+            }
+            let exp = expectedFrames[i]
+            let sampleIndex = exp.sampleIndex
+            let timeMs = exp.timeMs
+
+            comparePublication(
+                expected: exp.publication,
+                actual: actualPublications[i],
+                frameIndex: i,
+                sampleIndex: sampleIndex,
+                timeMs: timeMs,
+                divergences: &divergences
+            )
+
+            if let actualConfirmations = actualConfirmations, i < actualConfirmations.count {
+                compareConfirmation(
+                    expected: exp.confirmation,
+                    actual: actualConfirmations[i],
+                    frameIndex: i,
+                    sampleIndex: sampleIndex,
+                    timeMs: timeMs,
+                    divergences: &divergences
+                )
+            }
+        }
+
+        return ParityComparisonResult(divergences: divergences)
+    }
+
+    /// Replays detector outputs from a golden trace through FaithfulTracker, FaithfulPresentation, and TuningFeedback,
+    /// comparing every frame's publication slots and confirmation events against the trace.
+    public func comparePublicationReplay(
+        trace: ParityTrace,
+        tracker: FaithfulTracker = FaithfulTracker(),
+        presentation: FaithfulPresentation = FaithfulPresentation(),
+        feedback: TuningFeedback? = TuningFeedback(),
+        onFrame: ((Int, FaithfulTracker, FaithfulPresentation, TuningFeedback?) -> Void)? = nil
+    ) -> ParityComparisonResult {
+        if trace.category.contains("slack") {
+            tracker.tuning = "slack"
+        }
+        var actualPublications: [ParityPublicationOutput] = []
+        var actualConfirmations: [ParityConfirmationOutput] = []
+
+        for (frameIndex, frame) in trace.frames.enumerated() {
+            onFrame?(frameIndex, tracker, presentation, feedback)
+
+            let candidate: FaithfulPitchCandidate?
+            if let freq = frame.detector.frequency, let conf = frame.detector.confidence {
+                candidate = FaithfulPitchCandidate(
+                    frequency: freq,
+                    confidence: conf,
+                    rms: frame.detector.rms,
+                    oddOnly: frame.detector.oddOnly,
+                    foregroundAgrees: frame.detector.foregroundAgrees
+                )
+            } else {
+                candidate = nil
+            }
+
+            let reading = tracker.push(pitch: candidate, time: frame.timeMs)
+            let confirmed = feedback?.observe(reading) ?? false
+            let action = presentation.push(reading: reading, time: frame.timeMs)
+
+            actualPublications.append(action.parityOutput)
+            actualConfirmations.append(ParityConfirmationOutput(
+                event: confirmed,
+                reading: reading
+            ))
+        }
+
+        return comparePublicationAndConfirmationOutputs(
+            expectedFrames: trace.frames,
+            actualPublications: actualPublications,
+            actualConfirmations: actualConfirmations
+        )
+    }
+
     private func compareFrame(
         expected exp: ParityFrame,
         actual act: ParityFrame,
@@ -554,61 +664,14 @@ public struct ParityComparator: Sendable {
         )
 
         // MARK: - Publication
-        if discreteRules.publicationSlotsExact && exp.publication.action != act.publication.action {
-            recordDiscreteMismatch(
-                expected: exp.publication.action.rawValue,
-                actual: act.publication.action.rawValue,
-                fieldPath: "publication.action",
-                frameIndex: i,
-                sampleIndex: sampleIndex,
-                timeMs: timeMs,
-                divergences: &divergences
-            )
-        }
-
-        checkOptionalEqual(
-            expected: exp.publication.note,
-            actual: act.publication.note,
-            fieldPath: "publication.note",
+        comparePublication(
+            expected: exp.publication,
+            actual: act.publication,
             frameIndex: i,
             sampleIndex: sampleIndex,
             timeMs: timeMs,
             divergences: &divergences
         )
-
-        checkOptionalNumeric(
-            expected: exp.publication.cents,
-            actual: act.publication.cents,
-            budget: budgets.smoothedCentsAbsolute,
-            fieldPath: "publication.cents",
-            frameIndex: i,
-            sampleIndex: sampleIndex,
-            timeMs: timeMs,
-            divergences: &divergences
-        )
-
-        checkOptionalNumeric(
-            expected: exp.publication.frequency,
-            actual: act.publication.frequency,
-            budget: budgets.frequencyAbsoluteHz,
-            fieldPath: "publication.frequency",
-            frameIndex: i,
-            sampleIndex: sampleIndex,
-            timeMs: timeMs,
-            divergences: &divergences
-        )
-
-        if discreteRules.inTuneTransitionsExact {
-            checkOptionalEqual(
-                expected: exp.publication.inTune,
-                actual: act.publication.inTune,
-                fieldPath: "publication.inTune",
-                frameIndex: i,
-                sampleIndex: sampleIndex,
-                timeMs: timeMs,
-                divergences: &divergences
-            )
-        }
 
         // MARK: - Confirmation
         compareConfirmation(
@@ -729,6 +792,71 @@ public struct ParityComparator: Sendable {
                 expected: "\(expTracker.inTune)",
                 actual: "\(actTracker.inTune)",
                 fieldPath: "tracker.inTune",
+                frameIndex: i,
+                sampleIndex: sampleIndex,
+                timeMs: timeMs,
+                divergences: &divergences
+            )
+        }
+    }
+
+    private func comparePublication(
+        expected expPub: ParityPublicationOutput,
+        actual actPub: ParityPublicationOutput,
+        frameIndex i: Int,
+        sampleIndex: Int?,
+        timeMs: Double?,
+        divergences: inout [ParityDivergence]
+    ) {
+        if discreteRules.publicationSlotsExact && expPub.action != actPub.action {
+            recordDiscreteMismatch(
+                expected: expPub.action.rawValue,
+                actual: actPub.action.rawValue,
+                fieldPath: "publication.action",
+                frameIndex: i,
+                sampleIndex: sampleIndex,
+                timeMs: timeMs,
+                divergences: &divergences
+            )
+        }
+
+        checkOptionalEqual(
+            expected: expPub.note,
+            actual: actPub.note,
+            fieldPath: "publication.note",
+            frameIndex: i,
+            sampleIndex: sampleIndex,
+            timeMs: timeMs,
+            divergences: &divergences
+        )
+
+        checkOptionalNumeric(
+            expected: expPub.cents,
+            actual: actPub.cents,
+            budget: budgets.smoothedCentsAbsolute,
+            fieldPath: "publication.cents",
+            frameIndex: i,
+            sampleIndex: sampleIndex,
+            timeMs: timeMs,
+            divergences: &divergences
+        )
+
+        checkOptionalNumeric(
+            expected: expPub.frequency,
+            actual: actPub.frequency,
+            budget: budgets.frequencyAbsoluteHz,
+            fieldPath: "publication.frequency",
+            frameIndex: i,
+            sampleIndex: sampleIndex,
+            timeMs: timeMs,
+            divergences: &divergences
+        )
+
+        if discreteRules.inTuneTransitionsExact {
+            checkOptionalEqual(
+                expected: expPub.inTune,
+                actual: actPub.inTune,
+                fieldPath: "publication.inTune",
                 frameIndex: i,
                 sampleIndex: sampleIndex,
                 timeMs: timeMs,
