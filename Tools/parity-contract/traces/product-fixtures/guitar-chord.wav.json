@@ -1,0 +1,4077 @@
+{
+  "name": "guitar-chord.wav",
+  "category": "product-fixtures",
+  "sampleRate": 44100,
+  "sampleCount": 127488,
+  "sampleSha256": "a49c65ff3bf057c09115433e61ce88133177156bb6e97795fc22feb0c8d64c51",
+  "frameCount": 121,
+  "clockConvention": "window-end",
+  "workletOffsetMs": 2.9024943310657596,
+  "confirmedNotes": [],
+  "frames": [
+    {
+      "frameIndex": 0,
+      "sampleIndex": 4096,
+      "timeMs": 92.87981859410431,
+      "workletTimeMs": 89.97732426303855,
+      "detector": {
+        "frequency": 247.51640509621424,
+        "confidence": 0.9,
+        "rms": 0.15005037291787934,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "empty",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 1,
+      "sampleIndex": 5120,
+      "timeMs": 116.09977324263039,
+      "workletTimeMs": 113.19727891156464,
+      "detector": {
+        "frequency": 495.49048250072275,
+        "confidence": 0.9400000000000001,
+        "rms": 0.1591628392462107,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 2,
+      "sampleIndex": 6144,
+      "timeMs": 139.31972789115645,
+      "workletTimeMs": 136.4172335600907,
+      "detector": {
+        "frequency": 496.7527542991077,
+        "confidence": 0.98,
+        "rms": 0.1548135095758246,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 210.02933151012786,
+        "smoothedCents": 210.02933151012786,
+        "readingFrequency": 496.75275429910766,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 3,
+      "sampleIndex": 7168,
+      "timeMs": 162.53968253968253,
+      "workletTimeMs": 159.63718820861678,
+      "detector": {
+        "frequency": 123.44602439409573,
+        "confidence": 0.8045481059236634,
+        "rms": 0.1260462753383732
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 4,
+      "sampleIndex": 8192,
+      "timeMs": 185.75963718820861,
+      "workletTimeMs": 182.85714285714286,
+      "detector": {
+        "frequency": 496.6416074619886,
+        "confidence": 0.98,
+        "rms": 0.11349229542529435,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 209.64193009720162,
+        "smoothedCents": 210.02933151012786,
+        "readingFrequency": 496.75275429910766,
+        "inTune": false
+      },
+      "publication": {
+        "action": "published",
+        "note": "A4",
+        "cents": 210.02933151012786,
+        "frequency": 496.75275429910766,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 5,
+      "sampleIndex": 9216,
+      "timeMs": 208.9795918367347,
+      "workletTimeMs": 206.07709750566895,
+      "detector": {
+        "frequency": 498.883345177203,
+        "confidence": 0.98,
+        "rms": 0.12267202219947614,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 217.43877981171136,
+        "smoothedCents": 210.02933151012786,
+        "readingFrequency": 496.75275429910766,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 6,
+      "sampleIndex": 10240,
+      "timeMs": 232.19954648526078,
+      "workletTimeMs": 229.29705215419503,
+      "detector": {
+        "frequency": 499.77901037772597,
+        "confidence": 0.98,
+        "rms": 0.12741036080131532,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 220.5441467034071,
+        "smoothedCents": 210.77150811745634,
+        "readingFrequency": 496.96575687445693,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 7,
+      "sampleIndex": 11264,
+      "timeMs": 255.41950113378687,
+      "workletTimeMs": 252.5170068027211,
+      "detector": {
+        "frequency": 495.7277983810002,
+        "confidence": 0.9600000000000001,
+        "rms": 0.13428247440051796,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 206.45356529435708,
+        "smoothedCents": 210.69716707423078,
+        "readingFrequency": 496.9444170910714,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 8,
+      "sampleIndex": 12288,
+      "timeMs": 278.6394557823129,
+      "workletTimeMs": 275.7369614512471,
+      "detector": {
+        "frequency": 496.74742767172523,
+        "confidence": 0.98,
+        "rms": 0.13974510851972263,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 210.0107675705158,
+        "smoothedCents": 210.62841301398174,
+        "readingFrequency": 496.92468188082114,
+        "inTune": false
+      },
+      "publication": {
+        "action": "published",
+        "note": "A4",
+        "cents": 210.62841301398174,
+        "frequency": 496.92468188082114,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 9,
+      "sampleIndex": 13312,
+      "timeMs": 301.85941043083903,
+      "workletTimeMs": 298.95691609977325,
+      "detector": {
+        "frequency": 497.7127602696027,
+        "confidence": 0.98,
+        "rms": 0.13270445102040265,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 213.37182155196595,
+        "smoothedCents": 210.90320994330264,
+        "readingFrequency": 497.00356446450036,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 10,
+      "sampleIndex": 14336,
+      "timeMs": 325.07936507936506,
+      "workletTimeMs": 322.1768707482993,
+      "detector": {
+        "frequency": 496.42927611575493,
+        "confidence": 0.98,
+        "rms": 0.12416610350215333,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 208.90160980795673,
+        "smoothedCents": 210.81381734273216,
+        "readingFrequency": 496.97790225312656,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 11,
+      "sampleIndex": 15360,
+      "timeMs": 348.29931972789115,
+      "workletTimeMs": 345.39682539682536,
+      "detector": {
+        "frequency": 496.2504109009383,
+        "confidence": 0.98,
+        "rms": 0.11882693628228122,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 208.27772768870824,
+        "smoothedCents": 210.6222786960067,
+        "readingFrequency": 496.9229211202761,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 12,
+      "sampleIndex": 16384,
+      "timeMs": 371.51927437641723,
+      "workletTimeMs": 368.61678004535145,
+      "detector": {
+        "frequency": 496.2456584258705,
+        "confidence": 0.98,
+        "rms": 0.11462328811656812,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 208.26114798243222,
+        "smoothedCents": 210.44992575612645,
+        "readingFrequency": 496.8734524402394,
+        "inTune": false
+      },
+      "publication": {
+        "action": "published",
+        "note": "A4",
+        "cents": 210.44992575612645,
+        "frequency": 496.8734524402394,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 13,
+      "sampleIndex": 17408,
+      "timeMs": 394.7392290249433,
+      "workletTimeMs": 391.83673469387753,
+      "detector": {
+        "frequency": 247.35797042296434,
+        "confidence": 0.98,
+        "rms": 0.11782595498908431,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 14,
+      "sampleIndex": 18432,
+      "timeMs": 417.9591836734694,
+      "workletTimeMs": 415.0566893424036,
+      "detector": {
+        "frequency": 494.2028091128961,
+        "confidence": 0.9,
+        "rms": 0.14240168713743148,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 201.1196248870672,
+        "smoothedCents": 210.23234483424088,
+        "readingFrequency": 496.8110094732938,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 15,
+      "sampleIndex": 19456,
+      "timeMs": 441.1791383219955,
+      "workletTimeMs": 438.2766439909297,
+      "detector": {
+        "frequency": 494.3988734006295,
+        "confidence": 0.9,
+        "rms": 0.18128946091897422,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 201.80631838796702,
+        "smoothedCents": 210.03489744918534,
+        "readingFrequency": 496.7543513679749,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 16,
+      "sampleIndex": 20480,
+      "timeMs": 464.39909297052156,
+      "workletTimeMs": 461.4965986394558,
+      "detector": {
+        "frequency": 494.82819373485563,
+        "confidence": 0.92,
+        "rms": 0.2177877305571014,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 203.3090148909768,
+        "smoothedCents": 209.3611910549759,
+        "readingFrequency": 496.5610779777789,
+        "inTune": false
+      },
+      "publication": {
+        "action": "published",
+        "note": "A4",
+        "cents": 209.3611910549759,
+        "frequency": 496.5610779777789,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 17,
+      "sampleIndex": 21504,
+      "timeMs": 487.6190476190476,
+      "workletTimeMs": 484.7165532879818,
+      "detector": {
+        "frequency": 214.23380391263336,
+        "confidence": 0.7516981391721337,
+        "rms": 0.24242899294050904
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 18,
+      "sampleIndex": 22528,
+      "timeMs": 510.83900226757373,
+      "workletTimeMs": 507.93650793650795,
+      "detector": {
+        "frequency": 213.6799358178904,
+        "confidence": 0.7536249005544544,
+        "rms": 0.2485822590888648
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 19,
+      "sampleIndex": 23552,
+      "timeMs": 534.0589569160998,
+      "workletTimeMs": 531.156462585034,
+      "detector": {
+        "frequency": 496.2796514632521,
+        "confidence": 0.9400000000000001,
+        "rms": 0.23767529751060318,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 208.37973418508693,
+        "smoothedCents": 208.75496729991022,
+        "readingFrequency": 496.38722833422196,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 20,
+      "sampleIndex": 24576,
+      "timeMs": 557.2789115646258,
+      "workletTimeMs": 554.37641723356,
+      "detector": {
+        "frequency": 496.13877229992704,
+        "confidence": 0.98,
+        "rms": 0.21685591684523325,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 207.88821810648437,
+        "smoothedCents": 208.2094667014823,
+        "readingFrequency": 496.2308445833944,
+        "inTune": false
+      },
+      "publication": {
+        "action": "published",
+        "note": "A4",
+        "cents": 208.2094667014823,
+        "frequency": 496.2308445833944,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 21,
+      "sampleIndex": 25600,
+      "timeMs": 580.4988662131519,
+      "workletTimeMs": 577.5963718820861,
+      "detector": {
+        "frequency": 495.86656166700516,
+        "confidence": 0.98,
+        "rms": 0.19488192717991626,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 206.93810158608972,
+        "smoothedCents": 208.08211883297554,
+        "readingFrequency": 496.1943436745807,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 22,
+      "sampleIndex": 26624,
+      "timeMs": 603.7188208616781,
+      "workletTimeMs": 600.8163265306123,
+      "detector": {
+        "frequency": 495.72483077327416,
+        "confidence": 0.98,
+        "rms": 0.1748357216040547,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 206.44320146377464,
+        "smoothedCents": 207.96752692215304,
+        "readingFrequency": 496.16150121965615,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 23,
+      "sampleIndex": 27648,
+      "timeMs": 626.9387755102041,
+      "workletTimeMs": 624.0362811791383,
+      "detector": {
+        "frequency": 496.0025508241819,
+        "confidence": 0.98,
+        "rms": 0.15687553094043513,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 207.4128195861135,
+        "smoothedCents": 207.91196397171933,
+        "readingFrequency": 496.1455774602278,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 24,
+      "sampleIndex": 28672,
+      "timeMs": 650.1587301587301,
+      "workletTimeMs": 647.2562358276643,
+      "detector": {
+        "frequency": 496.1701669490818,
+        "confidence": 0.98,
+        "rms": 0.14209633439487218,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 207.99776359870665,
+        "smoothedCents": 207.86196655334248,
+        "readingFrequency": 496.13124916080767,
+        "inTune": false
+      },
+      "publication": {
+        "action": "published",
+        "note": "A4",
+        "cents": 207.86196655334248,
+        "frequency": 496.13124916080767,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 25,
+      "sampleIndex": 29696,
+      "timeMs": 673.3786848072563,
+      "workletTimeMs": 670.4761904761905,
+      "detector": {
+        "frequency": 745.5477303362366,
+        "confidence": 0.9600000000000001,
+        "rms": 0.13045729521145133,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 26,
+      "sampleIndex": 30720,
+      "timeMs": 696.5986394557823,
+      "workletTimeMs": 693.6961451247165,
+      "detector": {
+        "frequency": null,
+        "confidence": null,
+        "rms": 0.12461514449185883
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 27,
+      "sampleIndex": 31744,
+      "timeMs": 719.8185941043083,
+      "workletTimeMs": 716.9160997732425,
+      "detector": {
+        "frequency": null,
+        "confidence": null,
+        "rms": 0.11865354211368977
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 28,
+      "sampleIndex": 32768,
+      "timeMs": 743.0385487528345,
+      "workletTimeMs": 740.1360544217687,
+      "detector": {
+        "frequency": null,
+        "confidence": null,
+        "rms": 0.11297722380206589
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "held",
+        "note": "A4",
+        "cents": 207.86196655334248,
+        "frequency": 496.13124916080767,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 29,
+      "sampleIndex": 33792,
+      "timeMs": 766.2585034013606,
+      "workletTimeMs": 763.3560090702948,
+      "detector": {
+        "frequency": 497.1910058324483,
+        "confidence": 0.98,
+        "rms": 0.10632599142168998,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 211.55600948965952,
+        "smoothedCents": 207.748594509457,
+        "readingFrequency": 496.0987604443877,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 30,
+      "sampleIndex": 34816,
+      "timeMs": 789.4784580498866,
+      "workletTimeMs": 786.5759637188208,
+      "detector": {
+        "frequency": 497.0368898301894,
+        "confidence": 0.98,
+        "rms": 0.0997171775304147,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 211.01928974176727,
+        "smoothedCents": 207.7735528412765,
+        "readingFrequency": 496.1059125026184,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 31,
+      "sampleIndex": 35840,
+      "timeMs": 812.6984126984127,
+      "workletTimeMs": 809.7959183673469,
+      "detector": {
+        "frequency": 496.11370714278735,
+        "confidence": 0.98,
+        "rms": 0.09356093898111074,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 207.8007531630476,
+        "smoothedCents": 207.7960111907383,
+        "readingFrequency": 496.1123482541721,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 32,
+      "sampleIndex": 36864,
+      "timeMs": 835.9183673469388,
+      "workletTimeMs": 833.015873015873,
+      "detector": {
+        "frequency": 496.63512378031584,
+        "confidence": 0.98,
+        "rms": 0.09028800803379948,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 209.61932860031294,
+        "smoothedCents": 207.97864604748355,
+        "readingFrequency": 496.1646879058444,
+        "inTune": false
+      },
+      "publication": {
+        "action": "published",
+        "note": "A4",
+        "cents": 207.97864604748355,
+        "frequency": 496.1646879058444,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 33,
+      "sampleIndex": 37888,
+      "timeMs": 859.1383219954648,
+      "workletTimeMs": 856.235827664399,
+      "detector": {
+        "frequency": 496.82492972880243,
+        "confidence": 0.98,
+        "rms": 0.08546295938840863,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 210.28085197726801,
+        "smoothedCents": 208.20924936864765,
+        "readingFrequency": 496.23078228838034,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 34,
+      "sampleIndex": 38912,
+      "timeMs": 882.358276643991,
+      "workletTimeMs": 879.4557823129252,
+      "detector": {
+        "frequency": 496.11325588108554,
+        "confidence": 0.98,
+        "rms": 0.08250336735794479,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 207.79917844344743,
+        "smoothedCents": 208.35049170918708,
+        "readingFrequency": 496.271268816671,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 35,
+      "sampleIndex": 39936,
+      "timeMs": 905.578231292517,
+      "workletTimeMs": 902.6757369614512,
+      "detector": {
+        "frequency": 495.7855692863248,
+        "confidence": 0.98,
+        "rms": 0.08033055204568687,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 206.65530732168236,
+        "smoothedCents": 208.29542646377544,
+        "readingFrequency": 496.2554842007037,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 36,
+      "sampleIndex": 40960,
+      "timeMs": 928.7981859410431,
+      "workletTimeMs": 925.8956916099773,
+      "detector": {
+        "frequency": 495.9648282571298,
+        "confidence": 0.98,
+        "rms": 0.07812439460802312,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 207.2811487390521,
+        "smoothedCents": 208.24571916343004,
+        "readingFrequency": 496.24123588673933,
+        "inTune": false
+      },
+      "publication": {
+        "action": "published",
+        "note": "A4",
+        "cents": 208.24571916343004,
+        "frequency": 496.24123588673933,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 37,
+      "sampleIndex": 41984,
+      "timeMs": 952.0181405895692,
+      "workletTimeMs": 949.1156462585034,
+      "detector": {
+        "frequency": 495.9827038398758,
+        "confidence": 0.98,
+        "rms": 0.07723519702061576,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 207.34354481646312,
+        "smoothedCents": 208.15535174755811,
+        "readingFrequency": 496.2153336306058,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 38,
+      "sampleIndex": 43008,
+      "timeMs": 975.2380952380952,
+      "workletTimeMs": 972.3356009070294,
+      "detector": {
+        "frequency": 495.8672459924534,
+        "confidence": 0.98,
+        "rms": 0.07657873719817092,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 206.94049079074816,
+        "smoothedCents": 208.06778611560267,
+        "readingFrequency": 496.19023574714316,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 39,
+      "sampleIndex": 44032,
+      "timeMs": 998.4580498866213,
+      "workletTimeMs": 995.5555555555555,
+      "detector": {
+        "frequency": 496.0050830299071,
+        "confidence": 0.98,
+        "rms": 0.07486504636580026,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 207.4216579067494,
+        "smoothedCents": 207.9889916041137,
+        "readingFrequency": 496.1676529094594,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 40,
+      "sampleIndex": 45056,
+      "timeMs": 1021.6780045351475,
+      "workletTimeMs": 1018.7755102040817,
+      "detector": {
+        "frequency": 495.8444853558738,
+        "confidence": 0.98,
+        "rms": 0.07205941910729546,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 206.86102417199936,
+        "smoothedCents": 207.9180896428974,
+        "readingFrequency": 496.1473329883394,
+        "inTune": false
+      },
+      "publication": {
+        "action": "published",
+        "note": "A4",
+        "cents": 207.9180896428974,
+        "frequency": 496.1473329883394,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 41,
+      "sampleIndex": 46080,
+      "timeMs": 1044.8979591836735,
+      "workletTimeMs": 1041.9954648526077,
+      "detector": {
+        "frequency": 495.53192200562887,
+        "confidence": 0.98,
+        "rms": 0.0679927491919855,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 205.76936952226998,
+        "smoothedCents": 207.82016723762717,
+        "readingFrequency": 496.1192705976652,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 42,
+      "sampleIndex": 47104,
+      "timeMs": 1068.1179138321995,
+      "workletTimeMs": 1065.2154195011337,
+      "detector": {
+        "frequency": 247.43155269255163,
+        "confidence": 0.98,
+        "rms": 0.07504315700370395,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 43,
+      "sampleIndex": 48128,
+      "timeMs": 1091.3378684807255,
+      "workletTimeMs": 1088.4353741496598,
+      "detector": {
+        "frequency": null,
+        "confidence": null,
+        "rms": 0.1080277983117711
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 44,
+      "sampleIndex": 49152,
+      "timeMs": 1114.5578231292516,
+      "workletTimeMs": 1111.6553287981858,
+      "detector": {
+        "frequency": null,
+        "confidence": null,
+        "rms": 0.13531658998671384
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "held",
+        "note": "A4",
+        "cents": 207.82016723762717,
+        "frequency": 496.1192705976652,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 45,
+      "sampleIndex": 50176,
+      "timeMs": 1137.7777777777778,
+      "workletTimeMs": 1134.875283446712,
+      "detector": {
+        "frequency": 498.00571830830785,
+        "confidence": 0.9600000000000001,
+        "rms": 0.15535904890219782,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 214.39054111397104,
+        "smoothedCents": 207.59812250835768,
+        "readingFrequency": 496.055643380427,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 46,
+      "sampleIndex": 51200,
+      "timeMs": 1160.9977324263039,
+      "workletTimeMs": 1158.095238095238,
+      "detector": {
+        "frequency": 495.6387111030289,
+        "confidence": 0.98,
+        "rms": 0.16932157742612722,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 206.14241714097057,
+        "smoothedCents": 207.5242901364618,
+        "readingFrequency": 496.0344884223225,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 47,
+      "sampleIndex": 52224,
+      "timeMs": 1184.2176870748299,
+      "workletTimeMs": 1181.315192743764,
+      "detector": {
+        "frequency": 495.4018127832528,
+        "confidence": 0.98,
+        "rms": 0.16238071680507832,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 205.314748775672,
+        "smoothedCents": 207.3858731086605,
+        "readingFrequency": 495.99483065628,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 48,
+      "sampleIndex": 53248,
+      "timeMs": 1207.4376417233561,
+      "workletTimeMs": 1204.5351473922904,
+      "detector": {
+        "frequency": 495.5210942610346,
+        "confidence": 0.98,
+        "rms": 0.15181572554925565,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 205.73154034500263,
+        "smoothedCents": 207.2239540158145,
+        "readingFrequency": 495.9484433538086,
+        "inTune": false
+      },
+      "publication": {
+        "action": "published",
+        "note": "A4",
+        "cents": 207.2239540158145,
+        "frequency": 495.9484433538086,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 49,
+      "sampleIndex": 54272,
+      "timeMs": 1230.657596371882,
+      "workletTimeMs": 1227.7551020408162,
+      "detector": {
+        "frequency": 495.66438562735493,
+        "confidence": 0.98,
+        "rms": 0.14229262483421756,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 206.2320942757706,
+        "smoothedCents": 207.11562052919032,
+        "readingFrequency": 495.917409916657,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 50,
+      "sampleIndex": 55296,
+      "timeMs": 1253.8775510204082,
+      "workletTimeMs": 1250.9750566893424,
+      "detector": {
+        "frequency": 495.61584091695426,
+        "confidence": 0.98,
+        "rms": 0.129985717678994,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 206.06253121304758,
+        "smoothedCents": 207.01013652767543,
+        "readingFrequency": 495.88719461490996,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 51,
+      "sampleIndex": 56320,
+      "timeMs": 1277.0975056689342,
+      "workletTimeMs": 1274.1950113378684,
+      "detector": {
+        "frequency": 493.6023742719851,
+        "confidence": 0.9600000000000001,
+        "rms": 0.13588569127659678,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 199.01497229698356,
+        "smoothedCents": 206.88206435031825,
+        "readingFrequency": 495.8505115311282,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 52,
+      "sampleIndex": 57344,
+      "timeMs": 1300.3174603174602,
+      "workletTimeMs": 1297.4149659863945,
+      "detector": {
+        "frequency": null,
+        "confidence": null,
+        "rms": 0.15033240101484602
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "held",
+        "note": "A4",
+        "cents": 206.88206435031825,
+        "frequency": 495.8505115311282,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 53,
+      "sampleIndex": 58368,
+      "timeMs": 1323.5374149659865,
+      "workletTimeMs": 1320.6349206349207,
+      "detector": {
+        "frequency": 495.74123160326525,
+        "confidence": 0.9600000000000001,
+        "rms": 0.15723553628052803,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 206.50047760542708,
+        "smoothedCents": 206.7261078402774,
+        "readingFrequency": 495.80584533924156,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 54,
+      "sampleIndex": 59392,
+      "timeMs": 1346.7573696145125,
+      "workletTimeMs": 1343.8548752834467,
+      "detector": {
+        "frequency": 496.4672027825059,
+        "confidence": 0.98,
+        "rms": 0.16521582970473261,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 209.03386918901847,
+        "smoothedCents": 206.67662435697923,
+        "readingFrequency": 495.7916740319849,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 55,
+      "sampleIndex": 60416,
+      "timeMs": 1369.9773242630386,
+      "workletTimeMs": 1367.0748299319728,
+      "detector": {
+        "frequency": 496.4185300384607,
+        "confidence": 0.9400000000000001,
+        "rms": 0.16260960291932908,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 208.8641338226321,
+        "smoothedCents": 206.6589803984633,
+        "readingFrequency": 495.78662117205675,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 56,
+      "sampleIndex": 61440,
+      "timeMs": 1393.1972789115646,
+      "workletTimeMs": 1390.2947845804988,
+      "detector": {
+        "frequency": 495.4752222438666,
+        "confidence": 0.98,
+        "rms": 0.15016412025134468,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 205.5712668974536,
+        "smoothedCents": 206.64310376900326,
+        "readingFrequency": 495.78207448214687,
+        "inTune": false
+      },
+      "publication": {
+        "action": "published",
+        "note": "A4",
+        "cents": 206.64310376900326,
+        "frequency": 495.78207448214687,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 57,
+      "sampleIndex": 62464,
+      "timeMs": 1416.4172335600906,
+      "workletTimeMs": 1413.5147392290248,
+      "detector": {
+        "frequency": 496.22687727873057,
+        "confidence": 0.98,
+        "rms": 0.14149842326859005,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 208.19562564253187,
+        "smoothedCents": 206.79861405397986,
+        "readingFrequency": 495.8266107333841,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 58,
+      "sampleIndex": 63488,
+      "timeMs": 1439.6371882086166,
+      "workletTimeMs": 1436.7346938775509,
+      "detector": {
+        "frequency": 494.5711694972789,
+        "confidence": 0.9600000000000001,
+        "rms": 0.13261601330402922,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 202.40954165888533,
+        "smoothedCents": 206.9385474577892,
+        "readingFrequency": 495.8666893752691,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 59,
+      "sampleIndex": 64512,
+      "timeMs": 1462.857142857143,
+      "workletTimeMs": 1459.954648526077,
+      "detector": {
+        "frequency": 247.38878547452663,
+        "confidence": 0.98,
+        "rms": 0.1425879696194402,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 60,
+      "sampleIndex": 65536,
+      "timeMs": 1486.077097505669,
+      "workletTimeMs": 1483.1746031746031,
+      "detector": {
+        "frequency": null,
+        "confidence": null,
+        "rms": 0.16470534301703701
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "held",
+        "note": "A4",
+        "cents": 206.9385474577892,
+        "frequency": 495.8666893752691,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 61,
+      "sampleIndex": 66560,
+      "timeMs": 1509.2970521541952,
+      "workletTimeMs": 1506.3945578231294,
+      "detector": {
+        "frequency": null,
+        "confidence": null,
+        "rms": 0.18633128993990344
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 62,
+      "sampleIndex": 67584,
+      "timeMs": 1532.5170068027212,
+      "workletTimeMs": 1529.6145124716554,
+      "detector": {
+        "frequency": 495.1878670081145,
+        "confidence": 0.98,
+        "rms": 0.19749024480709162,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 204.56693113959392,
+        "smoothedCents": 206.5934234716551,
+        "readingFrequency": 495.76784749331694,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 63,
+      "sampleIndex": 68608,
+      "timeMs": 1555.736961451247,
+      "workletTimeMs": 1552.8344671201812,
+      "detector": {
+        "frequency": 496.6972973282876,
+        "confidence": 0.9400000000000001,
+        "rms": 0.1928470955798239,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 209.83604751747154,
+        "smoothedCents": 206.49103788672062,
+        "readingFrequency": 495.7385285343059,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 64,
+      "sampleIndex": 69632,
+      "timeMs": 1578.9569160997733,
+      "workletTimeMs": 1576.0544217687075,
+      "detector": {
+        "frequency": null,
+        "confidence": null,
+        "rms": 0.179815656869752
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "held",
+        "note": "A4",
+        "cents": 206.49103788672062,
+        "frequency": 495.7385285343059,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 65,
+      "sampleIndex": 70656,
+      "timeMs": 1602.1768707482993,
+      "workletTimeMs": 1599.2743764172335,
+      "detector": {
+        "frequency": 622.7275465794461,
+        "confidence": 0.92,
+        "rms": 0.1567285224935566,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 66,
+      "sampleIndex": 71680,
+      "timeMs": 1625.3968253968253,
+      "workletTimeMs": 1622.4943310657595,
+      "detector": {
+        "frequency": 621.5880931876845,
+        "confidence": 0.9400000000000001,
+        "rms": 0.14009149550704153,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 67,
+      "sampleIndex": 72704,
+      "timeMs": 1648.6167800453516,
+      "workletTimeMs": 1645.7142857142858,
+      "detector": {
+        "frequency": 621.0909637712091,
+        "confidence": 0.9400000000000001,
+        "rms": 0.12579173220493148,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 68,
+      "sampleIndex": 73728,
+      "timeMs": 1671.8367346938776,
+      "workletTimeMs": 1668.9342403628118,
+      "detector": {
+        "frequency": 621.1935944142944,
+        "confidence": 0.9400000000000001,
+        "rms": 0.10980358329907847,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "held",
+        "note": "A4",
+        "cents": 206.49103788672062,
+        "frequency": 495.7385285343059,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 69,
+      "sampleIndex": 74752,
+      "timeMs": 1695.0566893424036,
+      "workletTimeMs": 1692.1541950113378,
+      "detector": {
+        "frequency": 497.433020467431,
+        "confidence": 0.98,
+        "rms": 0.09637655408193353,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "A4",
+          "frequency": 440,
+          "index": 3
+        },
+        "rawCents": 212.39850670196165,
+        "smoothedCents": 206.6617800399834,
+        "readingFrequency": 495.7874229272745,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 3,
+        "note": "A4"
+      }
+    },
+    {
+      "frameIndex": 70,
+      "sampleIndex": 75776,
+      "timeMs": 1718.2766439909296,
+      "workletTimeMs": 1715.3741496598639,
+      "detector": {
+        "frequency": 744.7184062255773,
+        "confidence": 0.98,
+        "rms": 0.0854887233400909,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 71,
+      "sampleIndex": 76800,
+      "timeMs": 1741.4965986394557,
+      "workletTimeMs": 1738.59410430839,
+      "detector": {
+        "frequency": 744.8605440954497,
+        "confidence": 0.98,
+        "rms": 0.07867596127541275,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 72,
+      "sampleIndex": 77824,
+      "timeMs": 1764.716553287982,
+      "workletTimeMs": 1761.8140589569161,
+      "detector": {
+        "frequency": 744.7303999452766,
+        "confidence": 0.9400000000000001,
+        "rms": 0.07503230713722009,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "held",
+        "note": "A4",
+        "cents": 206.6617800399834,
+        "frequency": 495.7874229272745,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 73,
+      "sampleIndex": 78848,
+      "timeMs": 1787.936507936508,
+      "workletTimeMs": 1785.0340136054422,
+      "detector": {
+        "frequency": 744.4036939288488,
+        "confidence": 0.9600000000000001,
+        "rms": 0.07148106578630546,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 74,
+      "sampleIndex": 79872,
+      "timeMs": 1811.156462585034,
+      "workletTimeMs": 1808.2539682539682,
+      "detector": {
+        "frequency": 247.4216900957016,
+        "confidence": 0.98,
+        "rms": 0.0682769799094718,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 75,
+      "sampleIndex": 80896,
+      "timeMs": 1834.3764172335602,
+      "workletTimeMs": 1831.4739229024945,
+      "detector": {
+        "frequency": 247.39079779094072,
+        "confidence": 0.98,
+        "rms": 0.06538117595096836,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 76,
+      "sampleIndex": 81920,
+      "timeMs": 1857.5963718820863,
+      "workletTimeMs": 1854.6938775510205,
+      "detector": {
+        "frequency": 247.46241422084827,
+        "confidence": 0.98,
+        "rms": 0.062499842722643285,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "held",
+        "note": "A4",
+        "cents": 206.6617800399834,
+        "frequency": 495.7874229272745,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 77,
+      "sampleIndex": 82944,
+      "timeMs": 1880.816326530612,
+      "workletTimeMs": 1877.9138321995463,
+      "detector": {
+        "frequency": 247.50653793045697,
+        "confidence": 0.98,
+        "rms": 0.06020656701016544,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 78,
+      "sampleIndex": 83968,
+      "timeMs": 1904.0362811791383,
+      "workletTimeMs": 1901.1337868480725,
+      "detector": {
+        "frequency": 247.6054517244384,
+        "confidence": 0.98,
+        "rms": 0.058073541767909895,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 79,
+      "sampleIndex": 84992,
+      "timeMs": 1927.2562358276643,
+      "workletTimeMs": 1924.3537414965986,
+      "detector": {
+        "frequency": 247.6616749460182,
+        "confidence": 0.98,
+        "rms": 0.055328104332177434,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 80,
+      "sampleIndex": 86016,
+      "timeMs": 1950.4761904761904,
+      "workletTimeMs": 1947.5736961451246,
+      "detector": {
+        "frequency": 247.5785282039405,
+        "confidence": 0.98,
+        "rms": 0.05380921137833702,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "held",
+        "note": "A4",
+        "cents": 206.6617800399834,
+        "frequency": 495.7874229272745,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 81,
+      "sampleIndex": 87040,
+      "timeMs": 1973.6961451247166,
+      "workletTimeMs": 1970.7936507936508,
+      "detector": {
+        "frequency": 247.43288952687695,
+        "confidence": 0.98,
+        "rms": 0.05166907088809706,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -96.5594919694427,
+        "smoothedCents": -96.5594919694427,
+        "readingFrequency": 247.43288952687695,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 82,
+      "sampleIndex": 88064,
+      "timeMs": 1996.9160997732426,
+      "workletTimeMs": 1994.0136054421769,
+      "detector": {
+        "frequency": 247.55117349715258,
+        "confidence": 0.98,
+        "rms": 0.050877144351424576,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -95.73208253954384,
+        "smoothedCents": -96.476613474505,
+        "readingFrequency": 247.44473504040434,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 83,
+      "sampleIndex": 89088,
+      "timeMs": 2020.136054421769,
+      "workletTimeMs": 2017.2335600907031,
+      "detector": {
+        "frequency": 247.5464109444927,
+        "confidence": 0.98,
+        "rms": 0.05165866437747403,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -95.7653894817896,
+        "smoothedCents": -96.40537283843075,
+        "readingFrequency": 247.4549176514917,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 84,
+      "sampleIndex": 90112,
+      "timeMs": 2043.356009070295,
+      "workletTimeMs": 2040.4535147392291,
+      "detector": {
+        "frequency": 247.46566919087718,
+        "confidence": 0.98,
+        "rms": 0.05249544518816639,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -96.3301549890959,
+        "smoothedCents": -96.34126810930036,
+        "readingFrequency": 247.46408066683966,
+        "inTune": false
+      },
+      "publication": {
+        "action": "published",
+        "note": "C4",
+        "cents": -96.34126810930036,
+        "frequency": 247.46408066683966,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 85,
+      "sampleIndex": 91136,
+      "timeMs": 2066.575963718821,
+      "workletTimeMs": 2063.6734693877556,
+      "detector": {
+        "frequency": 247.61936705933536,
+        "confidence": 0.98,
+        "rms": 0.0537290849979489,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -95.25524069272602,
+        "smoothedCents": -96.28358451011692,
+        "readingFrequency": 247.47232614737555,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 86,
+      "sampleIndex": 92160,
+      "timeMs": 2089.795918367347,
+      "workletTimeMs": 2086.8934240362814,
+      "detector": {
+        "frequency": 247.51153233545702,
+        "confidence": 0.98,
+        "rms": 0.05303303812325053,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -96.00933278768424,
+        "smoothedCents": -96.23167886041068,
+        "readingFrequency": 247.4797459439326,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 87,
+      "sampleIndex": 93184,
+      "timeMs": 2113.0158730158732,
+      "workletTimeMs": 2110.1133786848077,
+      "detector": {
+        "frequency": 247.50020406799004,
+        "confidence": 0.98,
+        "rms": 0.05163677734354897,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -96.08857083768146,
+        "smoothedCents": -96.20940728941211,
+        "readingFrequency": 247.4829296834096,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 88,
+      "sampleIndex": 94208,
+      "timeMs": 2136.235827664399,
+      "workletTimeMs": 2133.3333333333335,
+      "detector": {
+        "frequency": 247.5208629675584,
+        "confidence": 0.98,
+        "rms": 0.04946815777686181,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -95.94407035981716,
+        "smoothedCents": -96.189366578031,
+        "readingFrequency": 247.48579455467015,
+        "inTune": false
+      },
+      "publication": {
+        "action": "published",
+        "note": "C4",
+        "cents": -96.189366578031,
+        "frequency": 247.48579455467015,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 89,
+      "sampleIndex": 95232,
+      "timeMs": 2159.455782312925,
+      "workletTimeMs": 2156.5532879818593,
+      "detector": {
+        "frequency": 247.40957777113604,
+        "confidence": 0.98,
+        "rms": 0.04759566355437235,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -96.72260693219992,
+        "smoothedCents": -96.1713332694383,
+        "readingFrequency": 247.48837249088407,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 90,
+      "sampleIndex": 96256,
+      "timeMs": 2182.675736961451,
+      "workletTimeMs": 2179.7732426303855,
+      "detector": {
+        "frequency": 247.43939636671806,
+        "confidence": 0.98,
+        "rms": 0.0464057131632216,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -96.51396562655987,
+        "smoothedCents": -96.16304326749545,
+        "readingFrequency": 247.48955759003465,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 91,
+      "sampleIndex": 97280,
+      "timeMs": 2205.8956916099773,
+      "workletTimeMs": 2202.993197278912,
+      "detector": {
+        "frequency": 247.57206773650853,
+        "confidence": 0.98,
+        "rms": 0.04550579834872795,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -95.5859661159491,
+        "smoothedCents": -96.15558364391092,
+        "readingFrequency": 247.4906239871051,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 92,
+      "sampleIndex": 98304,
+      "timeMs": 2229.115646258503,
+      "workletTimeMs": 2226.2131519274376,
+      "detector": {
+        "frequency": 247.52096324843706,
+        "confidence": 0.98,
+        "rms": 0.04518466292048827,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -95.94336896586469,
+        "smoothedCents": -96.13439715266297,
+        "readingFrequency": 247.4936527457101,
+        "inTune": false
+      },
+      "publication": {
+        "action": "published",
+        "note": "C4",
+        "cents": -96.13439715266297,
+        "frequency": 247.4936527457101,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 93,
+      "sampleIndex": 99328,
+      "timeMs": 2252.3356009070294,
+      "workletTimeMs": 2249.433106575964,
+      "detector": {
+        "frequency": 247.57317633444944,
+        "confidence": 0.98,
+        "rms": 0.04446343957806186,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -95.57821387547001,
+        "smoothedCents": -96.11526257667143,
+        "readingFrequency": 247.49638820038723,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 94,
+      "sampleIndex": 100352,
+      "timeMs": 2275.5555555555557,
+      "workletTimeMs": 2272.65306122449,
+      "detector": {
+        "frequency": 247.57945421552037,
+        "confidence": 0.98,
+        "rms": 0.04371261840901287,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -95.53431435521718,
+        "smoothedCents": -96.0622449381779,
+        "readingFrequency": 247.50396769258097,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 95,
+      "sampleIndex": 101376,
+      "timeMs": 2298.7755102040815,
+      "workletTimeMs": 2295.873015873016,
+      "detector": {
+        "frequency": 247.52393668594343,
+        "confidence": 0.98,
+        "rms": 0.04237104680288139,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -95.92257199874282,
+        "smoothedCents": -96.01453787740407,
+        "readingFrequency": 247.51078817391715,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 96,
+      "sampleIndex": 102400,
+      "timeMs": 2321.9954648526077,
+      "workletTimeMs": 2319.092970521542,
+      "detector": {
+        "frequency": 247.52449286756823,
+        "confidence": 0.98,
+        "rms": 0.04105333438415632,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -95.91868195280468,
+        "smoothedCents": -96.00493634946085,
+        "readingFrequency": 247.51216088741032,
+        "inTune": false
+      },
+      "publication": {
+        "action": "published",
+        "note": "C4",
+        "cents": -96.00493634946085,
+        "frequency": 247.51216088741032,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 97,
+      "sampleIndex": 103424,
+      "timeMs": 2345.215419501134,
+      "workletTimeMs": 2342.3129251700684,
+      "detector": {
+        "frequency": 247.4785286812283,
+        "confidence": 0.98,
+        "rms": 0.03976731372036534,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -96.24019419088775,
+        "smoothedCents": -95.99629657050946,
+        "readingFrequency": 247.51339610785612,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 98,
+      "sampleIndex": 104448,
+      "timeMs": 2368.4353741496598,
+      "workletTimeMs": 2365.532879818594,
+      "detector": {
+        "frequency": 247.47399108709064,
+        "confidence": 0.98,
+        "rms": 0.03836925204388524,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -96.27193718504758,
+        "smoothedCents": -95.98891185705666,
+        "readingFrequency": 247.51445189774503,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 99,
+      "sampleIndex": 105472,
+      "timeMs": 2391.655328798186,
+      "workletTimeMs": 2388.7528344671205,
+      "detector": {
+        "frequency": 247.40440266433126,
+        "confidence": 0.98,
+        "rms": 0.03772083206311209,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -96.75881981810291,
+        "smoothedCents": -96.01408186464879,
+        "readingFrequency": 247.51085336908324,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 100,
+      "sampleIndex": 106496,
+      "timeMs": 2414.8752834467123,
+      "workletTimeMs": 2411.9727891156467,
+      "detector": {
+        "frequency": 247.23484196014005,
+        "confidence": 0.98,
+        "rms": 0.03849691374042558,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -97.94574252659393,
+        "smoothedCents": -96.03991026361801,
+        "readingFrequency": 247.50716076530944,
+        "inTune": false
+      },
+      "publication": {
+        "action": "published",
+        "note": "C4",
+        "cents": -96.03991026361801,
+        "frequency": 247.50716076530944,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 101,
+      "sampleIndex": 107520,
+      "timeMs": 2438.0952380952385,
+      "workletTimeMs": 2435.192743764173,
+      "detector": {
+        "frequency": 247.36969276252833,
+        "confidence": 0.98,
+        "rms": 0.04056725586994735,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -97.00172244576665,
+        "smoothedCents": -96.11192073354863,
+        "readingFrequency": 247.49686594913618,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 102,
+      "sampleIndex": 108544,
+      "timeMs": 2461.315192743764,
+      "workletTimeMs": 2458.4126984126983,
+      "detector": {
+        "frequency": 247.45449938487357,
+        "confidence": 0.98,
+        "rms": 0.04301654904399627,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -96.4082991008375,
+        "smoothedCents": -96.17671818516939,
+        "readingFrequency": 247.487602692047,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 103,
+      "sampleIndex": 109568,
+      "timeMs": 2484.53514739229,
+      "workletTimeMs": 2481.6326530612246,
+      "detector": {
+        "frequency": 247.48237894384658,
+        "confidence": 0.98,
+        "rms": 0.04491908460745764,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -96.21325991935211,
+        "smoothedCents": -96.23502511943313,
+        "readingFrequency": 247.47926759697955,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 104,
+      "sampleIndex": 110592,
+      "timeMs": 2507.7551020408164,
+      "workletTimeMs": 2504.852607709751,
+      "detector": {
+        "frequency": 247.56504284916926,
+        "confidence": 0.98,
+        "rms": 0.04480145243291104,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -95.63509078826074,
+        "smoothedCents": -96.25238132335313,
+        "readingFrequency": 247.4767865464793,
+        "inTune": false
+      },
+      "publication": {
+        "action": "published",
+        "note": "C4",
+        "cents": -96.25238132335313,
+        "frequency": 247.4767865464793,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 105,
+      "sampleIndex": 111616,
+      "timeMs": 2530.975056689342,
+      "workletTimeMs": 2528.0725623582766,
+      "detector": {
+        "frequency": 247.58765362516053,
+        "confidence": 0.98,
+        "rms": 0.043977253996402205,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -95.47697978299762,
+        "smoothedCents": -96.24846267924987,
+        "readingFrequency": 247.47734671022397,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 106,
+      "sampleIndex": 112640,
+      "timeMs": 2554.1950113378684,
+      "workletTimeMs": 2551.292517006803,
+      "detector": {
+        "frequency": 247.54851281653973,
+        "confidence": 0.98,
+        "rms": 0.04241911309285244,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -95.75068994729628,
+        "smoothedCents": -96.19860265426757,
+        "readingFrequency": 247.48447422968587,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 107,
+      "sampleIndex": 113664,
+      "timeMs": 2577.4149659863947,
+      "workletTimeMs": 2574.512471655329,
+      "detector": {
+        "frequency": 247.56964935662518,
+        "confidence": 0.98,
+        "rms": 0.04114066129863879,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -95.60287756353308,
+        "smoothedCents": -96.14215778713584,
+        "readingFrequency": 247.49254330388194,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 108,
+      "sampleIndex": 114688,
+      "timeMs": 2600.6349206349205,
+      "workletTimeMs": 2597.732426303855,
+      "detector": {
+        "frequency": 247.58788846939186,
+        "confidence": 0.98,
+        "rms": 0.04018399550016178,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -95.47533765694368,
+        "smoothedCents": -96.08814011261245,
+        "readingFrequency": 247.5002656451961,
+        "inTune": false
+      },
+      "publication": {
+        "action": "published",
+        "note": "C4",
+        "cents": -96.08814011261245,
+        "frequency": 247.5002656451961,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 109,
+      "sampleIndex": 115712,
+      "timeMs": 2623.8548752834467,
+      "workletTimeMs": 2620.952380952381,
+      "detector": {
+        "frequency": 247.61835708174453,
+        "confidence": 0.98,
+        "rms": 0.03888781076549209,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -95.2623019786854,
+        "smoothedCents": -96.02692247784329,
+        "readingFrequency": 247.50901758070734,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 110,
+      "sampleIndex": 116736,
+      "timeMs": 2647.074829931973,
+      "workletTimeMs": 2644.1723356009074,
+      "detector": {
+        "frequency": 247.60524742650685,
+        "confidence": 0.98,
+        "rms": 0.03796672637441905,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -95.35396110526054,
+        "smoothedCents": -95.97167229802334,
+        "readingFrequency": 247.51691664897433,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 111,
+      "sampleIndex": 117760,
+      "timeMs": 2670.294784580499,
+      "workletTimeMs": 2667.3922902494332,
+      "detector": {
+        "frequency": 247.6414431395939,
+        "confidence": 0.98,
+        "rms": 0.035975859846054885,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -95.10090236814318,
+        "smoothedCents": -95.90979848789694,
+        "readingFrequency": 247.5257629909169,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 112,
+      "sampleIndex": 118784,
+      "timeMs": 2693.514739229025,
+      "workletTimeMs": 2690.6122448979595,
+      "detector": {
+        "frequency": 247.61197878169122,
+        "confidence": 0.98,
+        "rms": 0.03213789685488922,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -95.30689670331512,
+        "smoothedCents": -95.84940808056558,
+        "readingFrequency": 247.5343975498206,
+        "inTune": false
+      },
+      "publication": {
+        "action": "published",
+        "note": "C4",
+        "cents": -95.84940808056558,
+        "frequency": 247.5343975498206,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 113,
+      "sampleIndex": 119808,
+      "timeMs": 2716.7346938775513,
+      "workletTimeMs": 2713.8321995464858,
+      "detector": {
+        "frequency": 249.9393829895415,
+        "confidence": 0.9600000000000001,
+        "rms": 0.028038563250524843,
+        "oddOnly": false
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -79.11033446342346,
+        "smoothedCents": -95.79059986744367,
+        "readingFrequency": 247.54280617767813,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 114,
+      "sampleIndex": 120832,
+      "timeMs": 2739.954648526077,
+      "workletTimeMs": 2737.0521541950116,
+      "detector": {
+        "frequency": null,
+        "confidence": null,
+        "rms": 0.0299025155960953
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 115,
+      "sampleIndex": 121856,
+      "timeMs": 2763.1746031746034,
+      "workletTimeMs": 2760.272108843538,
+      "detector": {
+        "frequency": 125.7398704190663,
+        "confidence": 0.8209940920076756,
+        "rms": 0.019070964757117424
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 116,
+      "sampleIndex": 122880,
+      "timeMs": 2786.394557823129,
+      "workletTimeMs": 2783.4920634920636,
+      "detector": {
+        "frequency": 249.30598699296002,
+        "confidence": 0.8409611662245882,
+        "rms": 0.019026223287561123
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -83.50319364691013,
+        "smoothedCents": -95.72151545936374,
+        "readingFrequency": 247.5526845008692,
+        "inTune": false
+      },
+      "publication": {
+        "action": "published",
+        "note": "C4",
+        "cents": -95.72151545936374,
+        "frequency": 247.5526845008692,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 117,
+      "sampleIndex": 123904,
+      "timeMs": 2809.614512471655,
+      "workletTimeMs": 2806.7120181405894,
+      "detector": {
+        "frequency": 249.4332715336792,
+        "confidence": 0.793675489990748,
+        "rms": 0.01799129804367182
+      },
+      "tracker": {
+        "target": {
+          "note": "C4",
+          "frequency": 261.6255653005986,
+          "index": 1
+        },
+        "rawCents": -82.61952815705841,
+        "smoothedCents": -91.18256370507518,
+        "readingFrequency": 248.20257002457254,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 1,
+        "note": "C4"
+      }
+    },
+    {
+      "frameIndex": 118,
+      "sampleIndex": 124928,
+      "timeMs": 2832.834467120181,
+      "workletTimeMs": 2829.9319727891157,
+      "detector": {
+        "frequency": null,
+        "confidence": null,
+        "rms": 0.02440448670050599
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 119,
+      "sampleIndex": 125952,
+      "timeMs": 2856.0544217687075,
+      "workletTimeMs": 2853.151927437642,
+      "detector": {
+        "frequency": null,
+        "confidence": null,
+        "rms": 0.024128445438549327
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 120,
+      "sampleIndex": 126976,
+      "timeMs": 2879.2743764172333,
+      "workletTimeMs": 2876.3718820861677,
+      "detector": {
+        "frequency": null,
+        "confidence": null,
+        "rms": 0.023447242854179148
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "held",
+        "note": "C4",
+        "cents": -91.18256370507518,
+        "frequency": 248.20257002457254,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    }
+  ]
+}

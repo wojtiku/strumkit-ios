@@ -104,6 +104,12 @@ else
 		$(TEST_OPT_FLAGS) | $(FORMATTER)
 endif
 
+# Verify test-tuner parity contract and trace reproducibility
+verify-parity:
+	@echo -e "$(BOLD)$(CYAN)Verifying test-tuner parity contract and trace reproducibility...$(RESET)"
+	@cd Tools/parity-contract && npx tsx verify.ts
+
+
 # Regenerate project from project.yml
 project:
 	@echo -e "$(BOLD)$(CYAN)Regenerating Xcode project with XcodeGen...$(RESET)"

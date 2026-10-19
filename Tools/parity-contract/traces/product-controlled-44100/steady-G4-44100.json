@@ -1,0 +1,3547 @@
+{
+  "name": "steady-G4-44100",
+  "category": "product-controlled-44100",
+  "sampleRate": 44100,
+  "sampleCount": 110250,
+  "sampleSha256": "6d4021830250d7412f8b164f566b7ecc3b3ad04309f4cb5f66272926e09f7084",
+  "frameCount": 104,
+  "clockConvention": "window-end",
+  "workletOffsetMs": 2.9024943310657596,
+  "confirmedNotes": [
+    "G4"
+  ],
+  "frames": [
+    {
+      "frameIndex": 0,
+      "sampleIndex": 4096,
+      "timeMs": 92.87981859410431,
+      "workletTimeMs": 89.97732426303855,
+      "detector": {
+        "frequency": 392.03936697905516,
+        "confidence": 0.9943386927473655,
+        "rms": 0.04576800987486612
+      },
+      "tracker": {
+        "target": null,
+        "rawCents": null,
+        "smoothedCents": null,
+        "readingFrequency": null,
+        "inTune": false
+      },
+      "publication": {
+        "action": "empty",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": null,
+        "note": null
+      }
+    },
+    {
+      "frameIndex": 1,
+      "sampleIndex": 5120,
+      "timeMs": 116.09977324263039,
+      "workletTimeMs": 113.19727891156464,
+      "detector": {
+        "frequency": 391.9954425916909,
+        "confidence": 0.9943455259621982,
+        "rms": 0.04706743584626072
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.000029192574206363526,
+        "smoothedCents": 0.000029192574206363526,
+        "readingFrequency": 391.99544259169085,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 2,
+      "sampleIndex": 6144,
+      "timeMs": 139.31972789115645,
+      "workletTimeMs": 136.4172335600907,
+      "detector": {
+        "frequency": 391.9953900116791,
+        "confidence": 0.9943408354153925,
+        "rms": 0.04691942388324579
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00020302520923456955,
+        "smoothedCents": -0.00008691631751410302,
+        "readingFrequency": 391.9954163016841,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 3,
+      "sampleIndex": 7168,
+      "timeMs": 162.53968253968253,
+      "workletTimeMs": 159.63718820861678,
+      "detector": {
+        "frequency": 391.99542507632964,
+        "confidence": 0.9942470910655978,
+        "rms": 0.04688896979395348
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.0000481634027673941,
+        "smoothedCents": -0.00007399867926520004,
+        "readingFrequency": 391.9954192265659,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 4,
+      "sampleIndex": 8192,
+      "timeMs": 185.75963718820861,
+      "workletTimeMs": 182.85714285714286,
+      "detector": {
+        "frequency": 391.99546694937175,
+        "confidence": 0.994254565810662,
+        "rms": 0.046940232620298186
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.0001367674096820525,
+        "smoothedCents": -0.000021307157028386907,
+        "readingFrequency": 391.9954311572668,
+        "inTune": false
+      },
+      "publication": {
+        "action": "published",
+        "note": "G4",
+        "cents": -0.000021307157028386907,
+        "frequency": 391.9954311572668,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 5,
+      "sampleIndex": 9216,
+      "timeMs": 208.9795918367347,
+      "workletTimeMs": 206.07709750566895,
+      "detector": {
+        "frequency": 391.99539426191984,
+        "confidence": 0.9943468687832775,
+        "rms": 0.04709885598758054
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.0001842541683596577,
+        "smoothedCents": -0.000023997246295073126,
+        "readingFrequency": 391.9954305481622,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 6,
+      "sampleIndex": 10240,
+      "timeMs": 232.19954648526078,
+      "workletTimeMs": 229.29705215419503,
+      "detector": {
+        "frequency": 391.99574255029876,
+        "confidence": 0.9943006663068508,
+        "rms": 0.047131217393066534
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.0013539486814963667,
+        "smoothedCents": -0.000026417879423583277,
+        "readingFrequency": 391.9954300000693,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 7,
+      "sampleIndex": 11264,
+      "timeMs": 255.41950113378687,
+      "workletTimeMs": 252.5170068027211,
+      "detector": {
+        "frequency": 391.99547780272565,
+        "confidence": 0.9943157704024754,
+        "rms": 0.04720102932656481
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.00018470086082585959,
+        "smoothedCents": -0.000010072221919170436,
+        "readingFrequency": 391.99543370114196,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 8,
+      "sampleIndex": 12288,
+      "timeMs": 278.6394557823129,
+      "workletTimeMs": 275.7369614512471,
+      "detector": {
+        "frequency": 391.9954352279924,
+        "confidence": 0.9943231679172564,
+        "rms": 0.04726654526998998
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.0000033289406656152835,
+        "smoothedCents": 0.000004636152465447103,
+        "readingFrequency": 391.99543703149214,
+        "inTune": false
+      },
+      "publication": {
+        "action": "published",
+        "note": "G4",
+        "cents": 0.000004636152465447103,
+        "frequency": 391.99543703149214,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 9,
+      "sampleIndex": 13312,
+      "timeMs": 301.85941043083903,
+      "workletTimeMs": 298.95691609977325,
+      "detector": {
+        "frequency": 391.9953323266436,
+        "confidence": 0.994327432629635,
+        "rms": 0.047150322081781736
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00045778918706121754,
+        "smoothedCents": 0.0000038383190024882114,
+        "readingFrequency": 391.9954368508424,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 10,
+      "sampleIndex": 14336,
+      "timeMs": 325.07936507936506,
+      "workletTimeMs": 322.1768707482993,
+      "detector": {
+        "frequency": 391.99513529686357,
+        "confidence": 0.9943413719327968,
+        "rms": 0.047137443620668566
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.0013279647261250406,
+        "smoothedCents": 0.0000031204015209425967,
+        "readingFrequency": 391.9954366882876,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 11,
+      "sampleIndex": 15360,
+      "timeMs": 348.29931972789115,
+      "workletTimeMs": 345.39682539682536,
+      "detector": {
+        "frequency": 391.99546795282004,
+        "confidence": 0.994346646370354,
+        "rms": 0.0470313541809686
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.00014119910323046384,
+        "smoothedCents": 0.00000247439513710738,
+        "readingFrequency": 391.9954365420153,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 12,
+      "sampleIndex": 16384,
+      "timeMs": 371.51927437641723,
+      "workletTimeMs": 368.61678004535145,
+      "detector": {
+        "frequency": 391.99538647599627,
+        "confidence": 0.994330014367023,
+        "rms": 0.046905050153623264
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.0002186404297853101,
+        "smoothedCents": -0.000019673846393355562,
+        "readingFrequency": 391.9954315270899,
+        "inTune": false
+      },
+      "publication": {
+        "action": "published",
+        "note": "G4",
+        "cents": -0.000019673846393355562,
+        "frequency": 391.9954315270899,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 13,
+      "sampleIndex": 17408,
+      "timeMs": 394.7392290249433,
+      "workletTimeMs": 391.83673469387753,
+      "detector": {
+        "frequency": 391.99543245170037,
+        "confidence": 0.9942283584329775,
+        "rms": 0.046891529482772386
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00001559033674460584,
+        "smoothedCents": -0.00003960358175597634,
+        "readingFrequency": 391.9954270144908,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 14,
+      "sampleIndex": 18432,
+      "timeMs": 417.9591836734694,
+      "workletTimeMs": 415.0566893424036,
+      "detector": {
+        "frequency": 391.9954551198466,
+        "confidence": 0.9942821258316706,
+        "rms": 0.04696784960544553
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.00008452273145172052,
+        "smoothedCents": -0.000037198265194191624,
+        "readingFrequency": 391.9954275591157,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 15,
+      "sampleIndex": 19456,
+      "timeMs": 441.1791383219955,
+      "workletTimeMs": 438.2766439909297,
+      "detector": {
+        "frequency": 391.99544017566365,
+        "confidence": 0.9943420990657397,
+        "rms": 0.0471217831624289
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.000018522275245681715,
+        "smoothedCents": -0.00003161694793831222,
+        "readingFrequency": 391.9954288228679,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 16,
+      "sampleIndex": 20480,
+      "timeMs": 464.39909297052156,
+      "workletTimeMs": 461.4965986394558,
+      "detector": {
+        "frequency": 391.99575142065544,
+        "confidence": 0.9942977801410517,
+        "rms": 0.047130693506259744
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.0013931242686694482,
+        "smoothedCents": -0.000026594690269164418,
+        "readingFrequency": 391.9954299600348,
+        "inTune": false
+      },
+      "publication": {
+        "action": "published",
+        "note": "G4",
+        "cents": -0.000026594690269164418,
+        "frequency": 391.9954299600348,
+        "inTune": false
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 17,
+      "sampleIndex": 21504,
+      "timeMs": 487.6190476190476,
+      "workletTimeMs": 484.7165532879818,
+      "detector": {
+        "frequency": 391.9954160667879,
+        "confidence": 0.9943203123232127,
+        "rms": 0.04722938634768081
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00008795372816197107,
+        "smoothedCents": -0.00002207549328770925,
+        "readingFrequency": 391.99543098329593,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 18,
+      "sampleIndex": 22528,
+      "timeMs": 510.83900226757373,
+      "workletTimeMs": 507.93650793650795,
+      "detector": {
+        "frequency": 391.9954620428189,
+        "confidence": 0.9943226827950672,
+        "rms": 0.04724959944017925
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.00011509779320706293,
+        "smoothedCents": -0.000011397949486311687,
+        "readingFrequency": 391.9954334009635,
+        "inTune": false
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 19,
+      "sampleIndex": 23552,
+      "timeMs": 534.0589569160998,
+      "workletTimeMs": 531.156462585034,
+      "detector": {
+        "frequency": 391.99524277271615,
+        "confidence": 0.9943303921646518,
+        "rms": 0.04713581461317001
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00085330110627637,
+        "smoothedCents": -0.000008400952951853024,
+        "readingFrequency": 391.9954340795598,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": true,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 20,
+      "sampleIndex": 24576,
+      "timeMs": 557.2789115646258,
+      "workletTimeMs": 554.37641723356,
+      "detector": {
+        "frequency": 391.9952116918664,
+        "confidence": 0.9943429440182774,
+        "rms": 0.04713289949853053
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.0009905686584348434,
+        "smoothedCents": -0.000016369455653517337,
+        "readingFrequency": 391.99543227528807,
+        "inTune": true
+      },
+      "publication": {
+        "action": "published",
+        "note": "G4",
+        "cents": -0.000016369455653517337,
+        "frequency": 391.99543227528807,
+        "inTune": true
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 21,
+      "sampleIndex": 25600,
+      "timeMs": 580.4988662131519,
+      "workletTimeMs": 577.5963718820861,
+      "detector": {
+        "frequency": 391.99545970778763,
+        "confidence": 0.9943477334452496,
+        "rms": 0.046995106883362045
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.00010478521050026653,
+        "smoothedCents": -0.000023539783368341555,
+        "readingFrequency": 391.99543065174345,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 22,
+      "sampleIndex": 26624,
+      "timeMs": 603.7188208616781,
+      "workletTimeMs": 600.8163265306123,
+      "detector": {
+        "frequency": 391.9953948563798,
+        "confidence": 0.9943132085307314,
+        "rms": 0.046895966055104356
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00018162875658069962,
+        "smoothedCents": -0.000039374962050904936,
+        "readingFrequency": 391.9954270662562,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 23,
+      "sampleIndex": 27648,
+      "timeMs": 626.9387755102041,
+      "workletTimeMs": 624.0362811791383,
+      "detector": {
+        "frequency": 391.99544237265377,
+        "confidence": 0.9942189203600903,
+        "rms": 0.04689722999339918
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.000028225204640016838,
+        "smoothedCents": -0.000053623990359957526,
+        "readingFrequency": 391.9954238399137,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 24,
+      "sampleIndex": 28672,
+      "timeMs": 650.1587301587301,
+      "workletTimeMs": 647.2562358276643,
+      "detector": {
+        "frequency": 391.9954295336627,
+        "confidence": 0.9943094360094716,
+        "rms": 0.047001264080180585
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.000028477747681230678,
+        "smoothedCents": -0.000051105185677243505,
+        "readingFrequency": 391.99542441023516,
+        "inTune": true
+      },
+      "publication": {
+        "action": "published",
+        "note": "G4",
+        "cents": -0.000051105185677243505,
+        "frequency": 391.99542441023516,
+        "inTune": true
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 25,
+      "sampleIndex": 29696,
+      "timeMs": 673.3786848072563,
+      "workletTimeMs": 670.4761904761905,
+      "detector": {
+        "frequency": 391.9955196706561,
+        "confidence": 0.994331232321752,
+        "rms": 0.04713434826274617
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.0003696090725135044,
+        "smoothedCents": -0.000043158958435044466,
+        "readingFrequency": 391.9954262094631,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 26,
+      "sampleIndex": 30720,
+      "timeMs": 696.5986394557823,
+      "workletTimeMs": 693.6961451247165,
+      "detector": {
+        "frequency": 391.99571156175,
+        "confidence": 0.9942996038406515,
+        "rms": 0.04713768261759893
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.0012170889479005181,
+        "smoothedCents": -0.000036008674930575036,
+        "readingFrequency": 391.9954278284692,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 27,
+      "sampleIndex": 31744,
+      "timeMs": 719.8185941043083,
+      "workletTimeMs": 716.9160997732425,
+      "detector": {
+        "frequency": 391.995385873663,
+        "confidence": 0.9943229523580299,
+        "rms": 0.04725324245209027
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00022130061392258032,
+        "smoothedCents": -0.000029574608469100522,
+        "readingFrequency": 391.9954292853055,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 28,
+      "sampleIndex": 32768,
+      "timeMs": 743.0385487528345,
+      "workletTimeMs": 740.1360544217687,
+      "detector": {
+        "frequency": 391.99547028010875,
+        "confidence": 0.994322766367169,
+        "rms": 0.04722462341204438
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.0001514774911956076,
+        "smoothedCents": -0.000011439299656684184,
+        "readingFrequency": 391.9954333916008,
+        "inTune": true
+      },
+      "publication": {
+        "action": "published",
+        "note": "G4",
+        "cents": -0.000011439299656684184,
+        "frequency": 391.9954333916008,
+        "inTune": true
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 29,
+      "sampleIndex": 33792,
+      "timeMs": 766.2585034013606,
+      "workletTimeMs": 763.3560090702948,
+      "detector": {
+        "frequency": 391.99516050439837,
+        "confidence": 0.9943336287930343,
+        "rms": 0.04713033025865405
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.001216636454042985,
+        "smoothedCents": 0.000004879463386139981,
+        "readingFrequency": 391.99543708658393,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 30,
+      "sampleIndex": 34816,
+      "timeMs": 789.4784580498866,
+      "workletTimeMs": 786.5759637188208,
+      "detector": {
+        "frequency": 391.9953065798882,
+        "confidence": 0.9943439751712647,
+        "rms": 0.047118505969290576
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.0005714988601117252,
+        "smoothedCents": -0.000017776145451349706,
+        "readingFrequency": 391.9954319567777,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 31,
+      "sampleIndex": 35840,
+      "timeMs": 812.6984126984127,
+      "workletTimeMs": 809.7959183673469,
+      "detector": {
+        "frequency": 391.9954326717037,
+        "confidence": 0.9943479022523832,
+        "rms": 0.04696255865847402
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.000014618699805225837,
+        "smoothedCents": -0.000038162427043466,
+        "readingFrequency": 391.9954273408049,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 32,
+      "sampleIndex": 36864,
+      "timeMs": 835.9183673469388,
+      "workletTimeMs": 833.015873015873,
+      "detector": {
+        "frequency": 391.99540757249594,
+        "confidence": 0.9942912305564318,
+        "rms": 0.046890879573610406
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00012546847216159622,
+        "smoothedCents": -0.00004690754567142012,
+        "readingFrequency": 391.99542536068765,
+        "inTune": true
+      },
+      "publication": {
+        "action": "published",
+        "note": "G4",
+        "cents": -0.00004690754567142012,
+        "frequency": 391.99542536068765,
+        "inTune": true
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 33,
+      "sampleIndex": 37888,
+      "timeMs": 859.1383219954648,
+      "workletTimeMs": 856.235827664399,
+      "detector": {
+        "frequency": 391.9954550064886,
+        "confidence": 0.9942213330196641,
+        "rms": 0.04690714191358599
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.00008402208973110958,
+        "smoothedCents": -0.0000547766986120783,
+        "readingFrequency": 391.99542357891124,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 34,
+      "sampleIndex": 38912,
+      "timeMs": 882.358276643991,
+      "workletTimeMs": 879.4557823129252,
+      "detector": {
+        "frequency": 391.99540044950993,
+        "confidence": 0.9943312497775835,
+        "rms": 0.04703779307301354
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00015692689188120465,
+        "smoothedCents": -0.00006185762805831002,
+        "readingFrequency": 391.9954219756087,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 35,
+      "sampleIndex": 39936,
+      "timeMs": 905.578231292517,
+      "workletTimeMs": 902.6757369614512,
+      "detector": {
+        "frequency": 391.9956146533535,
+        "confidence": 0.9943182531438308,
+        "rms": 0.0471374212285974
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.0007890966729329153,
+        "smoothedCents": -0.00005712588203921511,
+        "readingFrequency": 391.99542304699634,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 36,
+      "sampleIndex": 40960,
+      "timeMs": 928.7981859410431,
+      "workletTimeMs": 925.8956916099773,
+      "detector": {
+        "frequency": 391.9956360482587,
+        "confidence": 0.9943046251425154,
+        "rms": 0.047153768679570385
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.0008835864730658516,
+        "smoothedCents": -0.000042987619842634644,
+        "readingFrequency": 391.9954262482585,
+        "inTune": true
+      },
+      "publication": {
+        "action": "published",
+        "note": "G4",
+        "cents": -0.000042987619842634644,
+        "frequency": 391.9954262482585,
+        "inTune": true
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 37,
+      "sampleIndex": 41984,
+      "timeMs": 952.0181405895692,
+      "workletTimeMs": 949.1156462585034,
+      "detector": {
+        "frequency": 391.9953865065541,
+        "confidence": 0.9943238776886135,
+        "rms": 0.04726843603933059
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00021850547222868096,
+        "smoothedCents": -0.000030265534268588472,
+        "readingFrequency": 391.9954291288623,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 38,
+      "sampleIndex": 43008,
+      "timeMs": 975.2380952380952,
+      "workletTimeMs": 972.3356009070294,
+      "detector": {
+        "frequency": 391.99544953284226,
+        "confidence": 0.9943236603553942,
+        "rms": 0.04719598069652988
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.00005984792428643787,
+        "smoothedCents": -0.00002123920758098457,
+        "readingFrequency": 391.99543117265233,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 39,
+      "sampleIndex": 44032,
+      "timeMs": 998.4580498866213,
+      "workletTimeMs": 995.5555555555555,
+      "detector": {
+        "frequency": 391.9951082405709,
+        "confidence": 0.9943367954324595,
+        "rms": 0.047131808562659035
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.0014474579863727713,
+        "smoothedCents": -0.000013117014135826314,
+        "readingFrequency": 391.99543301172355,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 40,
+      "sampleIndex": 45056,
+      "timeMs": 1021.6780045351475,
+      "workletTimeMs": 1018.7755102040817,
+      "detector": {
+        "frequency": 391.99539305552827,
+        "confidence": 0.994344782793149,
+        "rms": 0.04709389123925797
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00018958215479421956,
+        "smoothedCents": -0.000030792864492673965,
+        "readingFrequency": 391.99542900946136,
+        "inTune": true
+      },
+      "publication": {
+        "action": "published",
+        "note": "G4",
+        "cents": -0.000030792864492673965,
+        "frequency": 391.99542900946136,
+        "inTune": true
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 41,
+      "sampleIndex": 46080,
+      "timeMs": 1044.8979591836735,
+      "workletTimeMs": 1041.9954648526077,
+      "detector": {
+        "frequency": 391.99540461141976,
+        "confidence": 0.9943456880442869,
+        "rms": 0.04693610337578286
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00013854596199791222,
+        "smoothedCents": -0.00004669819130775023,
+        "readingFrequency": 391.9954254080908,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 42,
+      "sampleIndex": 47104,
+      "timeMs": 1068.1179138321995,
+      "workletTimeMs": 1065.2154195011337,
+      "detector": {
+        "frequency": 391.99541849186284,
+        "confidence": 0.9942666104981324,
+        "rms": 0.04688879300677472
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.0000772434697698648,
+        "smoothedCents": -0.00005589823752805247,
+        "readingFrequency": 391.9954233249663,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 43,
+      "sampleIndex": 48128,
+      "timeMs": 1091.3378684807255,
+      "workletTimeMs": 1088.4353741496598,
+      "detector": {
+        "frequency": 391.9954654556687,
+        "confidence": 0.9942356345732168,
+        "rms": 0.04692257011242509
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.00013017052300340012,
+        "smoothedCents": -0.00006417674967278934,
+        "readingFrequency": 391.9954214505006,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 44,
+      "sampleIndex": 49152,
+      "timeMs": 1114.5578231292516,
+      "workletTimeMs": 1111.6553287981858,
+      "detector": {
+        "frequency": 391.9953848959965,
+        "confidence": 0.9943440094013916,
+        "rms": 0.047073383961735
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.0002256184442547963,
+        "smoothedCents": -0.00007162603434913356,
+        "readingFrequency": 391.99541976379305,
+        "inTune": true
+      },
+      "publication": {
+        "action": "published",
+        "note": "G4",
+        "cents": -0.00007162603434913356,
+        "frequency": 391.99541976379305,
+        "inTune": true
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 45,
+      "sampleIndex": 50176,
+      "timeMs": 1137.7777777777778,
+      "workletTimeMs": 1134.875283446712,
+      "detector": {
+        "frequency": 391.99569885898353,
+        "confidence": 0.9943069153362408,
+        "rms": 0.04713450691138485
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.0011609876654818745,
+        "smoothedCents": -0.00007218871175678267,
+        "readingFrequency": 391.9954196363886,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 46,
+      "sampleIndex": 51200,
+      "timeMs": 1160.9977324263039,
+      "workletTimeMs": 1158.095238095238,
+      "detector": {
+        "frequency": 391.99554641675707,
+        "confidence": 0.9943108968166073,
+        "rms": 0.04717774532203503
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.00048773225700405627,
+        "smoothedCents": -0.00005191914724901737,
+        "readingFrequency": 391.99542422593356,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 47,
+      "sampleIndex": 52224,
+      "timeMs": 1184.2176870748299,
+      "workletTimeMs": 1181.315192743764,
+      "detector": {
+        "frequency": 391.99540929625033,
+        "confidence": 0.9943236766647632,
+        "rms": 0.04727234983171587
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00011785557108178942,
+        "smoothedCents": -0.00003367990888782683,
+        "readingFrequency": 391.9954283557611,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 48,
+      "sampleIndex": 53248,
+      "timeMs": 1207.4376417233561,
+      "workletTimeMs": 1204.5351473922904,
+      "detector": {
+        "frequency": 391.99539646289367,
+        "confidence": 0.9943254120691136,
+        "rms": 0.04716865484879878
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00017453364390394862,
+        "smoothedCents": -0.000042111468815627673,
+        "readingFrequency": 391.99542644664143,
+        "inTune": true
+      },
+      "publication": {
+        "action": "published",
+        "note": "G4",
+        "cents": -0.000042111468815627673,
+        "frequency": 391.99542644664143,
+        "inTune": true
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 49,
+      "sampleIndex": 54272,
+      "timeMs": 1230.657596371882,
+      "workletTimeMs": 1227.7551020408162,
+      "detector": {
+        "frequency": 391.9951023399537,
+        "confidence": 0.9943395602972319,
+        "rms": 0.04713590249710139
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.0014735178767510567,
+        "smoothedCents": -0.00004969847105343617,
+        "readingFrequency": 391.9954247287511,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 50,
+      "sampleIndex": 55296,
+      "timeMs": 1253.8775510204082,
+      "workletTimeMs": 1250.9750566893424,
+      "detector": {
+        "frequency": 391.9954498022897,
+        "confidence": 0.9943457052044821,
+        "rms": 0.04706134387253612
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.00006103792940655339,
+        "smoothedCents": -0.000056525511772996965,
+        "readingFrequency": 391.99542318293544,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 51,
+      "sampleIndex": 56320,
+      "timeMs": 1277.0975056689342,
+      "workletTimeMs": 1274.1950113378684,
+      "detector": {
+        "frequency": 391.9953882877445,
+        "confidence": 0.9943393633755396,
+        "rms": 0.04691647588249613
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00021063890661234596,
+        "smoothedCents": -0.00006834594314349487,
+        "readingFrequency": 391.99542050648915,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 52,
+      "sampleIndex": 57344,
+      "timeMs": 1300.3174603174602,
+      "workletTimeMs": 1297.4149659863945,
+      "detector": {
+        "frequency": 391.995426323769,
+        "confidence": 0.9942433205801383,
+        "rms": 0.046889223215119034
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.000042654130565139296,
+        "smoothedCents": -0.00007898236629979952,
+        "readingFrequency": 391.9954180981324,
+        "inTune": true
+      },
+      "publication": {
+        "action": "published",
+        "note": "G4",
+        "cents": -0.00007898236629979952,
+        "frequency": 391.9954180981324,
+        "inTune": true
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 53,
+      "sampleIndex": 58368,
+      "timeMs": 1323.5374149659865,
+      "workletTimeMs": 1320.6349206349207,
+      "detector": {
+        "frequency": 391.9954660298201,
+        "confidence": 0.9942591448937766,
+        "rms": 0.04694457306303064
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.00013270624234255367,
+        "smoothedCents": -0.00007534350337096077,
+        "readingFrequency": 391.99541892206355,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 54,
+      "sampleIndex": 59392,
+      "timeMs": 1346.7573696145125,
+      "workletTimeMs": 1343.8548752834467,
+      "detector": {
+        "frequency": 391.995399500501,
+        "confidence": 0.994346628828834,
+        "rms": 0.04710355668439607
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00016111815677417993,
+        "smoothedCents": -0.00007206913167455049,
+        "readingFrequency": 391.9954196634646,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 55,
+      "sampleIndex": 60416,
+      "timeMs": 1369.9773242630386,
+      "workletTimeMs": 1367.0748299319728,
+      "detector": {
+        "frequency": 391.9957477737213,
+        "confidence": 0.994299787039656,
+        "rms": 0.047130736002689355
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.0013770177252574016,
+        "smoothedCents": -0.00006912274149280369,
+        "readingFrequency": 391.9954203306022,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 56,
+      "sampleIndex": 61440,
+      "timeMs": 1393.1972789115646,
+      "workletTimeMs": 1390.2947845804988,
+      "detector": {
+        "frequency": 391.99546501008973,
+        "confidence": 0.9943166900062022,
+        "rms": 0.047206092274682275
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.00012820263928466736,
+        "smoothedCents": -0.000049357399231906284,
+        "readingFrequency": 391.9954248059784,
+        "inTune": true
+      },
+      "publication": {
+        "action": "published",
+        "note": "G4",
+        "cents": -0.000049357399231906284,
+        "frequency": 391.9954248059784,
+        "inTune": true
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 57,
+      "sampleIndex": 62464,
+      "timeMs": 1416.4172335600906,
+      "workletTimeMs": 1413.5147392290248,
+      "detector": {
+        "frequency": 391.9954406435145,
+        "confidence": 0.9943230595697002,
+        "rms": 0.047264315564876924
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.000020588521836364898,
+        "smoothedCents": -0.00003157187706891603,
+        "readingFrequency": 391.9954288330731,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 58,
+      "sampleIndex": 63488,
+      "timeMs": 1439.6371882086166,
+      "workletTimeMs": 1436.7346938775509,
+      "detector": {
+        "frequency": 391.99531717298674,
+        "confidence": 0.9943279155041492,
+        "rms": 0.047147134642486724
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.0005247147983559468,
+        "smoothedCents": -0.00002634716581907197,
+        "readingFrequency": 391.99543001608066,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 59,
+      "sampleIndex": 64512,
+      "timeMs": 1462.857142857143,
+      "workletTimeMs": 1459.954648526077,
+      "detector": {
+        "frequency": 391.9951461982909,
+        "confidence": 0.994341694535165,
+        "rms": 0.04713725521309507
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.0012798189197460665,
+        "smoothedCents": -0.000021645794271706322,
+        "readingFrequency": 391.9954310805907,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 60,
+      "sampleIndex": 65536,
+      "timeMs": 1486.077097505669,
+      "workletTimeMs": 1483.1746031746031,
+      "detector": {
+        "frequency": 391.9954686253231,
+        "confidence": 0.9943468551895236,
+        "rms": 0.04702491204879267
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.00014416918908393819,
+        "smoothedCents": -0.000017415341454426022,
+        "readingFrequency": 391.99543203847287,
+        "inTune": true
+      },
+      "publication": {
+        "action": "published",
+        "note": "G4",
+        "cents": -0.000017415341454426022,
+        "frequency": 391.99543203847287,
+        "inTune": true
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 61,
+      "sampleIndex": 66560,
+      "timeMs": 1509.2970521541952,
+      "workletTimeMs": 1506.3945578231294,
+      "detector": {
+        "frequency": 391.9953872736223,
+        "confidence": 0.9943275090832505,
+        "rms": 0.04690312006964708
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00021511774198694193,
+        "smoothedCents": -0.00003721844836814332,
+        "readingFrequency": 391.9954275545457,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 62,
+      "sampleIndex": 67584,
+      "timeMs": 1532.5170068027212,
+      "workletTimeMs": 1529.6145124716554,
+      "detector": {
+        "frequency": 391.9954339383545,
+        "confidence": 0.9942259406928305,
+        "rms": 0.04689227396699031
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.000009024581050141431,
+        "smoothedCents": -0.000055037952440520056,
+        "readingFrequency": 391.9954235197567,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 63,
+      "sampleIndex": 68608,
+      "timeMs": 1555.736961451247,
+      "workletTimeMs": 1552.8344671201812,
+      "detector": {
+        "frequency": 391.9954514735395,
+        "confidence": 0.9942870747092617,
+        "rms": 0.04697332180315725
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.0000684189451631239,
+        "smoothedCents": -0.00005042896584931088,
+        "readingFrequency": 391.99542456334854,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 64,
+      "sampleIndex": 69632,
+      "timeMs": 1578.9569160997733,
+      "workletTimeMs": 1576.0544217687075,
+      "detector": {
+        "frequency": 391.99545197798324,
+        "confidence": 0.9943405337433264,
+        "rms": 0.04712473724419459
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.00007064680314527731,
+        "smoothedCents": -0.00003852441698236822,
+        "readingFrequency": 391.99542725884123,
+        "inTune": true
+      },
+      "publication": {
+        "action": "published",
+        "note": "G4",
+        "cents": -0.00003852441698236822,
+        "frequency": 391.99542725884123,
+        "inTune": true
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 65,
+      "sampleIndex": 70656,
+      "timeMs": 1602.1768707482993,
+      "workletTimeMs": 1599.2743764172335,
+      "detector": {
+        "frequency": 391.9957477601161,
+        "confidence": 0.9942977909421578,
+        "rms": 0.04713129225898599
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.0013769576383779872,
+        "smoothedCents": -0.000027812302063302103,
+        "readingFrequency": 391.9954296843365,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 66,
+      "sampleIndex": 71680,
+      "timeMs": 1625.3968253968253,
+      "workletTimeMs": 1622.4943310657595,
+      "detector": {
+        "frequency": 391.9954084251854,
+        "confidence": 0.9943209124678262,
+        "rms": 0.04723401006047823
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00012170259891133584,
+        "smoothedCents": -0.00001817317946219927,
+        "readingFrequency": 391.9954318668791,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 67,
+      "sampleIndex": 72704,
+      "timeMs": 1648.6167800453516,
+      "workletTimeMs": 1645.7142857142858,
+      "detector": {
+        "frequency": 391.9954651803799,
+        "confidence": 0.9943226467834902,
+        "rms": 0.04724570784869755
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.00012895471971399467,
+        "smoothedCents": -0.000009276415402113495,
+        "readingFrequency": 391.9954338813328,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 68,
+      "sampleIndex": 73728,
+      "timeMs": 1671.8367346938776,
+      "workletTimeMs": 1668.9342403628118,
+      "detector": {
+        "frequency": 391.9952272154597,
+        "confidence": 0.9943309468895544,
+        "rms": 0.04713422916425966
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.0009220092171233591,
+        "smoothedCents": -0.0000012708067826974148,
+        "readingFrequency": 391.9954356940063,
+        "inTune": true
+      },
+      "publication": {
+        "action": "published",
+        "note": "G4",
+        "cents": -0.0000012708067826974148,
+        "frequency": 391.9954356940063,
+        "inTune": true
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 69,
+      "sampleIndex": 74752,
+      "timeMs": 1695.0566893424036,
+      "workletTimeMs": 1692.1541950113378,
+      "detector": {
+        "frequency": 391.9952276868258,
+        "confidence": 0.9943431558677347,
+        "rms": 0.04713114338576723
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.0009199274441875462,
+        "smoothedCents": -0.000013334007072173604,
+        "readingFrequency": 391.9954329625908,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 70,
+      "sampleIndex": 75776,
+      "timeMs": 1718.2766439909296,
+      "workletTimeMs": 1715.3741496598639,
+      "detector": {
+        "frequency": 391.9954558293528,
+        "confidence": 0.994347863985767,
+        "rms": 0.0469890664458142
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.00008765624058166478,
+        "smoothedCents": -0.000024188881896654793,
+        "readingFrequency": 391.99543050477104,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 71,
+      "sampleIndex": 76800,
+      "timeMs": 1741.4965986394557,
+      "workletTimeMs": 1738.59410430839,
+      "detector": {
+        "frequency": 391.99539699689956,
+        "confidence": 0.9943096935335362,
+        "rms": 0.04689482336981775
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00017217522552826793,
+        "smoothedCents": -0.00003901211811843717,
+        "readingFrequency": 391.9954271484133,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 72,
+      "sampleIndex": 77824,
+      "timeMs": 1764.716553287982,
+      "workletTimeMs": 1761.8140589569161,
+      "detector": {
+        "frequency": 391.99544445587077,
+        "confidence": 0.9942184508460591,
+        "rms": 0.046898621740592915
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.00003742565898900538,
+        "smoothedCents": -0.00005235056644226512,
+        "readingFrequency": 391.9954241282492,
+        "inTune": true
+      },
+      "publication": {
+        "action": "published",
+        "note": "G4",
+        "cents": -0.00005235056644226512,
+        "frequency": 391.9954241282492,
+        "inTune": true
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 73,
+      "sampleIndex": 78848,
+      "timeMs": 1787.936507936508,
+      "workletTimeMs": 1785.0340136054422,
+      "detector": {
+        "frequency": 391.99542427373075,
+        "confidence": 0.9943137703024391,
+        "rms": 0.047007519924643304
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.000051708052598469586,
+        "smoothedCents": -0.0000522862082437407,
+        "readingFrequency": 391.9954241428216,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 74,
+      "sampleIndex": 79872,
+      "timeMs": 1811.156462585034,
+      "workletTimeMs": 1808.2539682539682,
+      "detector": {
+        "frequency": 391.99553582342577,
+        "confidence": 0.994329002463486,
+        "rms": 0.04713550062553387
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.0004409471946929327,
+        "smoothedCents": -0.0000433001074505585,
+        "readingFrequency": 391.9954261775034,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 75,
+      "sampleIndex": 80896,
+      "timeMs": 1834.3764172335602,
+      "workletTimeMs": 1831.4739229024945,
+      "detector": {
+        "frequency": 391.99570040137263,
+        "confidence": 0.9943003037509807,
+        "rms": 0.04713983516088715
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.001167799568096938,
+        "smoothedCents": -0.00003521411062306154,
+        "readingFrequency": 391.9954280083787,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 76,
+      "sampleIndex": 81920,
+      "timeMs": 1857.5963718820863,
+      "workletTimeMs": 1854.6938775510205,
+      "detector": {
+        "frequency": 391.99538392332363,
+        "confidence": 0.9943232244950849,
+        "rms": 0.04725661725807649
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00022991422015660698,
+        "smoothedCents": -0.000027938057727694928,
+        "readingFrequency": 391.99542965586227,
+        "inTune": true
+      },
+      "publication": {
+        "action": "published",
+        "note": "G4",
+        "cents": -0.000027938057727694928,
+        "frequency": 391.99542965586227,
+        "inTune": true
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 77,
+      "sampleIndex": 82944,
+      "timeMs": 1880.816326530612,
+      "workletTimeMs": 1877.9138321995463,
+      "detector": {
+        "frequency": 391.9954689371666,
+        "confidence": 0.9943228604777278,
+        "rms": 0.04721974687728184
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.00014554643505019536,
+        "smoothedCents": -0.000010560767674064671,
+        "readingFrequency": 391.9954335905228,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 78,
+      "sampleIndex": 83968,
+      "timeMs": 1904.0362811791383,
+      "workletTimeMs": 1901.1337868480725,
+      "detector": {
+        "frequency": 391.9951486308284,
+        "confidence": 0.9943341968908878,
+        "rms": 0.047130185298526424
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.0012690756955027534,
+        "smoothedCents": 0.0000050759045020095,
+        "readingFrequency": 391.99543713106317,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 79,
+      "sampleIndex": 84992,
+      "timeMs": 1927.2562358276643,
+      "workletTimeMs": 1924.3537414965986,
+      "detector": {
+        "frequency": 391.9953230214632,
+        "confidence": 0.9943441218341423,
+        "rms": 0.04711491019248722
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.0004988852003840799,
+        "smoothedCents": -0.000018462173688988163,
+        "readingFrequency": 391.99543180144343,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 80,
+      "sampleIndex": 86016,
+      "timeMs": 1950.4761904761904,
+      "workletTimeMs": 1947.5736961451246,
+      "detector": {
+        "frequency": 391.9954273754851,
+        "confidence": 0.9943477353168052,
+        "rms": 0.046957457854931314
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00003800926325467602,
+        "smoothedCents": -0.000039642530993925585,
+        "readingFrequency": 391.99542700567173,
+        "inTune": true
+      },
+      "publication": {
+        "action": "published",
+        "note": "G4",
+        "cents": -0.000039642530993925585,
+        "frequency": 391.99542700567173,
+        "inTune": true
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 81,
+      "sampleIndex": 87040,
+      "timeMs": 1973.6961451247166,
+      "workletTimeMs": 1970.7936507936508,
+      "detector": {
+        "frequency": 391.99540971198223,
+        "confidence": 0.9942870242390585,
+        "rms": 0.04689031992921548
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00011601950553008333,
+        "smoothedCents": -0.000047292925670023794,
+        "readingFrequency": 391.99542527342777,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 82,
+      "sampleIndex": 88064,
+      "timeMs": 1996.9160997732426,
+      "workletTimeMs": 1994.0136054421769,
+      "detector": {
+        "frequency": 391.9954571979273,
+        "confidence": 0.9942230158799947,
+        "rms": 0.046909402541341225
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.00009370050101457992,
+        "smoothedCents": -0.00005417700904542537,
+        "readingFrequency": 391.9954237146962,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 83,
+      "sampleIndex": 89088,
+      "timeMs": 2020.136054421769,
+      "workletTimeMs": 2017.2335600907031,
+      "detector": {
+        "frequency": 391.9953962345044,
+        "confidence": 0.994334195556043,
+        "rms": 0.04704420458653862
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00017554231703201538,
+        "smoothedCents": -0.00006037153964494355,
+        "readingFrequency": 391.99542231209693,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 84,
+      "sampleIndex": 90112,
+      "timeMs": 2043.356009070295,
+      "workletTimeMs": 2040.4535147392291,
+      "detector": {
+        "frequency": 391.9956309134338,
+        "confidence": 0.9943160628365258,
+        "rms": 0.04713721204652817
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.0008609087112160961,
+        "smoothedCents": -0.000058131594409085236,
+        "readingFrequency": 391.9954228192775,
+        "inTune": true
+      },
+      "publication": {
+        "action": "published",
+        "note": "G4",
+        "cents": -0.000058131594409085236,
+        "frequency": 391.9954228192775,
+        "inTune": true
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 85,
+      "sampleIndex": 91136,
+      "timeMs": 2066.575963718821,
+      "workletTimeMs": 2063.6734693877556,
+      "detector": {
+        "frequency": 391.9956207533087,
+        "confidence": 0.9943056850801794,
+        "rms": 0.04715746188810276
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.0008160368979052401,
+        "smoothedCents": -0.000042923143674497154,
+        "readingFrequency": 391.99542626285756,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 86,
+      "sampleIndex": 92160,
+      "timeMs": 2089.795918367347,
+      "workletTimeMs": 2086.8934240362814,
+      "detector": {
+        "frequency": 391.99538922668705,
+        "confidence": 0.9943239038344477,
+        "rms": 0.04726997783267523
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00020649209933442126,
+        "smoothedCents": -0.00002923806632878994,
+        "readingFrequency": 391.9954293615072,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 87,
+      "sampleIndex": 93184,
+      "timeMs": 2113.0158730158732,
+      "workletTimeMs": 2110.1133786848077,
+      "detector": {
+        "frequency": 391.99544254876264,
+        "confidence": 0.99432390569826,
+        "rms": 0.04719097338405768
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.000029002983384170662,
+        "smoothedCents": -0.000023404279125770154,
+        "readingFrequency": 391.9954306824251,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 88,
+      "sampleIndex": 94208,
+      "timeMs": 2136.235827664399,
+      "workletTimeMs": 2133.3333333333335,
+      "detector": {
+        "frequency": 391.99510357067805,
+        "confidence": 0.9943373155834044,
+        "rms": 0.04713248208138007
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.0014680824212453824,
+        "smoothedCents": -0.000018154840475838855,
+        "readingFrequency": 391.9954318710315,
+        "inTune": true
+      },
+      "publication": {
+        "action": "published",
+        "note": "G4",
+        "cents": -0.000018154840475838855,
+        "frequency": 391.9954318710315,
+        "inTune": true
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 89,
+      "sampleIndex": 95232,
+      "timeMs": 2159.455782312925,
+      "workletTimeMs": 2156.5532879818593,
+      "detector": {
+        "frequency": 391.9954055307061,
+        "confidence": 0.994344927994324,
+        "rms": 0.04708867997715191
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00013448596589967854,
+        "smoothedCents": -0.0000298072923831308,
+        "readingFrequency": 391.9954292326199,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 90,
+      "sampleIndex": 96256,
+      "timeMs": 2182.675736961451,
+      "workletTimeMs": 2179.7732426303855,
+      "detector": {
+        "frequency": 391.99540069445595,
+        "confidence": 0.9943449275221332,
+        "rms": 0.04693218560652707
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00015584509625485876,
+        "smoothedCents": -0.00004243202581337287,
+        "readingFrequency": 391.99542637405915,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 91,
+      "sampleIndex": 97280,
+      "timeMs": 2205.8956916099773,
+      "workletTimeMs": 2202.993197278912,
+      "detector": {
+        "frequency": 391.9954200329552,
+        "confidence": 0.9942623194955187,
+        "rms": 0.04688869150184524
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00007043728904851404,
+        "smoothedCents": -0.000051652723247738215,
+        "readingFrequency": 391.9954242862587,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 92,
+      "sampleIndex": 98304,
+      "timeMs": 2229.115646258503,
+      "workletTimeMs": 2226.2131519274376,
+      "detector": {
+        "frequency": 391.9954664800946,
+        "confidence": 0.9942391906387928,
+        "rms": 0.04692591907153957
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.0001346948635000949,
+        "smoothedCents": -0.00005994981805198893,
+        "readingFrequency": 391.9954224075854,
+        "inTune": true
+      },
+      "publication": {
+        "action": "published",
+        "note": "G4",
+        "cents": -0.00005994981805198893,
+        "frequency": 391.9954224075854,
+        "inTune": true
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 93,
+      "sampleIndex": 99328,
+      "timeMs": 2252.3356009070294,
+      "workletTimeMs": 2249.433106575964,
+      "detector": {
+        "frequency": 391.9953848979266,
+        "confidence": 0.9943451877791443,
+        "rms": 0.0470791645883378
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00022560991993575877,
+        "smoothedCents": -0.00006741582403263799,
+        "readingFrequency": 391.9954207170918,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 94,
+      "sampleIndex": 100352,
+      "timeMs": 2275.5555555555557,
+      "workletTimeMs": 2272.65306122449,
+      "detector": {
+        "frequency": 391.99571050179054,
+        "confidence": 0.9943053188504558,
+        "rms": 0.04713375491229599
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.0012124076775532862,
+        "smoothedCents": -0.00006771847283500096,
+        "readingFrequency": 391.9954206485644,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 95,
+      "sampleIndex": 101376,
+      "timeMs": 2298.7755102040815,
+      "workletTimeMs": 2295.873015873016,
+      "detector": {
+        "frequency": 391.995531037818,
+        "confidence": 0.9943119835442364,
+        "rms": 0.0471825068760135
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.00041981173161022186,
+        "smoothedCents": -0.00004744348917567616,
+        "readingFrequency": 391.9954252393364,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 96,
+      "sampleIndex": 102400,
+      "timeMs": 2321.9954648526077,
+      "workletTimeMs": 2319.092970521542,
+      "detector": {
+        "frequency": 391.9954145890967,
+        "confidence": 0.9943235793347752,
+        "rms": 0.04727179499878062
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.0000944798997967194,
+        "smoothedCents": -0.000029199374478983755,
+        "readingFrequency": 391.995429370268,
+        "inTune": true
+      },
+      "publication": {
+        "action": "published",
+        "note": "G4",
+        "cents": -0.000029199374478983755,
+        "frequency": 391.995429370268,
+        "inTune": true
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 97,
+      "sampleIndex": 103424,
+      "timeMs": 2345.215419501134,
+      "workletTimeMs": 2342.3129251700684,
+      "detector": {
+        "frequency": 391.99538418279246,
+        "confidence": 0.9943258000925946,
+        "rms": 0.04716437072815488
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.00022876828508630628,
+        "smoothedCents": -0.00003573827951386789,
+        "readingFrequency": 391.9954278896936,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 98,
+      "sampleIndex": 104448,
+      "timeMs": 2368.4353741496598,
+      "workletTimeMs": 2365.532879818594,
+      "detector": {
+        "frequency": 391.99510655829437,
+        "confidence": 0.9943399824503832,
+        "rms": 0.047136487081014075
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.0014548877077635188,
+        "smoothedCents": -0.00004162220699078768,
+        "readingFrequency": 391.9954265574227,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 99,
+      "sampleIndex": 105472,
+      "timeMs": 2391.655328798186,
+      "workletTimeMs": 2388.7528344671205,
+      "detector": {
+        "frequency": 391.99545582446683,
+        "confidence": 0.9943458925794202,
+        "rms": 0.047055132468068236
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.00008763466166114224,
+        "smoothedCents": -0.000046916763551703767,
+        "readingFrequency": 391.9954253586004,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 100,
+      "sampleIndex": 106496,
+      "timeMs": 2414.8752834467123,
+      "workletTimeMs": 2411.9727891156467,
+      "detector": {
+        "frequency": 391.99538704954244,
+        "confidence": 0.9943377201973763,
+        "rms": 0.046913720785092254
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.0002161073831309396,
+        "smoothedCents": -0.00006386395245432221,
+        "readingFrequency": 391.99542152132585,
+        "inTune": true
+      },
+      "publication": {
+        "action": "published",
+        "note": "G4",
+        "cents": -0.00006386395245432221,
+        "frequency": 391.99542152132585,
+        "inTune": true
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 101,
+      "sampleIndex": 107520,
+      "timeMs": 2438.0952380952385,
+      "workletTimeMs": 2435.192743764173,
+      "detector": {
+        "frequency": 391.99542755605216,
+        "confidence": 0.9942397318557468,
+        "rms": 0.046889555176268645
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.000037211795131884746,
+        "smoothedCents": -0.0000791136050962703,
+        "readingFrequency": 391.9954180684166,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 102,
+      "sampleIndex": 108544,
+      "timeMs": 2461.315192743764,
+      "workletTimeMs": 2458.4126984126983,
+      "detector": {
+        "frequency": 391.99546462284616,
+        "confidence": 0.9942638609872024,
+        "rms": 0.04694912312572309
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": 0.00012649239176214735,
+        "smoothedCents": -0.00007491645817054804,
+        "readingFrequency": 391.99541901875745,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    },
+    {
+      "frameIndex": 103,
+      "sampleIndex": 109568,
+      "timeMs": 2484.53514739229,
+      "workletTimeMs": 2481.6326530612246,
+      "detector": {
+        "frequency": 391.99540591706887,
+        "confidence": 0.9943461183188014,
+        "rms": 0.0471079776392089
+      },
+      "tracker": {
+        "target": {
+          "note": "G4",
+          "frequency": 391.99543598174927,
+          "index": 0
+        },
+        "rawCents": -0.0001327796081685828,
+        "smoothedCents": -0.00007113972368837097,
+        "readingFrequency": 391.9954198739062,
+        "inTune": true
+      },
+      "publication": {
+        "action": "skipped",
+        "note": null,
+        "cents": null,
+        "frequency": null,
+        "inTune": null
+      },
+      "confirmation": {
+        "event": false,
+        "stringIndex": 0,
+        "note": "G4"
+      }
+    }
+  ]
+}
