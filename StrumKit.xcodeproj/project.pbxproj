@@ -86,6 +86,7 @@
 		DAE10F4873A7DE94A7B006AD /* TunerConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F98FE3E635BC0A75AD534C0 /* TunerConfig.swift */; };
 		DD8FEA0DACAF8F73CA0C37CC /* TunerAnalysisSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 031E6C3A15D93581DB6C366C /* TunerAnalysisSession.swift */; };
 		E07B8CA689377914D2C373AD /* Presets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F51B32045794153285F340C /* Presets.swift */; };
+		E5E6B7F3D153305CADD34D6E /* TuningResponsivenessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5BE595AE27A93A26A52057C /* TuningResponsivenessTests.swift */; };
 		ECF4D8EEAFF0033CA3FAF1D5 /* MusicalNoteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AECC7DF1BA2D4B95A1958BB7 /* MusicalNoteTests.swift */; };
 		EE431589DC9ECBA4E7DE9FA2 /* all-4-with-noise.wav in Resources */ = {isa = PBXBuildFile; fileRef = F23D0FA3335EBD3143A73417 /* all-4-with-noise.wav */; };
 		EF653ABD4DAE3FC4A17B04CF /* TunerPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2551E2EB45BCA59A50839515 /* TunerPresentation.swift */; };
@@ -170,6 +171,7 @@
 		AECC7DF1BA2D4B95A1958BB7 /* MusicalNoteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicalNoteTests.swift; sourceTree = "<group>"; };
 		B14F288E8C230CDC6CEA564A /* CoverageMatrixTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverageMatrixTests.swift; sourceTree = "<group>"; };
 		B28195D6B35004A7A55202D3 /* quiet_a.m4a */ = {isa = PBXFileReference; path = quiet_a.m4a; sourceTree = "<group>"; };
+		B5BE595AE27A93A26A52057C /* TuningResponsivenessTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TuningResponsivenessTests.swift; sourceTree = "<group>"; };
 		B6568857B430833DE9CE4A1C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		BA578D377A3311499692210C /* AudioPermissionStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPermissionStatus.swift; sourceTree = "<group>"; };
 		BF9B7515D46B65D7111B714A /* PitchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PitchTests.swift; sourceTree = "<group>"; };
@@ -260,6 +262,7 @@
 				911E632731D51D44658C7EEA /* SustainContinuityTests.swift */,
 				09567FB37CE8D5799FE61DDF /* TrackerTests.swift */,
 				32196A1344E1B81BC9B48A9F /* TunerPresentationTests.swift */,
+				B5BE595AE27A93A26A52057C /* TuningResponsivenessTests.swift */,
 				A41901C0DBFCC7468EA0D492 /* TuningTests.swift */,
 				5F25BAA7166533C06E014404 /* Fixtures */,
 			);
@@ -598,6 +601,7 @@
 				D7B42945F1ECC2BC7187AE39 /* SustainContinuityTests.swift in Sources */,
 				121C02413A7863626F04FC9D /* TrackerTests.swift in Sources */,
 				938B51460B0696F699DF7AAB /* TunerPresentationTests.swift in Sources */,
+				E5E6B7F3D153305CADD34D6E /* TuningResponsivenessTests.swift in Sources */,
 				0ABE7971D67B6B6E051781D5 /* TuningTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
