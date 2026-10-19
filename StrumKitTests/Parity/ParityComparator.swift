@@ -396,7 +396,7 @@ public struct ParityComparator: Sendable {
                 candidate = FaithfulPitchCandidate(
                     frequency: freq,
                     confidence: conf,
-                    rms: frame.detector.rms,
+                    rms: frame.detector.rms ?? 0.0,
                     oddOnly: frame.detector.oddOnly,
                     foregroundAgrees: frame.detector.foregroundAgrees
                 )
@@ -512,7 +512,7 @@ public struct ParityComparator: Sendable {
                 candidate = FaithfulPitchCandidate(
                     frequency: freq,
                     confidence: conf,
-                    rms: frame.detector.rms,
+                    rms: frame.detector.rms ?? 0.0,
                     oddOnly: frame.detector.oddOnly,
                     foregroundAgrees: frame.detector.foregroundAgrees
                 )
@@ -963,33 +963,62 @@ public struct ParityComparator: Sendable {
     }
 
     private func checkRMS(
-        expected: Double,
-        actual: Double,
+        expected: Double?,
+        actual: Double?,
         fieldPath: String,
         frameIndex: Int,
         sampleIndex: Int?,
         timeMs: Double?,
         divergences: inout [ParityDivergence]
     ) {
-        guard checkFinite(expected, fieldPath: "\(fieldPath) (expected)", frameIndex: frameIndex, sampleIndex: sampleIndex, timeMs: timeMs, divergences: &divergences),
-              checkFinite(actual, fieldPath: fieldPath, frameIndex: frameIndex, sampleIndex: sampleIndex, timeMs: timeMs, divergences: &divergences) else {
-            return
-        }
+        switch (expected, actual) {
+        case (nil, nil):
+            break
+        case (.some(let exp), nil):
+            if discreteRules.nullMaskExact {
+                recordFlippedNullMask(
+                    expected: "\(exp)",
+                    actual: "null",
+                    fieldPath: fieldPath,
+                    frameIndex: frameIndex,
+                    sampleIndex: sampleIndex,
+                    timeMs: timeMs,
+                    divergences: &divergences
+                )
+            }
+        case (nil, .some(let act)):
+            if discreteRules.nullMaskExact {
+                recordFlippedNullMask(
+                    expected: "null",
+                    actual: "\(act)",
+                    fieldPath: fieldPath,
+                    frameIndex: frameIndex,
+                    sampleIndex: sampleIndex,
+                    timeMs: timeMs,
+                    divergences: &divergences
+                )
+            }
+        case (.some(let exp), .some(let act)):
+            guard checkFinite(exp, fieldPath: "\(fieldPath) (expected)", frameIndex: frameIndex, sampleIndex: sampleIndex, timeMs: timeMs, divergences: &divergences),
+                  checkFinite(act, fieldPath: fieldPath, frameIndex: frameIndex, sampleIndex: sampleIndex, timeMs: timeMs, divergences: &divergences) else {
+                return
+            }
 
-        let delta = abs(actual - expected)
-        let allowedBudget = budgets.rmsAbsolute + budgets.rmsRelative * abs(expected)
-        if delta > allowedBudget {
-            divergences.append(ParityDivergence(
-                frameIndex: frameIndex,
-                sampleIndex: sampleIndex,
-                timeMs: timeMs,
-                fieldPath: fieldPath,
-                expected: String(format: "%.11g", expected),
-                actual: String(format: "%.11g", actual),
-                delta: delta,
-                budget: allowedBudget,
-                message: "RMS delta \(delta) exceeds compound budget \(allowedBudget) (abs: \(budgets.rmsAbsolute), rel: \(budgets.rmsRelative))"
-            ))
+            let delta = abs(act - exp)
+            let allowedBudget = budgets.rmsAbsolute + budgets.rmsRelative * abs(exp)
+            if delta > allowedBudget {
+                divergences.append(ParityDivergence(
+                    frameIndex: frameIndex,
+                    sampleIndex: sampleIndex,
+                    timeMs: timeMs,
+                    fieldPath: fieldPath,
+                    expected: String(format: "%.11g", exp),
+                    actual: String(format: "%.11g", act),
+                    delta: delta,
+                    budget: allowedBudget,
+                    message: "RMS delta \(delta) exceeds compound budget \(allowedBudget) (abs: \(budgets.rmsAbsolute), rel: \(budgets.rmsRelative))"
+                ))
+            }
         }
     }
 

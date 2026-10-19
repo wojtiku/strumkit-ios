@@ -93,14 +93,14 @@ public struct ParityDiscreteRules: Sendable, Codable, Equatable {
 public struct ParityDetectorOutput: Sendable, Codable, Equatable {
     public var frequency: Double?
     public var confidence: Double?
-    public var rms: Double
+    public var rms: Double?
     public var foregroundAgrees: Bool?
     public var oddOnly: Bool?
 
     public init(
         frequency: Double? = nil,
         confidence: Double? = nil,
-        rms: Double,
+        rms: Double? = nil,
         foregroundAgrees: Bool? = nil,
         oddOnly: Bool? = nil
     ) {

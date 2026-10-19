@@ -487,7 +487,7 @@ struct StatelessDetectorTests {
                 if let candidate = candidate {
                     #expect(abs(candidate.frequency - expectedDetector.frequency!) < budgets.frequencyAbsoluteHz)
                     #expect(abs(candidate.confidence - expectedDetector.confidence!) < budgets.confidenceAbsolute)
-                    #expect(abs(candidate.rms - expectedDetector.rms) < (budgets.rmsAbsolute + budgets.rmsRelative * expectedDetector.rms))
+                    #expect(abs(candidate.rms - expectedDetector.rms!) < (budgets.rmsAbsolute + budgets.rmsRelative * expectedDetector.rms!))
                 }
             } else if name == "vector-silence-zeros-48000" {
                 let input = [Float](repeating: 0, count: 4096)
@@ -508,7 +508,7 @@ struct StatelessDetectorTests {
                 if let candidate = candidate {
                     #expect(abs(candidate.frequency - expectedDetector.frequency!) < budgets.frequencyAbsoluteHz)
                     #expect(abs(candidate.confidence - expectedDetector.confidence!) < budgets.confidenceAbsolute)
-                    #expect(abs(candidate.rms - expectedDetector.rms) < (budgets.rmsAbsolute + budgets.rmsRelative * expectedDetector.rms))
+                    #expect(abs(candidate.rms - expectedDetector.rms!) < (budgets.rmsAbsolute + budgets.rmsRelative * expectedDetector.rms!))
                 }
             }
         }

@@ -91,7 +91,7 @@ struct DifferentialHarnessTests {
         if let c = mutated.frames[4].detector.confidence {
             mutated.frames[4].detector.confidence = c + 5e-10
         }
-        mutated.frames[4].detector.rms += 5e-11
+        mutated.frames[4].detector.rms = (mutated.frames[4].detector.rms ?? 0.0) + 5e-11
         mutated.frames[4].timeMs += 5e-7
         mutated.frames[4].workletTimeMs += 5e-7
 
@@ -187,7 +187,7 @@ struct DifferentialHarnessTests {
         var mutated = trace
 
         // Compound budget: 1e-10 abs + 1e-7 rel. Incur a 1e-5 error.
-        mutated.frames[2].detector.rms += 1e-5
+        mutated.frames[2].detector.rms = (mutated.frames[2].detector.rms ?? 0.0) + 1e-5
 
         let comparator = ParityComparator()
         let result = comparator.compare(expected: trace, actual: mutated)
