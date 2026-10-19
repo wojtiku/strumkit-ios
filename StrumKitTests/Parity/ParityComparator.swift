@@ -198,6 +198,91 @@ public struct ParityComparator: Sendable {
         return ParityComparisonResult(divergences: divergences)
     }
 
+    /// Compares expected trace detector frames against actual detector outputs.
+    public func compareDetectorOutputs(
+        expectedFrames: [ParityFrame],
+        actualOutputs: [ParityDetectorOutput]
+    ) -> ParityComparisonResult {
+        var divergences: [ParityDivergence] = []
+
+        if expectedFrames.count != actualOutputs.count {
+            divergences.append(ParityDivergence(
+                frameIndex: min(expectedFrames.count, actualOutputs.count),
+                fieldPath: "detectorFrames.count",
+                expected: "\(expectedFrames.count)",
+                actual: "\(actualOutputs.count)",
+                message: "Detector frame count mismatch: expected \(expectedFrames.count), got \(actualOutputs.count)"
+            ))
+        }
+
+        let count = min(expectedFrames.count, actualOutputs.count)
+        for i in 0..<count {
+            if divergences.count >= maxRecordedDivergences {
+                break
+            }
+            let exp = expectedFrames[i]
+            let act = actualOutputs[i]
+            let sampleIndex = exp.sampleIndex
+            let timeMs = exp.timeMs
+
+            checkOptionalNumeric(
+                expected: exp.detector.frequency,
+                actual: act.frequency,
+                budget: budgets.frequencyAbsoluteHz,
+                fieldPath: "detector.frequency",
+                frameIndex: i,
+                sampleIndex: sampleIndex,
+                timeMs: timeMs,
+                divergences: &divergences
+            )
+
+            checkOptionalNumeric(
+                expected: exp.detector.confidence,
+                actual: act.confidence,
+                budget: budgets.confidenceAbsolute,
+                fieldPath: "detector.confidence",
+                frameIndex: i,
+                sampleIndex: sampleIndex,
+                timeMs: timeMs,
+                divergences: &divergences
+            )
+
+            checkRMS(
+                expected: exp.detector.rms,
+                actual: act.rms,
+                fieldPath: "detector.rms",
+                frameIndex: i,
+                sampleIndex: sampleIndex,
+                timeMs: timeMs,
+                divergences: &divergences
+            )
+
+            if discreteRules.optionalFlagsExact {
+                checkOptionalEqual(
+                    expected: exp.detector.foregroundAgrees,
+                    actual: act.foregroundAgrees,
+                    fieldPath: "detector.foregroundAgrees",
+                    frameIndex: i,
+                    sampleIndex: sampleIndex,
+                    timeMs: timeMs,
+                    divergences: &divergences
+                )
+
+                checkOptionalEqual(
+                    expected: exp.detector.oddOnly,
+                    actual: act.oddOnly,
+                    fieldPath: "detector.oddOnly",
+                    frameIndex: i,
+                    sampleIndex: sampleIndex,
+                    timeMs: timeMs,
+                    divergences: &divergences
+                )
+            }
+        }
+
+        return ParityComparisonResult(divergences: divergences)
+    }
+
     private func compareFrame(
         expected exp: ParityFrame,
         actual act: ParityFrame,
