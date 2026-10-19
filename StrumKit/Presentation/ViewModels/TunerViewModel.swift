@@ -114,8 +114,20 @@ final class TunerViewModel {
 
         // Initialize guided progress for active instrument string count
         self.guidedProgress = Array(repeating: false, count: initial.config.customMidi.count)
+
+        self.referenceTone.onToneStarted = { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.handleToneStarted()
+            }
+        }
+        self.referenceTone.onToneEnded = { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.handleToneEnded()
+            }
+        }
     }
 
+    private var toneGeneration: UInt64 = 0
     private var listeningIntent: Bool = false
 
     /// Reacts to what the microphone reports.
@@ -252,44 +264,17 @@ final class TunerViewModel {
                     source: .detected,
                     reading: reading
                 )
-            } else {
-                // reading.freshness == .held
-                scheduleHoldExpiryIfNeeded(for: reading)
             }
         } else {
-            // Signal expired or no reading
+            // Signal expired or no reading: cleared by FaithfulPresentation
             cancelHoldExpiry()
             self.currentReading = nil
         }
     }
 
-    /// Arms the single wake-up that takes this Held Reading off the display.
-    ///
-    /// One task per Reading rather than one per frame: the frames that repeat the same
-    /// Held Reading all name the same `lastFreshAt`, so they re-arm nothing. The delay is
-    /// the display hold less the Reading's own age, both read off the Reading, which is
-    /// why scheduling it needs no clock here. The task fires a frame or so after the
-    /// deadline rather than on it — a Reading that is still the same Reading when it
-    /// fires is a Reading that has genuinely reached the end of its hold, and the state
-    /// transition happens in the same place in the hold it always did.
+    /// Neutralized: FaithfulPresentation is the single owner of the 1000 ms hold.
     private func scheduleHoldExpiryIfNeeded(for reading: TunerReading) {
-        guard holdExpiry?.lastFreshAt != reading.lastFreshAt else { return }
-        cancelHoldExpiry()
-        let lastFreshAt = reading.lastFreshAt
-        let remaining = TunerPresentation.displayHoldDuration - (reading.at - reading.lastFreshAt)
-        let task = Task { @MainActor [weak self] in
-            if remaining > 0 {
-                try? await Task.sleep(nanoseconds: UInt64(remaining * 1_000_000_000))
-            }
-            guard !Task.isCancelled, let self else { return }
-            guard let current = self.currentReading,
-                  current.freshness == .held,
-                  current.lastFreshAt == lastFreshAt
-            else { return }
-            self.holdExpiry = nil
-            self.currentReading = nil
-        }
-        holdExpiry = HoldExpiry(lastFreshAt: lastFreshAt, task: task)
+        // FaithfulPresentation handles 1000 ms hold and clearing.
     }
 
     private func cancelHoldExpiry() {
@@ -428,6 +413,27 @@ final class TunerViewModel {
     }
 
     // MARK: - Reference Tones (Acoustic Pluck)
+    private func handleToneStarted() {
+        toneGeneration &+= 1
+        session.stop()
+        cancelHoldExpiry()
+        self.currentReading = nil
+        self.feedbackState = .inactive
+        self.engineStatus = .paused
+    }
+
+    private func handleToneEnded() {
+        activeToneStringIndex = nil
+        guard listeningIntent else { return }
+        let currentToneGen = toneGeneration
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            guard self.listeningIntent, self.toneGeneration == currentToneGen else { return }
+            guard self.engineStatus != .listening && self.engineStatus != .requesting else { return }
+            await self.beginListening()
+        }
+    }
+
     func playReferenceTone(index: Int) {
         guard index < targets.count else { return }
         let target = targets[index]
@@ -436,7 +442,13 @@ final class TunerViewModel {
         if activeToneStringIndex == index {
             stopReferenceTone()
         } else {
+            toneGeneration &+= 1
             activeToneStringIndex = index
+            session.stop()
+            cancelHoldExpiry()
+            self.currentReading = nil
+            self.feedbackState = .inactive
+            self.engineStatus = .paused
             referenceTone.playString(
                 frequency: target.frequency,
                 stringIndex: index,
@@ -446,6 +458,8 @@ final class TunerViewModel {
     }
 
     private func stopReferenceTone() {
+        guard activeToneStringIndex != nil else { return }
+        toneGeneration &+= 1
         activeToneStringIndex = nil
         referenceTone.stop()
     }

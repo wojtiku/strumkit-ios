@@ -89,6 +89,21 @@ final class ScriptedMicrophone: MicrophoneSource, @unchecked Sendable {
 /// A reference-tone player that remembers what it was asked to play and makes no
 /// sound, so a test can assert *which* **String** the tuner chose.
 final class RecordingReferenceTonePlayer: ReferenceTonePlayer, @unchecked Sendable {
+    private let lock = NSLock()
+    private var _onToneStarted: (@Sendable () -> Void)?
+    private var _onToneEnded: (@Sendable () -> Void)?
+    private var isPlaying = false
+
+    var onToneStarted: (@Sendable () -> Void)? {
+        get { lock.lock(); defer { lock.unlock() }; return _onToneStarted }
+        set { lock.lock(); _onToneStarted = newValue; lock.unlock() }
+    }
+
+    var onToneEnded: (@Sendable () -> Void)? {
+        get { lock.lock(); defer { lock.unlock() }; return _onToneEnded }
+        set { lock.lock(); _onToneEnded = newValue; lock.unlock() }
+    }
+
     struct RequestedTone: Equatable, Sendable {
         let frequency: Double
         let stringIndex: Int
@@ -99,13 +114,40 @@ final class RecordingReferenceTonePlayer: ReferenceTonePlayer, @unchecked Sendab
     private(set) var stopCount = 0
 
     func playString(frequency: Double, stringIndex: Int, instrument: InstrumentCategory) {
+        lock.lock()
+        isPlaying = true
         requestedTones.append(
             RequestedTone(frequency: frequency, stringIndex: stringIndex, instrument: instrument)
         )
+        let started = _onToneStarted
+        lock.unlock()
+        started?()
     }
 
     func stop() {
+        lock.lock()
         stopCount += 1
+        let wasPlaying = isPlaying
+        isPlaying = false
+        let ended = wasPlaying ? _onToneEnded : nil
+        lock.unlock()
+        ended?()
+    }
+
+    func simulateToneStarted() {
+        lock.lock()
+        isPlaying = true
+        let started = _onToneStarted
+        lock.unlock()
+        started?()
+    }
+
+    func simulateToneEnded() {
+        lock.lock()
+        isPlaying = false
+        let ended = _onToneEnded
+        lock.unlock()
+        ended?()
     }
 }
 

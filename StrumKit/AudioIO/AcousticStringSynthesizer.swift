@@ -22,6 +22,50 @@ final class AcousticStringSynthesizer: @unchecked Sendable, ReferenceTonePlayer 
     /// flake that test is known for: a state flag standing in for "the work finished".
     private(set) var activeStringIndex: Int? = nil
 
+    private let callbackLock = NSLock()
+    private var _onToneStarted: (@Sendable () -> Void)?
+    private var _onToneEnded: (@Sendable () -> Void)?
+
+    var onToneStarted: (@Sendable () -> Void)? {
+        get {
+            callbackLock.lock()
+            defer { callbackLock.unlock() }
+            return _onToneStarted
+        }
+        set {
+            callbackLock.lock()
+            _onToneStarted = newValue
+            callbackLock.unlock()
+        }
+    }
+
+    var onToneEnded: (@Sendable () -> Void)? {
+        get {
+            callbackLock.lock()
+            defer { callbackLock.unlock() }
+            return _onToneEnded
+        }
+        set {
+            callbackLock.lock()
+            _onToneEnded = newValue
+            callbackLock.unlock()
+        }
+    }
+
+    private func emitToneStarted() {
+        callbackLock.lock()
+        let cb = _onToneStarted
+        callbackLock.unlock()
+        cb?()
+    }
+
+    private func emitToneEnded() {
+        callbackLock.lock()
+        let cb = _onToneEnded
+        callbackLock.unlock()
+        cb?()
+    }
+
     init() {
         let format = AVAudioFormat(standardFormatWithSampleRate: 44100.0, channels: 1)!
         self.synthFormat = format
@@ -132,10 +176,12 @@ final class AcousticStringSynthesizer: @unchecked Sendable, ReferenceTonePlayer 
                     guard let self else { return }
                     if self.activeStringIndex == stringIndex {
                         self.activeStringIndex = nil
+                        self.emitToneEnded()
                     }
                 }
             }
             self.playerNode.play()
+            self.emitToneStarted()
         }
     }
 
@@ -147,7 +193,11 @@ final class AcousticStringSynthesizer: @unchecked Sendable, ReferenceTonePlayer 
     }
 
     private func stopInternal() {
+        let wasActive = (activeStringIndex != nil)
         playerNode.stop()
         activeStringIndex = nil
+        if wasActive {
+            emitToneEnded()
+        }
     }
 }

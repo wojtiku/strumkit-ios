@@ -14,6 +14,7 @@
 		11D51B6B1A11B457B776E07E /* Resampler.swift in Sources */ = {isa = PBXBuildFile; fileRef = BFFFCAC9C86083C4D9502AE3 /* Resampler.swift */; };
 		121C02413A7863626F04FC9D /* TrackerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09567FB37CE8D5799FE61DDF /* TrackerTests.swift */; };
 		133365755EC0BBF979DFECA0 /* ParityModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 149782F79093A419A8FD0636 /* ParityModels.swift */; };
+		13B990688F21BB1187D4D240 /* NativeIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB60551322A20B7C086B53F1 /* NativeIntegrationTests.swift */; };
 		186004F88204EC9C3D9F37AF /* RecordedAudioTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A85FCA30A6417445D89A5867 /* RecordedAudioTests.swift */; };
 		1938DACA0EF358A53BC681C0 /* tuning_g.wav in Resources */ = {isa = PBXBuildFile; fileRef = 3FE142AD7F6B3833FDC5EA54 /* tuning_g.wav */; };
 		1D857E58BF3DD575D82D2C51 /* MusicalNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3AB65FFBB8884C99F1D5416 /* MusicalNote.swift */; };
@@ -234,6 +235,7 @@
 		E16828F8B0749A0D6854A672 /* MicrophoneEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicrophoneEvent.swift; sourceTree = "<group>"; };
 		E3AB65FFBB8884C99F1D5416 /* MusicalNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicalNote.swift; sourceTree = "<group>"; };
 		E94D00B1F4CAA75AFCBBC56E /* AVAudioEngineMicrophone.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AVAudioEngineMicrophone.swift; sourceTree = "<group>"; };
+		EB60551322A20B7C086B53F1 /* NativeIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeIntegrationTests.swift; sourceTree = "<group>"; };
 		ECB0E16A71867909A8ACEFAF /* HardwareReadoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareReadoutView.swift; sourceTree = "<group>"; };
 		EF0B2144304F8A498E4ED8F7 /* quiet_e.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = quiet_e.wav; sourceTree = "<group>"; };
 		F078D0229E4B02DDE0D75C72 /* AnalysisSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisSnapshot.swift; sourceTree = "<group>"; };
@@ -252,6 +254,7 @@
 				0B817DD4C230798EEAF1216E /* CaptureFramingTests.swift */,
 				96F410500AE967D0F26E43C4 /* DifferentialHarnessTests.swift */,
 				B47FE4D3F8C6E7FC37D599D6 /* NativeExtensionsTests.swift */,
+				EB60551322A20B7C086B53F1 /* NativeIntegrationTests.swift */,
 				9C205E83A373B7D346341124 /* NumericKernelsTests.swift */,
 				A9F5F6E110E055996DFF083E /* ParityComparator.swift */,
 				01367F954A9AD9FF0D6A1A3D /* ParityLoader.swift */,
@@ -688,6 +691,7 @@
 				4D205E34974DA37C528FC768 /* MicrophoneSeamTests.swift in Sources */,
 				ECF4D8EEAFF0033CA3FAF1D5 /* MusicalNoteTests.swift in Sources */,
 				6A04831160190827EA2CF95C /* NativeExtensionsTests.swift in Sources */,
+				13B990688F21BB1187D4D240 /* NativeIntegrationTests.swift in Sources */,
 				E1E46160E4E690098B918895 /* NumericKernelsTests.swift in Sources */,
 				A4B82879AB494AA84269551E /* ParityComparator.swift in Sources */,
 				0393F7E8DEDAED759F7B9770 /* ParityLoader.swift in Sources */,

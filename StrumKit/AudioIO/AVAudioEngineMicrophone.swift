@@ -24,7 +24,6 @@ final class AVAudioEngineMicrophone: @unchecked Sendable {
     /// The hardware's rate, which satisfies the seam's requirement and is not
     /// knowable until capture has started.
     private(set) var sampleRate: Double = 44100.0
-    private var ringBuffer: AudioRingBuffer? = nil
     private let sessionConfiguration = AudioSessionConfiguration()
 
     private let eventLock = NSLock()
@@ -116,24 +115,12 @@ extension AVAudioEngineMicrophone: MicrophoneSource {
             }
 
             self.sampleRate = inputFormat.sampleRate > 0 ? inputFormat.sampleRate : 44100.0
-            let neededSamples = Resampler.requiredInputSamples(for: self.sampleRate)
-            let ring = AudioRingBuffer(capacity: max(16384, neededSamples * 2))
-            self.ringBuffer = ring
-
-            // Scratch buffer for the tap, allocated once at setup rather than per
-            // callback. Sized for the largest window the startup partial-window path
-            // can request, so the hot path never allocates for buffering.
-            //
-            // Only the tap thread ever touches it, and the tap is serialised by the
-            // engine, so it needs no further synchronisation.
-            let windowScratchBox = ScratchBuffer(size: max(neededSamples, 16384))
 
             inputNode.removeTap(onBus: 0)
             inputNode.installTap(onBus: 0, bufferSize: Self.tapBufferSize, format: inputFormat) { buffer, when in
                 guard let channelData = buffer.floatChannelData else { return }
                 let frameLength = Int(buffer.frameLength)
-                let scratch = windowScratchBox
-                guard frameLength > 0, frameLength <= scratch.size else { return }
+                guard frameLength > 0 else { return }
 
                 // Determine capture-end timestamp using AVAudioTime.
                 // Denotes buffer trailing edge (end) on the monotonic host timeline (CACurrentMediaTime / mach_absolute_time).
@@ -145,29 +132,12 @@ extension AVAudioEngineMicrophone: MicrophoneSource {
                     captureEndSeconds = CACurrentMediaTime()
                 }
 
-                // Write channel 0 straight from the engine's buffer: no intermediate
-                // array is materialised on the real-time thread.
-                ring.write(unsafeBufferPointer: channelData[0], count: frameLength)
-
-                if ring.copyTrailing(count: neededSamples, into: &scratch.samples) {
-                    delivering(CapturedWindow(
-                        samples: Array(scratch.samples[0..<neededSamples]),
-                        sampleRate: inputFormat.sampleRate,
-                        captureEnd: captureEndSeconds
-                    ))
-                } else {
-                    // Startup only: emit a shorter window until the ring has enough
-                    // history. The detector is rebuilt for each distinct window
-                    // length until the full window becomes available.
-                    let available = min(ring.availableCount, scratch.size)
-                    if available >= 512, ring.copyTrailing(count: available, into: &scratch.samples) {
-                        delivering(CapturedWindow(
-                            samples: Array(scratch.samples[0..<available]),
-                            sampleRate: inputFormat.sampleRate,
-                            captureEnd: captureEndSeconds
-                        ))
-                    }
-                }
+                let samples = Array(UnsafeBufferPointer(start: channelData[0], count: frameLength))
+                delivering(CapturedWindow(
+                    samples: samples,
+                    sampleRate: inputFormat.sampleRate,
+                    captureEnd: captureEndSeconds
+                ))
             }
 
             do {
@@ -193,8 +163,6 @@ extension AVAudioEngineMicrophone: MicrophoneSource {
             guard self.isRunningInternal else { return }
             self.engine.inputNode.removeTap(onBus: 0)
             self.engine.stop()
-            self.ringBuffer?.reset()
-            self.ringBuffer = nil
             self.isRunningInternal = false
 
             self.sessionConfiguration.deactivate()
@@ -206,21 +174,5 @@ extension AVAudioEngineMicrophone: MicrophoneSource {
         let sink = _onEvent
         eventLock.unlock()
         sink?(event)
-    }
-}
-
-/// Mutable storage the capture tap reuses across callbacks.
-///
-/// Lives here rather than beside `AudioRingBuffer` because it is not a module: it
-/// has exactly one user, its size is chosen for the tap, and it exists so the
-/// real-time thread can hand a freshly filled window to a `let` binding while
-/// still writing into preallocated memory.
-private final class ScratchBuffer: @unchecked Sendable {
-    let size: Int
-    var samples: [Float]
-
-    init(size: Int) {
-        self.size = size
-        self.samples = [Float](repeating: 0, count: size)
     }
 }

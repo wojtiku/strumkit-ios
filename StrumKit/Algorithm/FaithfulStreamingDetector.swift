@@ -547,6 +547,7 @@ public final class FaithfulStreamingDetector: @unchecked Sendable {
 
     public let analysis: FaithfulFrameAnalysis
     public let canonicalDetector: CanonicalPitchDetector
+    public var profile: FaithfulEngineProfile { analysis.profile }
 
     public init(
         ranking: SpectralRanking = .prominence,
