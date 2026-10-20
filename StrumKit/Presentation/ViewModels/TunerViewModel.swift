@@ -71,7 +71,6 @@ final class TunerViewModel {
     // drives real audio hardware is a test that cannot assert anything.
     private let source: MicrophoneSource
     private let referenceTone: ReferenceTonePlayer
-    private let tracker: PitchTracker
     private let preferencesStore: TunerPreferencesStore
     private let session: TunerAnalysisSession
 
@@ -92,13 +91,11 @@ final class TunerViewModel {
     init(
         source: MicrophoneSource,
         referenceTone: ReferenceTonePlayer,
-        tracker: PitchTracker = PitchTracker(),
         preferencesStore: TunerPreferencesStore = TunerPreferencesStore(),
         session: TunerAnalysisSession? = nil
     ) {
         self.source = source
         self.referenceTone = referenceTone
-        self.tracker = tracker
         self.preferencesStore = preferencesStore
 
         let loaded = preferencesStore.load()
@@ -108,8 +105,7 @@ final class TunerViewModel {
 
         self.session = session ?? TunerAnalysisSession(
             config: initial.config,
-            targets: initial.targets,
-            tracker: tracker
+            targets: initial.targets
         )
 
         // Initialize guided progress for active instrument string count

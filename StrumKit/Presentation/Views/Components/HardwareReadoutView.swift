@@ -39,13 +39,11 @@ struct HardwareReadoutView: View {
 
     private var statusColor: Color {
         guard let reading else { return TunerTheme.neutral }
-        // Green is a verdict about a String, so it is only available to a Reading that
-        // carries one. A chromatic Reading is measured against equal temperament and is
-        // coloured by which side of it the sound fell on, which is a fact rather than a
-        // verdict — which is all the mode can honestly show.
         if reading.inTune == true {
             return TunerTheme.inTune
-        } else if reading.cents < 0 {
+        } else if abs(reading.displayCents) <= 5.0 {
+            return TunerTheme.inTune.opacity(0.85)
+        } else if reading.displayCents < 0 {
             return TunerTheme.flat
         } else {
             return TunerTheme.sharp
@@ -96,8 +94,9 @@ struct HardwareReadoutView: View {
             }
             return "—"
         }
-        let mag = String(format: precision ? "%.1f" : "%.0f", abs(reading.cents))
-        let sign = reading.cents > 0 ? "+" : "−"
+        let cents = reading.displayCents
+        let mag = String(format: precision ? "%.1f" : "%.0f", abs(cents))
+        let sign = cents > 0 ? "+" : "−"
         return "\(sign)\(mag) cents"
     }
 
@@ -130,11 +129,11 @@ struct HardwareReadoutView: View {
             HStack {
                 Text("Flat")
                     .font(.caption2.weight(.bold))
-                    .foregroundStyle(TunerTheme.flat.opacity(reading?.cents ?? 0 < 0 ? 1.0 : 0.4))
+                    .foregroundStyle(TunerTheme.flat.opacity((reading?.displayCents ?? 0) < -5.0 ? 1.0 : 0.4))
                 Spacer()
                 Text("Sharp")
                     .font(.caption2.weight(.bold))
-                    .foregroundStyle(TunerTheme.sharp.opacity(reading?.cents ?? 0 > 0 ? 1.0 : 0.4))
+                    .foregroundStyle(TunerTheme.sharp.opacity((reading?.displayCents ?? 0) > 5.0 ? 1.0 : 0.4))
             }
             .padding(.horizontal, 48)
             .opacity(evidenceOpacity)

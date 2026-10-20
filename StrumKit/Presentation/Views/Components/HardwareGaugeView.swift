@@ -8,18 +8,6 @@ struct HardwareGaugeView: View {
     let inTune: Bool
     let needleOpacity: Double
 
-    /// Set while a freshly-acquired note is still easing in from centre.
-    ///
-    /// The spring on `presentedAngle` can only interpolate between two values the view
-    /// has already rendered. When a note is acquired the needle is *inserted*, and
-    /// `PitchTracker` resets `displayCentsEma` to the raw reading at exactly that moment
-    /// (`PitchTracker.swift`, the `targetChanged` branch) — so there is no previous angle
-    /// to ease from and the needle would land at full deflection instantly. That is the
-    /// "jumps straight to a weird reading" case, and it needs the entry to start at zero
-    /// rather than at the measurement.
-    @State private var enteringNote = false
-    @State private var entryTask: Task<Void, Never>?
-
     init(cents: Double, visible: Bool, inTune: Bool, needleOpacity: Double = 1.0) {
         self.cents = cents
         self.visible = visible
@@ -31,11 +19,6 @@ struct HardwareGaugeView: View {
     private var needleAngle: Double {
         let clamped = max(-50.0, min(50.0, cents))
         return clamped * 1.5
-    }
-
-    /// What the needle actually renders: pinned to centre while a new note eases in.
-    private var presentedAngle: Double {
-        enteringNote ? 0 : needleAngle
     }
 
     var body: some View {
@@ -50,30 +33,11 @@ struct HardwareGaugeView: View {
                     style: StrokeStyle(lineWidth: 6, lineCap: .round)
                 )
 
-            // Animated Needle
+            // Animated Needle (0.11s ease-out matching reference UI transition)
             if visible {
-                // Interpolate the needle between readings rather than snapping.
-                //
-                // This was `.animation(nil, ...)`, which opted out entirely. That was not
-                // a fix for a bug, it was the bug: `PitchTracker` already smooths
-                // `displayCents` with a tau=50 ms EMA (`PitchTracker.displayEmaTimeConstant`),
-                // so the needle is being handed roughly 47 updates/second — and each one
-                // was being drawn at its final position with no interpolation. The data
-                // was continuous; the rendering threw that away and made it look like
-                // the detector was snapping.
-                //
-                // The spring is deliberately soft (stiffness 220, damping 26, just under
-                // critical) so the needle eases into a new reading instead of arriving
-                // instantly, and damped enough not to overshoot: a tuner needle that
-                // bounces past the pitch it is reporting would be actively misleading.
-                //
-                // GuitarTuna reaches the same calm with coarser data — its detector floors
-                // `MeasuredPitchHz` to whole Hz, which at E2 is ~21 cents per step — and
-                // hides it the same way, by animating the presentation rather than by
-                // smoothing the signal.
-                NeedlePointerView(angle: presentedAngle, inTune: inTune)
+                NeedlePointerView(angle: needleAngle, inTune: inTune)
                     .opacity(needleOpacity)
-                    .animation(.interpolatingSpring(stiffness: 220, damping: 26), value: presentedAngle)
+                    .animation(.easeOut(duration: 0.11), value: needleAngle)
             }
 
             // Labels: -50, 0, +50
@@ -99,24 +63,6 @@ struct HardwareGaugeView: View {
             }
         }
         .frame(height: 120)
-        .onChange(of: visible) { _, isVisible in
-            // Acquired a note: pin the needle to centre for one runloop, then release it
-            // so the spring carries it out to the real reading. Without the pin the
-            // first rendered frame is already the final angle, because the view was
-            // inserted rather than moved.
-            guard isVisible else {
-                enteringNote = false
-                return
-            }
-            entryTask?.cancel()
-            entryTask = Task { @MainActor in
-                enteringNote = true
-                // One frame at centre, so the release below is a change the spring can
-                // interpolate from rather than an insertion it cannot.
-                await Task.yield()
-                enteringNote = false
-            }
-        }
     }
 }
 

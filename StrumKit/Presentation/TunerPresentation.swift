@@ -2,12 +2,8 @@ import Foundation
 
 /// Pure presentation helper for tuning guidance, hold timeouts, and visual fading.
 enum TunerPresentation: Sendable {
-    /// Visual hold duration before an inactive reading expires from the display.
-    ///
-    /// Kept equal to `PitchTracker.readingHoldDuration`: the tracker decides when a
-    /// held reading stops being produced, and this decides when the display clears
-    /// it. If they drift, the display and the tracker disagree about expiry.
-    static let displayHoldDuration: TimeInterval = PitchTracker.readingHoldDuration
+    /// Visual hold duration before an inactive reading expires from the display (1000 ms).
+    static let displayHoldDuration: TimeInterval = 1.0
 
     /// Minimum needle/readout opacity at the end of the display hold window.
     static let minHoldOpacity: Double = 0.4
@@ -22,7 +18,7 @@ enum TunerPresentation: Sendable {
     /// Returns human-readable guidance text for the current reading and feedback state.
     ///
     /// Readings backed by Measured evidence display directional tuning advice
-    /// ("In tune", "Tune up", "Tune down"). Held readings prompt for a new pluck,
+    /// ("In tune", "Hold the note…", "Tune up", "Tune down"). Held readings prompt for a new pluck,
     /// and Sustained readings decline to give advice at all, since
     /// their cents error is not precise enough to act on.
     ///
@@ -43,7 +39,9 @@ enum TunerPresentation: Sendable {
         }
         if inTune {
             return "In tune"
-        } else if reading.cents < 0 {
+        } else if abs(reading.displayCents) <= 5.0 {
+            return "Hold the note…"
+        } else if reading.displayCents < 0 {
             return "Tune up"
         } else {
             return "Tune down"

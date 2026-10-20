@@ -224,14 +224,30 @@ final class TunerAnalysisSession: @unchecked Sendable {
             framer.setSampleRate(sampleRate)
         }
         let windows = framer.process(channel: samples, hostTime: captureEndSeconds)
-        lock.unlock()
+        guard !windows.isEmpty else {
+            lock.unlock()
+            return
+        }
 
+        let enqueuedAt = CACurrentMediaTime()
         for win in windows {
-            submitLiveAudio(
-                window: win.samples,
+            enqueueFrameLocked(
+                samples: win.samples,
                 sampleRate: win.sampleRate,
-                captureEndSeconds: win.hostTime ?? (win.timeMs / 1000.0)
+                captureEndSeconds: win.hostTime ?? (win.timeMs / 1000.0),
+                callbackFrameCount: win.samples.count,
+                enqueuedAt: enqueuedAt
             )
+        }
+
+        if !isWorkerRunning {
+            isWorkerRunning = true
+            lock.unlock()
+            workerQueue.async { [weak self] in
+                self?.drainWorkerLoop()
+            }
+        } else {
+            lock.unlock()
         }
     }
 
