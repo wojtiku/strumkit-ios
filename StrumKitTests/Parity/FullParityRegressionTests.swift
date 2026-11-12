@@ -45,7 +45,7 @@ public struct ParityDeltaTracker: Sendable {
 struct FullParityRegressionTests {
 
     let comparator = ParityComparator()
-    let engine = FaithfulParityReplayEngine()
+    let engine = ReadingEngineParityReplay()
 
     // MARK: - 1. Product Fixtures (17 Cases)
 
@@ -60,7 +60,7 @@ struct FullParityRegressionTests {
 
         for manifestCase in fixtureCases {
             let testCase = try ParityCorpus.loadCase(manifestCase: manifestCase)
-            let actualSampleSha = FaithfulParityReplayEngine.hashSamples(testCase.samples)
+            let actualSampleSha = ReadingEngineParityReplay.hashSamples(testCase.samples)
             #expect(actualSampleSha == manifestCase.sampleSha256, "Sample SHA-256 mismatch for \(testCase.name)")
 
             let expectedTrace = try ParityTrace.load(named: manifestCase.name, in: manifestCase.category)
@@ -112,7 +112,7 @@ struct FullParityRegressionTests {
 
         for manifestCase in cases441 {
             let testCase = try ParityCorpus.loadCase(manifestCase: manifestCase)
-            let actualSampleSha = FaithfulParityReplayEngine.hashSamples(testCase.samples)
+            let actualSampleSha = ReadingEngineParityReplay.hashSamples(testCase.samples)
             #expect(actualSampleSha == manifestCase.sampleSha256, "Sample SHA-256 mismatch for \(testCase.name)")
 
             let expectedTrace = try ParityTrace.load(named: manifestCase.name, in: manifestCase.category)
@@ -164,7 +164,7 @@ struct FullParityRegressionTests {
 
         for manifestCase in cases48 {
             let testCase = try ParityCorpus.loadCase(manifestCase: manifestCase)
-            let actualSampleSha = FaithfulParityReplayEngine.hashSamples(testCase.samples)
+            let actualSampleSha = ReadingEngineParityReplay.hashSamples(testCase.samples)
             #expect(actualSampleSha == manifestCase.sampleSha256, "Sample SHA-256 mismatch for \(testCase.name)")
 
             let expectedTrace = try ParityTrace.load(named: manifestCase.name, in: manifestCase.category)
@@ -216,7 +216,7 @@ struct FullParityRegressionTests {
 
         for manifestCase in standardCases {
             let testCase = try ParityCorpus.loadCase(manifestCase: manifestCase)
-            let actualSampleSha = FaithfulParityReplayEngine.hashSamples(testCase.samples)
+            let actualSampleSha = ReadingEngineParityReplay.hashSamples(testCase.samples)
             #expect(actualSampleSha == manifestCase.sampleSha256, "Sample SHA-256 mismatch for \(testCase.name)")
 
             let expectedTrace = try ParityTrace.load(named: manifestCase.name, in: manifestCase.category)
@@ -268,7 +268,7 @@ struct FullParityRegressionTests {
 
         for manifestCase in oddCases {
             let testCase = try ParityCorpus.loadCase(manifestCase: manifestCase)
-            let actualSampleSha = FaithfulParityReplayEngine.hashSamples(testCase.samples)
+            let actualSampleSha = ReadingEngineParityReplay.hashSamples(testCase.samples)
             #expect(actualSampleSha == manifestCase.sampleSha256, "Sample SHA-256 mismatch for \(testCase.name)")
 
             let expectedTrace = try ParityTrace.load(named: manifestCase.name, in: manifestCase.category)
@@ -320,7 +320,7 @@ struct FullParityRegressionTests {
 
         for manifestCase in targetedCases {
             let testCase = try ParityCorpus.loadCase(manifestCase: manifestCase)
-            let actualSampleSha = FaithfulParityReplayEngine.hashSamples(testCase.samples)
+            let actualSampleSha = ReadingEngineParityReplay.hashSamples(testCase.samples)
             #expect(actualSampleSha == manifestCase.sampleSha256, "Sample SHA-256 mismatch for \(testCase.name)")
 
             let expectedTrace = try ParityTrace.load(named: manifestCase.name, in: manifestCase.category)
