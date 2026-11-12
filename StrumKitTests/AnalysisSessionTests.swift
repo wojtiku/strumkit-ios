@@ -85,6 +85,55 @@ struct AnalysisSessionTests {
         return samples
     }
 
+    @Test("A Reading's times are on the host clock, so a Held reading fades across its hold window")
+    func testReadingTimesAreOnTheHostClock() {
+        let resolved = Tuning.resolve(
+            instrument: .ukulele, tuningId: "high-g", customMidi: [],
+            mode: .auto, a4: 440.0, precision: false, guided: false)
+        let session = TunerAnalysisSession(config: resolved.config, targets: resolved.targets)
+        let rate = 44100.0
+        // Far from any stream position, as device uptime is.
+        let hostStart = 5000.0
+
+        var samples = [Float](repeating: 0, count: Int(rate * 1.6))
+        for i in 0..<Int(rate) {
+            let t = Double(i) / rate
+            let v = sin(2.0 * .pi * 440.0 * t) + 0.5 * sin(2.0 * .pi * 880.0 * t) + 0.25 * sin(2.0 * .pi * 1320.0 * t)
+            samples[i] = Float(v) * 0.15
+        }
+
+        var lastFresh: TunerReading?
+        var lastHeld: TunerReading?
+        var sequence: UInt64 = 0
+        for end in stride(from: 4096, through: samples.count, by: 1024) {
+            sequence += 1
+            let streamEnd = Double(end) / rate
+            let frame = AnalysisFrame(
+                samples: Array(samples[(end - 4096)..<end]),
+                sampleRate: rate,
+                captureEndSeconds: streamEnd,
+                sequence: sequence,
+                generation: session.generation,
+                hostEndSeconds: hostStart + streamEnd
+            )
+            guard let reading = session.processFrameSync(frame)?.reading else { continue }
+            if reading.freshness == .fresh { lastFresh = reading } else { lastHeld = reading }
+        }
+
+        guard let lastFresh, let lastHeld else {
+            Issue.record("Expected a fresh Reading during the tone and a Held reading after it")
+            return
+        }
+        #expect(lastFresh.at > hostStart, "A Reading's time must be a host-clock time")
+        #expect(lastHeld.lastFreshAt > hostStart && lastHeld.lastFreshAt <= lastHeld.at)
+        #expect(lastHeld.at - lastHeld.lastFreshAt < TunerPresentation.displayHoldDuration)
+
+        // The display asks the host clock what time it is. Part-way through the hold the
+        // Reading is part-way faded: neither untouched nor already at the floor.
+        let opacity = TunerPresentation.holdOpacity(for: lastHeld, now: lastHeld.at)
+        #expect(opacity < 1.0 && opacity > TunerPresentation.minHoldOpacity)
+    }
+
     @Test("Bounded mailbox replaces pending frame and limits concurrency to 1")
     func testBoundedMailboxAndReplacement() async throws {
         let targets = makeTargets()

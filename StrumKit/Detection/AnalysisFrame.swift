@@ -9,8 +9,13 @@ import Foundation
 struct AnalysisFrame: Sendable {
     let samples: [Float]
     let sampleRate: Double
-    /// Denotes the timestamp at the trailing edge (end) of the analyzed audio window.
+    /// The trailing edge of the window on the *stream clock*: samples delivered since
+    /// the stream began, divided by the sample rate. The tracker's cadence runs on this.
     let captureEndSeconds: TimeInterval
+    /// The same trailing edge on the *host clock* (`CACurrentMediaTime`), or `nil` for a
+    /// replay that has none. Every time on a published **Reading** is on this clock,
+    /// because the display compares it with the host clock. See ADR 0001.
+    let hostEndSeconds: TimeInterval?
     let sequence: UInt64
     let generation: UInt64
     let callbackFrameCount: Int
@@ -21,7 +26,8 @@ struct AnalysisFrame: Sendable {
         captureEndSeconds: TimeInterval,
         sequence: UInt64,
         generation: UInt64,
-        callbackFrameCount: Int = 0
+        callbackFrameCount: Int = 0,
+        hostEndSeconds: TimeInterval? = nil
     ) {
         self.samples = samples
         self.sampleRate = sampleRate
@@ -29,5 +35,6 @@ struct AnalysisFrame: Sendable {
         self.sequence = sequence
         self.generation = generation
         self.callbackFrameCount = callbackFrameCount
+        self.hostEndSeconds = hostEndSeconds
     }
 }

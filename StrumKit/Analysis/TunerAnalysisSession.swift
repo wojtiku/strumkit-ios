@@ -235,6 +235,7 @@ final class TunerAnalysisSession: @unchecked Sendable {
                 samples: win.samples,
                 sampleRate: win.sampleRate,
                 captureEndSeconds: win.timeMs / 1000.0,
+                hostEndSeconds: win.hostTime,
                 callbackFrameCount: win.samples.count,
                 enqueuedAt: enqueuedAt
             )
@@ -393,6 +394,7 @@ final class TunerAnalysisSession: @unchecked Sendable {
         samples: [Float],
         sampleRate: Double,
         captureEndSeconds: TimeInterval,
+        hostEndSeconds: TimeInterval? = nil,
         callbackFrameCount: Int,
         enqueuedAt: TimeInterval
     ) {
@@ -403,7 +405,8 @@ final class TunerAnalysisSession: @unchecked Sendable {
             captureEndSeconds: captureEndSeconds,
             sequence: sequenceNumber,
             generation: activeGeneration,
-            callbackFrameCount: callbackFrameCount
+            callbackFrameCount: callbackFrameCount,
+            hostEndSeconds: hostEndSeconds
         )
 
         if pendingFrame != nil {
@@ -684,7 +687,21 @@ final class TunerAnalysisSession: @unchecked Sendable {
 
         let output = adapter.process(candidate: candidate, timeMs: timeMs)
 
-        let reading = output.reading
+        // The tracker ran on the stream clock; a Reading is published on the host clock,
+        // which is the one the display's hold fade compares against. See ADR 0001.
+        let hostOffset = (frame.hostEndSeconds ?? frame.captureEndSeconds) - frame.captureEndSeconds
+        let reading = output.reading.map { streamReading in
+            TunerReading(
+                at: streamReading.at + hostOffset,
+                lastFreshAt: streamReading.lastFreshAt + hostOffset,
+                frequency: streamReading.frequency,
+                aim: streamReading.aim,
+                cents: streamReading.cents,
+                displayCents: streamReading.displayCents,
+                freshness: streamReading.freshness,
+                evidence: streamReading.evidence
+            )
+        }
 
         lock.lock()
         if config.mode == .guided,
@@ -723,7 +740,7 @@ final class TunerAnalysisSession: @unchecked Sendable {
         let dspEnd = CACurrentMediaTime()
         let dspMs = (dspEnd - dspStart) * 1000.0
 
-        let resultAgeMs = max(0.0, (resultAgeReference - frame.captureEndSeconds) * 1000.0)
+        let resultAgeMs = max(0.0, (resultAgeReference - (frame.hostEndSeconds ?? frame.captureEndSeconds)) * 1000.0)
         let analysisMs = queueDelayMs + dspMs
 
         let diagnostics = TunerDiagnostics(
