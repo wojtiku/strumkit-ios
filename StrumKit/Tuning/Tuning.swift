@@ -33,9 +33,7 @@ enum Tuning {
             tuningId: preferences.tuningId(for: instrument),
             customMidi: preferences.customMidi(for: instrument),
             mode: preferences.mode,
-            a4: preferences.a4,
-            precision: preferences.precision,
-            guided: preferences.guided
+            a4: preferences.a4
         )
     }
 
@@ -57,8 +55,6 @@ enum Tuning {
         customMidi: [Int],
         mode: TunerMode,
         a4: Double,
-        precision: Bool,
-        guided: Bool,
         selectedString: Int = 0
     ) -> Resolved {
         let tuning = resolveTuning(
@@ -72,9 +68,7 @@ enum Tuning {
             customMidi: tuning.midi,
             a4: a4,
             mode: mode,
-            selectedString: selectedString,
-            precision: precision,
-            guided: guided && mode != .chromatic
+            selectedString: selectedString
         )
         return Resolved(config: config, targets: targets(forMidi: tuning.midi, a4: a4))
     }

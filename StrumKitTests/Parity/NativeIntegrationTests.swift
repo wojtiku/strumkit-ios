@@ -27,7 +27,7 @@ struct NativeIntegrationTests {
     func testSessionReplayMatchesStandaloneEngine() {
         let resolved = Tuning.resolve(
             instrument: .ukulele, tuningId: "standard", customMidi: [],
-            mode: .auto, a4: 440.0, precision: false, guided: false)
+            mode: .auto, a4: 440.0)
 
         let sampleRate = 44100.0
         let toneSamples = makeTone(frequency: 440.0, sampleRate: sampleRate, amplitude: 0.1, count: 4096 + 60 * 1024)
@@ -73,9 +73,7 @@ struct NativeIntegrationTests {
             tuningId: "standard",
             customMidi: [],
             mode: .auto,
-            a4: 440.0,
-            precision: false,
-            guided: false
+            a4: 440.0
         )
         session.adopt(resolved)
         let gen4 = session.generation

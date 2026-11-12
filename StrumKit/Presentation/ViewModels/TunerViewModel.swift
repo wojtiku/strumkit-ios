@@ -296,8 +296,6 @@ final class TunerViewModel {
             customMidi: preferences.customMidi(for: instrument),
             mode: config.mode,
             a4: config.a4,
-            precision: config.precision,
-            guided: config.guided,
             selectedString: config.selectedString
         )
     }
@@ -359,22 +357,23 @@ final class TunerViewModel {
     func setMode(_ mode: TunerMode) {
         applyResolution { config in
             config.mode = mode
-            config.guided = (mode == .guided)
         }
         session.updateConfiguration(config, preservingGuidedProgress: true)
         syncGuidedStateFromSession()
         if mode != .manual {
             preferences.mode = mode
-            preferences.guided = config.guided
+            preferences.guided = (mode == .guided)
             savePreferences()
         }
     }
 
+    /// Whether the readout shows tenths of a cent. A display preference: it changes
+    /// nothing about what is heard, so the analysis is not told and a **Reading** in
+    /// progress carries on.
+    var precision: Bool { preferences.precision }
+
     func togglePrecision() {
-        applyResolution { $0.precision.toggle() }
-        session.updateConfiguration(config, preservingGuidedProgress: true)
-        syncGuidedStateFromSession()
-        preferences.precision = config.precision
+        preferences.precision.toggle()
         savePreferences()
     }
 

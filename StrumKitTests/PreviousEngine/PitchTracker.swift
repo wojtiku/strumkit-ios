@@ -198,6 +198,9 @@ final class PitchTracker: @unchecked Sendable {
     private var displayedReading: TunerReading? = nil
 
     private(set) var ambientFloor: Double = initialAmbientFloor
+    /// The tighter in-tune tolerance. Once part of the app's configuration; the Reading
+    /// engine has no such setting, so the oracle keeps its own.
+    var precision: Bool = false
     private(set) var guidedProgress: [Bool] = []
     private(set) var guidedTargetIndex: Int = 0
     private(set) var feedbackState: PreviousSignalFeedbackState = .inactive
@@ -510,8 +513,8 @@ final class PitchTracker: @unchecked Sendable {
             readingAim = .note(note)
 
         case .target(let target, _):
-            let enterThreshold = config.precision ? Self.precisionEnterTuneCents : Self.standardEnterTuneCents
-            let exitThreshold = config.precision ? Self.precisionExitTuneCents : Self.standardExitTuneCents
+            let enterThreshold = precision ? Self.precisionEnterTuneCents : Self.standardEnterTuneCents
+            let exitThreshold = precision ? Self.precisionExitTuneCents : Self.standardExitTuneCents
 
             // A Sustained estimate may update the display and the prior, but must not
             // assert that a string is in tune. Cents error on recovery is noisier than

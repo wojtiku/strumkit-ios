@@ -78,7 +78,7 @@ struct TunerView: View {
                     // 3. Mode Bar (Auto, Guided, Chromatic & Precision toggle)
                     HardwareModeBarView(
                         mode: viewModel.config.mode,
-                        precision: viewModel.config.precision,
+                        precision: viewModel.precision,
                         onSelectMode: { viewModel.setMode($0) },
                         onTogglePrecision: { viewModel.togglePrecision() }
                     )
@@ -273,7 +273,7 @@ struct TunerView: View {
                         reading: viewModel.currentReading,
                         lastTone: viewModel.lastTone,
                         feedback: viewModel.feedbackState,
-                        precision: viewModel.config.precision,
+                        precision: viewModel.precision,
                         selectedTarget: activeTarget,
                         mode: viewModel.config.mode,
                         holdOpacity: holdFade
@@ -317,7 +317,7 @@ struct TunerView: View {
     }
 
     private var modeStatusLabel: String {
-        if viewModel.config.guided {
+        if viewModel.config.mode == .guided {
             let num = viewModel.targets[min(viewModel.guidedTargetIndex, viewModel.targets.count - 1)].number
             return "Guided · String \(num)"
         } else if viewModel.config.mode == .manual {

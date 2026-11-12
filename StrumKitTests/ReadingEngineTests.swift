@@ -10,7 +10,7 @@ struct ReadingEngineTests {
     private static func ukulele(mode: TunerMode = .auto, selectedString: Int = 0) -> ReadingEngine.Configuration {
         let resolved = Tuning.resolve(
             instrument: .ukulele, tuningId: "high-g", customMidi: [],
-            mode: mode, a4: 440.0, precision: false, guided: mode == .guided,
+            mode: mode, a4: 440.0,
             selectedString: selectedString)
         return ReadingEngine.Configuration(resolved)
     }

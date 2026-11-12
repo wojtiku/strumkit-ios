@@ -817,7 +817,7 @@ struct TuningResponsivenessTests {
         session.start(config: Self.config(), targets: Tuning.resolve(
             instrument: .guitar, tuningId: "standard",
             customMidi: [40, 45, 50, 55, 59, 64],
-            mode: .auto, a4: 440, precision: false, guided: false, selectedString: 0
+            mode: .auto, a4: 440, selectedString: 0
         ).targets)
 
         var dspTimes: [Double] = []
@@ -1002,7 +1002,7 @@ struct TuningResponsivenessTests {
             let config = Self.config()
             let resolved = Tuning.resolve(
                 instrument: .guitar, tuningId: "standard", customMidi: [40, 45, 50, 55, 59, 64],
-                mode: .auto, a4: 440, precision: false, guided: false, selectedString: 0
+                mode: .auto, a4: 440, selectedString: 0
             )
             var closest = 0.0
             for (index, target) in resolved.targets.enumerated() {
@@ -1129,11 +1129,11 @@ struct TuningResponsivenessTests {
         let ukulele = TunerConfig(
             instrument: .ukulele, tuningId: "high-g",
             customMidi: [67, 60, 64, 69], a4: 440,
-            mode: .auto, selectedString: 0, precision: false, guided: false
+            mode: .auto, selectedString: 0
         )
         let targets = Tuning.resolve(
             instrument: .ukulele, tuningId: "high-g", customMidi: [67, 60, 64, 69],
-            mode: .auto, a4: 440, precision: false, guided: false, selectedString: 0
+            mode: .auto, a4: 440, selectedString: 0
         ).targets
         print("@@ UKE targets: \(targets.map { "\($0.note)=\(String(format: "%.1f", $0.frequency))Hz" })")
 
@@ -1206,11 +1206,11 @@ struct TuningResponsivenessTests {
         let rate = wav.sampleRate
         let config = TunerConfig(
             instrument: .ukulele, tuningId: "high-g", customMidi: [67, 60, 64, 69],
-            a4: 440, mode: .auto, selectedString: 0, precision: false, guided: false
+            a4: 440, mode: .auto, selectedString: 0
         )
         let targets = Tuning.resolve(
             instrument: .ukulele, tuningId: "high-g", customMidi: [67, 60, 64, 69],
-            mode: .auto, a4: 440, precision: false, guided: false, selectedString: 0
+            mode: .auto, a4: 440, selectedString: 0
         ).targets
         let tracker = PitchTracker()
         tracker.reset(targetCount: targets.count)
@@ -1339,11 +1339,11 @@ struct TuningResponsivenessTests {
         // Recomputed here rather than hardcoded so this stays a measurement.
         let config = TunerConfig(
             instrument: .ukulele, tuningId: "high-g", customMidi: [67, 60, 64, 69],
-            a4: 440, mode: .auto, selectedString: 0, precision: false, guided: false
+            a4: 440, mode: .auto, selectedString: 0
         )
         let targets = Tuning.resolve(
             instrument: .ukulele, tuningId: "high-g", customMidi: [67, 60, 64, 69],
-            mode: .auto, a4: 440, precision: false, guided: false, selectedString: 0
+            mode: .auto, a4: 440, selectedString: 0
         ).targets
         let tracker = PitchTracker()
         tracker.reset(targetCount: targets.count)
@@ -1420,11 +1420,11 @@ struct TuningResponsivenessTests {
         // The floor the tracker actually converged to, re-measured rather than quoted.
         let config = TunerConfig(
             instrument: .ukulele, tuningId: "high-g", customMidi: [67, 60, 64, 69],
-            a4: 440, mode: .auto, selectedString: 0, precision: false, guided: false
+            a4: 440, mode: .auto, selectedString: 0
         )
         let targets = Tuning.resolve(
             instrument: .ukulele, tuningId: "high-g", customMidi: [67, 60, 64, 69],
-            mode: .auto, a4: 440, precision: false, guided: false, selectedString: 0
+            mode: .auto, a4: 440, selectedString: 0
         ).targets
         let tracker = PitchTracker()
         tracker.reset(targetCount: targets.count)
@@ -1488,11 +1488,11 @@ struct TuningResponsivenessTests {
         let rate = wav.sampleRate
         let config = TunerConfig(
             instrument: .ukulele, tuningId: "high-g", customMidi: [67, 60, 64, 69],
-            a4: 440, mode: .auto, selectedString: 0, precision: false, guided: false
+            a4: 440, mode: .auto, selectedString: 0
         )
         let targets = Tuning.resolve(
             instrument: .ukulele, tuningId: "high-g", customMidi: [67, 60, 64, 69],
-            mode: .auto, a4: 440, precision: false, guided: false, selectedString: 0
+            mode: .auto, a4: 440, selectedString: 0
         ).targets
         let tracker = PitchTracker()
         tracker.reset(targetCount: targets.count)
@@ -1606,11 +1606,11 @@ struct TuningResponsivenessTests {
         let rate = wav.sampleRate
         let config = TunerConfig(
             instrument: .ukulele, tuningId: "high-g", customMidi: [67, 60, 64, 69],
-            a4: 440, mode: .auto, selectedString: 0, precision: false, guided: false
+            a4: 440, mode: .auto, selectedString: 0
         )
         let targets = Tuning.resolve(
             instrument: .ukulele, tuningId: "high-g", customMidi: [67, 60, 64, 69],
-            mode: .auto, a4: 440, precision: false, guided: false, selectedString: 0
+            mode: .auto, a4: 440, selectedString: 0
         ).targets
         let tracker = PitchTracker()
         tracker.reset(targetCount: targets.count)
@@ -1789,7 +1789,7 @@ struct TuningResponsivenessTests {
 
                 let config = TunerConfig(
                     instrument: .ukulele, tuningId: "high-g", customMidi: [67, 60, 64, 69],
-                    a4: 440, mode: .auto, selectedString: 0, precision: false, guided: false
+                    a4: 440, mode: .auto, selectedString: 0
                 )
                 let (frames, _) = AudioTestHelpers.replayTrace(
                     samples: scaled, sampleRate: rate, config: config

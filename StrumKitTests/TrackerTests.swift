@@ -38,7 +38,7 @@ struct TrackerTests {
     @Test("Guided mode advances only after 1 second continuous in-tune hold")
     func testGuidedModeProgression() {
         let tracker = PitchTracker()
-        let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .guided, guided: true)
+        let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .guided)
         let targets = Presets.guitar[0].midi.enumerated().map { index, midi in
             StringTarget(note: PitchMath.midiNoteName(midi), midi: midi, frequency: PitchMath.midiFrequency(midi), number: 6 - index)
         }
@@ -266,7 +266,7 @@ struct TrackerTests {
     @Test("Guided tuning requires continuous fresh in-tune evidence and rejects held readings")
     func testGuidedProgressionRejectsHeldEvidence() {
         let tracker = PitchTracker()
-        let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .guided, guided: true)
+        let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .guided)
         let targets = Presets.guitar[0].midi.enumerated().map { index, midi in
             StringTarget(note: PitchMath.midiNoteName(midi), midi: midi, frequency: PitchMath.midiFrequency(midi), number: 6 - index)
         }
@@ -574,9 +574,7 @@ struct TrackerTests {
             tuningId: "high-g",
             customMidi: [],
             mode: .chromatic,
-            a4: 440.0,
-            precision: false,
-            guided: false
+            a4: 440.0
         ).targets
 
         // A4 + 17 cents. A4 is on the ukulele's high-G tuning, so a mode that reached
@@ -646,7 +644,7 @@ struct TrackerTests {
     func testStringModesCarryATargetAndAdvice() {
         for mode in [TunerMode.auto, .manual, .guided] {
             let tracker = PitchTracker()
-            let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: mode, guided: mode == .guided)
+            let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: mode)
             let targets = Presets.guitar[0].midi.enumerated().map { index, midi in
                 StringTarget(note: PitchMath.midiNoteName(midi), midi: midi, frequency: PitchMath.midiFrequency(midi), number: 6 - index)
             }
@@ -767,7 +765,7 @@ struct TrackerTests {
     @Test("Sustained frames never complete a guided string")
     func testSustainedFramesCannotCompleteGuidedString() {
         let tracker = PitchTracker()
-        let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .guided, guided: true)
+        let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .guided)
         let targets = Presets.guitar[0].midi.enumerated().map { index, midi in
             StringTarget(note: PitchMath.midiNoteName(midi), midi: midi, frequency: PitchMath.midiFrequency(midi), number: 6 - index)
         }
@@ -796,7 +794,7 @@ struct TrackerTests {
         let targets = Presets.guitar[0].midi.enumerated().map { index, midi in
             StringTarget(note: PitchMath.midiNoteName(midi), midi: midi, frequency: PitchMath.midiFrequency(midi), number: 6 - index)
         }
-        let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .guided, guided: true)
+        let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .guided)
 
         // Build a real guided session by actually completing two strings, rather
         // than writing state the production code path never produces.

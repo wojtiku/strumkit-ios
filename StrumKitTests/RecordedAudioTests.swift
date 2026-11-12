@@ -31,7 +31,7 @@ struct RecordedAudioTests {
             return
         }
 
-        let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .guided, guided: true)
+        let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .guided)
         let (_, tracker) = AudioTestHelpers.replay(samples: wav.samples, sampleRate: wav.sampleRate, config: config)
 
         // A polyphonic chord must NEVER accidentally validate and complete a single-string guided tune!

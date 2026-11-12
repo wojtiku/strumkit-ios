@@ -75,7 +75,7 @@ struct AnalysisSessionTests {
     private static func ukulele(mode: TunerMode = .auto) -> Tuning.Resolved {
         Tuning.resolve(
             instrument: .ukulele, tuningId: "high-g", customMidi: [],
-            mode: mode, a4: 440.0, precision: false, guided: mode == .guided)
+            mode: mode, a4: 440.0)
     }
 
     private static func makeSession(mode: TunerMode = .auto) -> TunerAnalysisSession {
@@ -232,7 +232,7 @@ struct AnalysisSessionTests {
         session.submit(Self.tone(440.0, seconds: 0.5), sampleRate: Self.rate, hostEnd: nil)
         session.adopt(Tuning.resolve(
             instrument: .guitar, tuningId: "standard", customMidi: [],
-            mode: .auto, a4: 440.0, precision: false, guided: false))
+            mode: .auto, a4: 440.0))
 
         await Self.settle(session)
         #expect(snapshots.get().isEmpty)

@@ -442,8 +442,6 @@ enum AudioTestHelpers {
             customMidi: config.customMidi,
             mode: config.mode,
             a4: config.a4,
-            precision: config.precision,
-            guided: config.guided,
             selectedString: config.selectedString
         ).targets
 

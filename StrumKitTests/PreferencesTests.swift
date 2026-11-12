@@ -109,7 +109,7 @@ struct PreferencesTests {
         #expect(viewModel.config.tuningId == "baritone")
         #expect(viewModel.config.customMidi == [50, 55, 59, 64])
         #expect(viewModel.config.a4 == 442.0)
-        #expect(viewModel.config.precision == true)
+        #expect(viewModel.precision == true)
         #expect(viewModel.config.mode == .chromatic)
         #expect(viewModel.targets.count == 4)
     }
@@ -234,5 +234,23 @@ struct PreferencesTests {
             stopped = synth.activeStringIndex
         }
         #expect(stopped == nil)
+    }
+
+    @Test("Toggling precision is a display change: the analysis is not restarted")
+    @MainActor
+    func testPrecisionToggleDoesNotInvalidateAnalysis() {
+        let (store, _) = makeIsolatedStore()
+        let resolved = Tuning.resolve(TunerPreferences())
+        let session = TunerAnalysisSession(config: resolved.config, targets: resolved.targets)
+        let viewModel = TestTuner.viewModel(preferencesStore: store, session: session)
+
+        let generation = session.generation
+        let config = viewModel.config
+        viewModel.togglePrecision()
+
+        #expect(viewModel.precision == true)
+        #expect(session.generation == generation, "A Reading in progress must survive a precision toggle")
+        #expect(viewModel.config == config)
+        #expect(store.load().precision == true)
     }
 }

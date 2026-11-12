@@ -118,8 +118,6 @@ struct DevicePerformanceTests {
             customMidi: config.customMidi,
             mode: config.mode,
             a4: config.a4,
-            precision: config.precision,
-            guided: config.guided,
             selectedString: config.selectedString
         )
         let targets = resolved.targets
@@ -231,8 +229,6 @@ struct DevicePerformanceTests {
             customMidi: config.customMidi,
             mode: config.mode,
             a4: config.a4,
-            precision: config.precision,
-            guided: config.guided,
             selectedString: config.selectedString
         )
         let targets = resolved.targets

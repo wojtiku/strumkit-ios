@@ -128,7 +128,7 @@ struct NativeExtensionsTests {
     ) -> [StringTarget] {
         Tuning.resolve(
             instrument: instrument, tuningId: tuningId, customMidi: customMidi,
-            mode: .auto, a4: a4, precision: false, guided: false).targets
+            mode: .auto, a4: a4).targets
     }
 
     @Test("All shipped guitar presets resolve to 6 targets with descending string indices 6..1")
@@ -211,7 +211,7 @@ struct NativeExtensionsTests {
         func lastReading(a4: Double) -> TunerReading? {
             let resolved = Tuning.resolve(
                 instrument: .ukulele, tuningId: "high-g", customMidi: [],
-                mode: .auto, a4: a4, precision: false, guided: false)
+                mode: .auto, a4: a4)
             let engine = ReadingEngine(configuration: ReadingEngine.Configuration(resolved), sampleRate: 48000.0)
             let tone = (0..<48000).map { i -> Float in
                 let t = Double(i) / 48000.0
