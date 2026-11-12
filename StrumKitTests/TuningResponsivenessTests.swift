@@ -1223,7 +1223,7 @@ struct TuningResponsivenessTests {
         ).targets
         let tracker = PitchTracker()
         tracker.reset(targetCount: targets.count)
-        let session = TunerAnalysisSession(config: config, targets: targets, tracker: tracker)
+        let session = PreviousEngineSession(config: config, targets: targets, tracker: tracker)
 
         let hop = AudioTestHelpers.productionHopSamples
         let windowLength = Resampler.requiredInputSamples(for: rate)
@@ -1356,7 +1356,7 @@ struct TuningResponsivenessTests {
         ).targets
         let tracker = PitchTracker()
         tracker.reset(targetCount: targets.count)
-        let session = TunerAnalysisSession(config: config, targets: targets, tracker: tracker)
+        let session = PreviousEngineSession(config: config, targets: targets, tracker: tracker)
         let hop = AudioTestHelpers.productionHopSamples
         let windowLength = Resampler.requiredInputSamples(for: rate)
         var sequence: UInt64 = 0
@@ -1437,7 +1437,7 @@ struct TuningResponsivenessTests {
         ).targets
         let tracker = PitchTracker()
         tracker.reset(targetCount: targets.count)
-        let session = TunerAnalysisSession(config: config, targets: targets, tracker: tracker)
+        let session = PreviousEngineSession(config: config, targets: targets, tracker: tracker)
         let hop = AudioTestHelpers.productionHopSamples
         let windowLength = Resampler.requiredInputSamples(for: rate)
         var sequence: UInt64 = 0
@@ -1505,7 +1505,7 @@ struct TuningResponsivenessTests {
         ).targets
         let tracker = PitchTracker()
         tracker.reset(targetCount: targets.count)
-        let session = TunerAnalysisSession(config: config, targets: targets, tracker: tracker)
+        let session = PreviousEngineSession(config: config, targets: targets, tracker: tracker)
 
         let hop = AudioTestHelpers.productionHopSamples
         let windowLength = Resampler.requiredInputSamples(for: rate)
@@ -1623,7 +1623,7 @@ struct TuningResponsivenessTests {
         ).targets
         let tracker = PitchTracker()
         tracker.reset(targetCount: targets.count)
-        let session = TunerAnalysisSession(config: config, targets: targets, tracker: tracker)
+        let session = PreviousEngineSession(config: config, targets: targets, tracker: tracker)
 
         let hop = AudioTestHelpers.productionHopSamples
         let windowLength = Resampler.requiredInputSamples(for: rate)

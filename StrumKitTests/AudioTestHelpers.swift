@@ -198,7 +198,7 @@ enum AudioTestHelpers {
         pitchResult: PitchResult,
         noiseGate: Float,
         reading: TunerReading?,
-        feedbackState: SignalFeedbackState
+        feedbackState: PreviousSignalFeedbackState
     ) -> String? {
         if pitchResult.isClipped { return "clipping" }
 
@@ -449,7 +449,7 @@ enum AudioTestHelpers {
 
         let tracker = PitchTracker()
         tracker.reset(targetCount: targets.count)
-        let session = TunerAnalysisSession(
+        let session = PreviousEngineSession(
             config: config, targets: targets, tracker: tracker,
             fundamentalEnergyScale: fundamentalEnergyScale)
         session.isSpectralRecoveryEnabled = enableSpectralRecovery

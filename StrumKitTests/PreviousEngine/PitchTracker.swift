@@ -1,3 +1,4 @@
+@testable import StrumKit
 import Foundation
 
 /// Manages pitch stability, target string matching, guided-mode progression,
@@ -199,7 +200,7 @@ final class PitchTracker: @unchecked Sendable {
     private(set) var ambientFloor: Double = initialAmbientFloor
     private(set) var guidedProgress: [Bool] = []
     private(set) var guidedTargetIndex: Int = 0
-    private(set) var feedbackState: SignalFeedbackState = .inactive
+    private(set) var feedbackState: PreviousSignalFeedbackState = .inactive
     private(set) var continuityPrior: (frequency: Double, at: TimeInterval)? = nil
 
     /// Consecutive frames on which YIN, rather than spectral recovery, produced

@@ -1,3 +1,4 @@
+@testable import StrumKit
 import Foundation
 
 /// Projects a signal onto one frequency with a symmetric Hann window.

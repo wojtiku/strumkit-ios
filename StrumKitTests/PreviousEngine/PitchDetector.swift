@@ -1,3 +1,4 @@
+@testable import StrumKit
 import Foundation
 import Accelerate
 

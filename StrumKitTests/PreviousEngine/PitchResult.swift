@@ -1,3 +1,4 @@
+@testable import StrumKit
 /// Analyzed pitch state from the DSP pipeline.
 struct PitchResult: Sendable, Equatable {
     let frequency: Double

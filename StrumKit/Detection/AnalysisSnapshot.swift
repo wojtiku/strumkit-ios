@@ -1,6 +1,5 @@
 struct AnalysisSnapshot: Sendable, Equatable {
     let reading: TunerReading?
-    let pitchResult: PitchResult
     let feedbackState: SignalFeedbackState
     let guidedProgress: [Bool]
     let guidedTargetIndex: Int
@@ -11,7 +10,6 @@ struct AnalysisSnapshot: Sendable, Equatable {
 
     init(
         reading: TunerReading?,
-        pitchResult: PitchResult,
         feedbackState: SignalFeedbackState,
         guidedProgress: [Bool],
         guidedTargetIndex: Int,
@@ -21,7 +19,6 @@ struct AnalysisSnapshot: Sendable, Equatable {
         action: FaithfulPresentation.Action = .empty
     ) {
         self.reading = reading
-        self.pitchResult = pitchResult
         self.feedbackState = feedbackState
         self.guidedProgress = guidedProgress
         self.guidedTargetIndex = guidedTargetIndex

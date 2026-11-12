@@ -57,8 +57,8 @@ struct TunerPresentationTests {
         let text = TunerPresentation.guidanceText(for: nil, feedback: .ready)
         #expect(text == SignalFeedbackState.ready.advisoryMessage)
 
-        let quietText = TunerPresentation.guidanceText(for: nil, feedback: .quiet)
-        #expect(quietText == SignalFeedbackState.quiet.advisoryMessage)
+        let quietText = TunerPresentation.guidanceText(for: nil, feedback: .checking)
+        #expect(quietText == SignalFeedbackState.checking.advisoryMessage)
     }
 
     @Test("Guidance text for held reading always prompts to pluck again")
@@ -153,7 +153,7 @@ struct TunerPresentationTests {
                 "Nothing was aimed at, so nothing can have been reached")
 
         // The banner still reports the signal, so it does not go blank.
-        #expect(TunerPresentation.guidanceText(for: sharp, feedback: .quiet) == SignalFeedbackState.quiet.advisoryMessage)
+        #expect(TunerPresentation.guidanceText(for: sharp, feedback: .checking) == SignalFeedbackState.checking.advisoryMessage)
     }
 
     @Test("A held or sustained chromatic Reading is reported the same way as any other")
@@ -261,7 +261,6 @@ struct TunerPresentationTests {
         )
         let snap = AnalysisSnapshot(
             reading: sustained,
-            pitchResult: PitchResult(frequency: 440.0, closestNote: MusicalNote(midiNoteNumber: 69), centsDeviation: -12, confidence: 0.2, amplitudeRMS: 0.002, isSignalPresent: true, evidence: .sustained),
             feedbackState: .tracking,
             guidedProgress: [],
             guidedTargetIndex: 0,
@@ -297,7 +296,6 @@ struct TunerPresentationTests {
 
         let freshSnap = AnalysisSnapshot(
             reading: freshReading,
-            pitchResult: PitchResult(frequency: 440.0, closestNote: MusicalNote(midiNoteNumber: 69), centsDeviation: 0, confidence: 0.9, amplitudeRMS: 0.05, isSignalPresent: true, evidence: .measured),
             feedbackState: .tracking,
             guidedProgress: [],
             guidedTargetIndex: 0,
@@ -329,7 +327,6 @@ struct TunerPresentationTests {
 
         let heldSnap = AnalysisSnapshot(
             reading: heldReading,
-            pitchResult: PitchResult(frequency: 0, closestNote: MusicalNote(midiNoteNumber: 69), centsDeviation: 0, confidence: 0, amplitudeRMS: 0.001, isSignalPresent: false, evidence: .measured),
             feedbackState: .tracking,
             guidedProgress: [],
             guidedTargetIndex: 0,
