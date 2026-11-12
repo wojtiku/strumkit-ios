@@ -6,7 +6,7 @@
 
 **Status:** ready-for-agent
 
-- [ ] Toggling precision does not change the session's generation, proven by a test.
-- [ ] There is one way to say the tuner is in guided mode.
-- [ ] Preferences written by the current build still load.
-- [ ] The suite is green.
+- [x] Toggling precision does not change the session's generation, proven by a test.
+- [x] There is one way to say the tuner is in guided mode.
+- [x] Preferences written by the current build still load.
+- [x] The suite is green.

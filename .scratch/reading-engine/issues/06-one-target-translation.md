@@ -6,8 +6,8 @@
 
 **Status:** ready-for-agent
 
-- [ ] The translation between the domain's **Target** and the port's exists once.
-- [ ] No path invents a **Target** (no fallback MIDI 60).
-- [ ] `FaithfulTargetResolver` and `FaithfulPrecisionPreference` and their tests are deleted.
-- [ ] The live path never looks a **Tuning** up by id in `TUNINGS`.
-- [ ] The suite is green.
+- [x] The translation between the domain's **Target** and the port's exists once.
+- [x] No path invents a **Target** (no fallback MIDI 60).
+- [x] `FaithfulTargetResolver` and `FaithfulPrecisionPreference` and their tests are deleted.
+- [x] The live path never looks a **Tuning** up by id in `TUNINGS`.
+- [x] The suite is green.

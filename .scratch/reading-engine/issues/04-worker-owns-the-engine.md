@@ -6,10 +6,10 @@
 
 **Status:** ready-for-agent
 
-- [ ] The session assembles nothing: no framer, detector, tracker or adapter of its own.
-- [ ] No engine state is touched off the worker.
-- [ ] A capture callback carrying several hops delivers every hop to the detector, proven by a test.
-- [ ] Exceeding the queue bound flushes, resets the engine and counts a discontinuity, proven by a test.
-- [ ] A configuration change still invalidates results in flight.
-- [ ] The synchronous replay path and the live path run the same code.
-- [ ] The suite is green.
+- [x] The session assembles nothing: no framer, detector, tracker or adapter of its own.
+- [x] No engine state is touched off the worker.
+- [x] A capture callback carrying several hops delivers every hop to the detector, proven by a test.
+- [x] Exceeding the queue bound flushes, resets the engine and counts a discontinuity, proven by a test.
+- [x] A configuration change still invalidates results in flight.
+- [x] The synchronous replay path and the live path run the same code.
+- [x] The suite is green.

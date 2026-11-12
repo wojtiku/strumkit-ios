@@ -6,10 +6,10 @@
 
 **Status:** ready-for-agent
 
-- [ ] The engine is configured once per change, not once per frame.
-- [ ] **String** completion is decided at tracker cadence, before the throttle, and credited only to the **String** currently being guided.
-- [ ] There is one guided-sequence implementation.
-- [ ] **Reading** times are host-clock; the stream clock does not appear in the engine's output.
-- [ ] The engine can be told of a discontinuity and starts a fresh stream.
-- [ ] Tests at the engine's interface cover: chunk-size independence, completion before the throttle, sequential guided credit, hold fade times, discontinuity reset.
-- [ ] The suite is green.
+- [x] The engine is configured once per change, not once per frame.
+- [x] **String** completion is decided at tracker cadence, before the throttle, and credited only to the **String** currently being guided.
+- [x] There is one guided-sequence implementation.
+- [x] **Reading** times are host-clock; the stream clock does not appear in the engine's output.
+- [x] The engine can be told of a discontinuity and starts a fresh stream.
+- [x] Tests at the engine's interface cover: chunk-size independence, completion before the throttle, sequential guided credit, hold fade times, discontinuity reset.
+- [x] The suite is green.

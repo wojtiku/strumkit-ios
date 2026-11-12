@@ -41,7 +41,7 @@ help:
 	@echo "──────────────────────────────────────────────────────"
 	@echo -e "  $(GREEN)make open$(RESET)       Rebuild, install, and launch in iOS Simulator (alias: make run)"
 	@echo -e "  $(GREEN)make build$(RESET)      Compile the StrumKit app target"
-	@echo -e "  $(GREEN)make test$(RESET)       Run all 28 unit tests (YIN, tracking, audio fixtures)"
+	@echo -e "  $(GREEN)make test$(RESET)       Run all unit tests"
 	@echo -e "  $(GREEN)make clean$(RESET)      Remove DerivedData and build artifacts"
 	@echo -e "  $(GREEN)make project$(RESET)    Regenerate StrumKit.xcodeproj using XcodeGen"
 	@echo -e "  $(GREEN)make xcode$(RESET)      Open the project in Xcode GUI"

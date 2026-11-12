@@ -6,9 +6,9 @@
 
 **Status:** ready-for-agent
 
-- [ ] The app target contains none of the previous engine's sources.
-- [ ] The session has no `tracker:`, `fundamentalEnergyScale:`, `isSpectralRecoveryEnabled` or `continuityPrior`.
-- [ ] `AnalysisSnapshot` no longer carries a `PitchResult`.
-- [ ] `SignalFeedbackState` in the app names only ready, inactive, checking and tracking; the previous engine keeps its own wider state in the test target.
-- [ ] Every suite that drove the previous engine through the session still runs, through the test-target replay helper.
-- [ ] The suite is green.
+- [x] The app target contains none of the previous engine's sources.
+- [x] The session has no `tracker:`, `fundamentalEnergyScale:`, `isSpectralRecoveryEnabled` or `continuityPrior`.
+- [x] `AnalysisSnapshot` no longer carries a `PitchResult`.
+- [x] `SignalFeedbackState` in the app names only ready, inactive, checking and tracking; the previous engine keeps its own wider state in the test target.
+- [x] Every suite that drove the previous engine through the session still runs, through the test-target replay helper.
+- [x] The suite is green.

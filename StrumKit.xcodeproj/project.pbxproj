@@ -15,6 +15,7 @@
 		121C02413A7863626F04FC9D /* TrackerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09567FB37CE8D5799FE61DDF /* TrackerTests.swift */; };
 		133365755EC0BBF979DFECA0 /* ParityModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 149782F79093A419A8FD0636 /* ParityModels.swift */; };
 		13B990688F21BB1187D4D240 /* NativeIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB60551322A20B7C086B53F1 /* NativeIntegrationTests.swift */; };
+		1791C2192DFB246AD5148B44 /* ListeningLifecycleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D49E9747201B8A6B666B0994 /* ListeningLifecycleTests.swift */; };
 		186004F88204EC9C3D9F37AF /* RecordedAudioTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A85FCA30A6417445D89A5867 /* RecordedAudioTests.swift */; };
 		1938DACA0EF358A53BC681C0 /* tuning_g.wav in Resources */ = {isa = PBXBuildFile; fileRef = 3FE142AD7F6B3833FDC5EA54 /* tuning_g.wav */; };
 		1D857E58BF3DD575D82D2C51 /* MusicalNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3AB65FFBB8884C99F1D5416 /* MusicalNote.swift */; };
@@ -95,6 +96,7 @@
 		C7F28B11FF86D33534E292F6 /* PitchDetectionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A80EE17CBE59AD7D1D3737DD /* PitchDetectionTests.swift */; };
 		CA34355A2020A10E3B541B50 /* StringTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1DFC9E00A0CC0FD9A8DD7B /* StringTarget.swift */; };
 		CD0B200728E0FA7BD9E0739E /* TunerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A75D3DB28564464BBE0F76E6 /* TunerViewModel.swift */; };
+		CE223EA1A582F84FB597A2BE /* ListeningLifecycle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2361B950B3CAF7DDBD6B41AD /* ListeningLifecycle.swift */; };
 		CF830A199E245867C744E05C /* ReadingEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C444424CA4441F1E87F0B87 /* ReadingEngine.swift */; };
 		D0E63FF7F1C644FDE5A244ED /* ReadingEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D6A9AC09A08B7713544B3EC /* ReadingEngineTests.swift */; };
 		D113A9C4E137C93FBD4BDA0C /* StrumKitApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6CD8553C0788E345EE166E2F /* StrumKitApp.swift */; };
@@ -159,6 +161,7 @@
 		1FD4A6700F8E8787EE545208 /* StreamingDetectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingDetectorTests.swift; sourceTree = "<group>"; };
 		20DC4168E2F6B6BD287F2D82 /* MicrophoneSource.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MicrophoneSource.swift; sourceTree = "<group>"; };
 		22ECD30CCA88CE429D36A50D /* TunerReading.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunerReading.swift; sourceTree = "<group>"; };
+		2361B950B3CAF7DDBD6B41AD /* ListeningLifecycle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListeningLifecycle.swift; sourceTree = "<group>"; };
 		2551E2EB45BCA59A50839515 /* TunerPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunerPresentation.swift; sourceTree = "<group>"; };
 		29536BF2D48530651C9D7629 /* StrumKitTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = StrumKitTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2E2EC88610804667F563783C /* RealStrumStabilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RealStrumStabilityTests.swift; sourceTree = "<group>"; };
@@ -242,6 +245,7 @@
 		D08ACF70BCB0CC6D830DAE7A /* TunerDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunerDiagnostics.swift; sourceTree = "<group>"; };
 		D2829779E0C8247F29DFFBE1 /* PreferencesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreferencesTests.swift; sourceTree = "<group>"; };
 		D30D0712F0E7C27DD7E9B779 /* TunerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunerView.swift; sourceTree = "<group>"; };
+		D49E9747201B8A6B666B0994 /* ListeningLifecycleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListeningLifecycleTests.swift; sourceTree = "<group>"; };
 		D77C3645BFC63C3ECF59A849 /* PreviousEngineSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviousEngineSession.swift; sourceTree = "<group>"; };
 		D80189C0816F705DB9D0A18C /* HardwareStringGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareStringGridView.swift; sourceTree = "<group>"; };
 		D8C637F1DA5A57DA1B1A2936 /* AudioRingBuffer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioRingBuffer.swift; sourceTree = "<group>"; };
@@ -352,6 +356,7 @@
 				B14F288E8C230CDC6CEA564A /* CoverageMatrixTests.swift */,
 				03AA0476868F5CC3C91C6980 /* CrossEngineComparisonTests.swift */,
 				09412E004EDEADDAE09418FC /* InputLevelMeasurementTests.swift */,
+				D49E9747201B8A6B666B0994 /* ListeningLifecycleTests.swift */,
 				7F3B8BDC856E708B7EBEC585 /* MicrophoneSeamTests.swift */,
 				AECC7DF1BA2D4B95A1958BB7 /* MusicalNoteTests.swift */,
 				A80EE17CBE59AD7D1D3737DD /* PitchDetectionTests.swift */,
@@ -530,6 +535,7 @@
 		E9972583547D33E1568E0BE6 /* Analysis */ = {
 			isa = PBXGroup;
 			children = (
+				2361B950B3CAF7DDBD6B41AD /* ListeningLifecycle.swift */,
 				8C444424CA4441F1E87F0B87 /* ReadingEngine.swift */,
 				031E6C3A15D93581DB6C366C /* TunerAnalysisSession.swift */,
 			);
@@ -670,6 +676,7 @@
 				BE8CE8B64DB5C9181497FE66 /* HardwareReadoutView.swift in Sources */,
 				5D7D0AC8C94DC90F8097A52A /* HardwareStringGridView.swift in Sources */,
 				B46BBD10C9379852A46FA5FB /* InstrumentCategory.swift in Sources */,
+				CE223EA1A582F84FB597A2BE /* ListeningLifecycle.swift in Sources */,
 				B2213359F679CF0FAD20508E /* MicrophoneEvent.swift in Sources */,
 				880A60449151EDA98AEFFC39 /* MicrophoneSource.swift in Sources */,
 				1D857E58BF3DD575D82D2C51 /* MusicalNote.swift in Sources */,
@@ -718,6 +725,7 @@
 				A1B7D970CA5D1D7D440E8182 /* FullParityRegressionTests.swift in Sources */,
 				21C3483A766B13C3BC35357D /* HannProjection.swift in Sources */,
 				2BBB5CEB7D6D6F181319976E /* InputLevelMeasurementTests.swift in Sources */,
+				1791C2192DFB246AD5148B44 /* ListeningLifecycleTests.swift in Sources */,
 				4D205E34974DA37C528FC768 /* MicrophoneSeamTests.swift in Sources */,
 				ECF4D8EEAFF0033CA3FAF1D5 /* MusicalNoteTests.swift in Sources */,
 				6A04831160190827EA2CF95C /* NativeExtensionsTests.swift in Sources */,

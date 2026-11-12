@@ -1,10 +1,16 @@
 import Foundation
 import Observation
 
+/// What the tuner screen shows and what the player can change: the **Tuning** choice,
+/// the preferences it is saved in, and the **Reading** on display.
+///
+/// Whether the tuner is listening at all is not decided here. That is the listening
+/// lifecycle's, and this type only reports its status and clears the display when
+/// listening stops.
 @MainActor
 @Observable
 final class TunerViewModel {
-    // MARK: - Configuration & Engine State
+    // MARK: - Configuration
     /// The player's choice, resolved: what the tuner will do, and the **Targets** it will
     /// measure readings against.
     ///
@@ -14,12 +20,25 @@ final class TunerViewModel {
 
     /// What the tuner will do. A read of `resolved`, the same value `targets` reads.
     var config: TunerConfig { resolved.config }
+    var targets: [StringTarget] { resolved.targets }
     var preferences: TunerPreferences
-    var engineStatus: EngineStatus = .paused
+
+    /// Whether the readout shows tenths of a cent. A display preference: it changes
+    /// nothing about what is heard, so the analysis is not told and a **Reading** in
+    /// progress carries on.
+    var precision: Bool { preferences.precision }
+
+    // MARK: - What is on display
     var currentReading: TunerReading? = nil
     var lastTone: ToneMemory? = nil
     var feedbackState: SignalFeedbackState = .inactive
     var diagnostics: TunerDiagnostics = TunerDiagnostics()
+    var guidedProgress: [Bool] = []
+    var guidedTargetIndex: Int = 0
+
+    // MARK: - Listening
+    var engineStatus: EngineStatus { lifecycle.status }
+    var activeToneStringIndex: Int? { lifecycle.activeToneStringIndex }
 
     /// Measured level of the audio the capture tap is actually delivering.
     ///
@@ -44,35 +63,10 @@ final class TunerViewModel {
         return holdFade
     }
 
-    // Hold Expiry
-    //
-    // Clearing a Held Reading is a state transition and therefore belongs here, but the
-    // fade that leads up to it is a rendering concern and belongs to the display. So
-    // there is one scheduled task per Held Reading, not a poll: it wakes once, at the
-    // moment the hold expires, and the Reading's own age is read off the Reading.
-    private struct HoldExpiry {
-        let lastFreshAt: TimeInterval
-        let task: Task<Void, Never>
-    }
-
-    private var holdExpiry: HoldExpiry? = nil
-
-    // Guided Mode
-    var guidedProgress: [Bool] = []
-    var guidedTargetIndex: Int = 0
-
-    // Tone synthesis
-    var activeToneStringIndex: Int? = nil
-
-    // Services
-    //
-    // The microphone and the reference-tone player are required, not defaulted. A
-    // default here would hand a test a real microphone by omission, and a test that
-    // drives real audio hardware is a test that cannot assert anything.
-    private let source: MicrophoneSource
-    private let referenceTone: ReferenceTonePlayer
+    // MARK: - Collaborators
     private let preferencesStore: TunerPreferencesStore
     private let session: TunerAnalysisSession
+    @ObservationIgnored private var lifecycle: ListeningLifecycle!
 
     /// The live app's wiring: a real microphone and the real synthesiser.
     ///
@@ -88,14 +82,15 @@ final class TunerViewModel {
         )
     }
 
+    /// The microphone and the reference-tone player are required, not defaulted. A
+    /// default here would hand a test a real microphone by omission, and a test that
+    /// drives real audio hardware is a test that cannot assert anything.
     init(
         source: MicrophoneSource,
         referenceTone: ReferenceTonePlayer,
         preferencesStore: TunerPreferencesStore = TunerPreferencesStore(),
         session: TunerAnalysisSession? = nil
     ) {
-        self.source = source
-        self.referenceTone = referenceTone
         self.preferencesStore = preferencesStore
 
         let loaded = preferencesStore.load()
@@ -103,181 +98,70 @@ final class TunerViewModel {
         let initial = Tuning.resolve(loaded)
         self.resolved = initial
 
-        self.session = session ?? TunerAnalysisSession(
-            config: initial.config,
-            targets: initial.targets
+        let session = session ?? TunerAnalysisSession(config: initial.config, targets: initial.targets)
+        self.session = session
+        self.guidedProgress = Array(repeating: false, count: initial.targets.count)
+
+        let lifecycle = ListeningLifecycle(
+            source: source,
+            referenceTone: referenceTone,
+            session: session,
+            tuning: { initial }
         )
+        self.lifecycle = lifecycle
 
-        // Initialize guided progress for active instrument string count
-        self.guidedProgress = Array(repeating: false, count: initial.config.customMidi.count)
-
-        self.referenceTone.onToneStarted = { [weak self] in
-            Task { @MainActor [weak self] in
-                self?.handleToneStarted()
-            }
+        lifecycle.tuning = { [unowned self] in self.resolved }
+        lifecycle.onStatusChange = { [weak self] status in
+            self?.listeningStatusChanged(to: status)
         }
-        self.referenceTone.onToneEnded = { [weak self] in
-            Task { @MainActor [weak self] in
-                self?.handleToneEnded()
-            }
+        session.onSnapshotPublished = { [weak self] snapshot in
+            self?.handleSnapshot(snapshot)
         }
     }
 
-    private var toneGeneration: UInt64 = 0
-    private var listeningIntent: Bool = false
-
-    /// Reacts to what the microphone reports.
-    ///
-    /// The source's tap has already been stopped and the analysis invalidated by the
-    /// time this runs; what is left is the decision only this layer can make. Whether
-    /// the player meant to be listening decides whether the event means anything at
-    /// all — a source keeps reporting after a stop, and a tuner that was deliberately
-    /// paused has nothing to interrupt. Picking capture up again means arming it,
-    /// which re-wires both halves.
-    private func handleSourceEvent(_ event: MicrophoneEvent) {
-        guard listeningIntent else { return }
-
-        switch event {
-        case .interrupted(let resumable):
-            self.engineStatus = .interrupted
-            self.feedbackState = .inactive
-            if resumable {
-                restartListening()
-            }
-        case .routeChanged:
-            restartListening()
-        }
-    }
-
-    /// Picks capture up again after the session stopped it.
-    ///
-    /// Deliberately not `start()`: a route change leaves the status saying
-    /// `.listening`, and `start()` guards on that status, so it would refuse to re-arm
-    /// a source that the event has already stopped. The status is not evidence about
-    /// the tap.
-    private func restartListening() {
-        Task { [weak self] in
-            await self?.beginListening()
-        }
-    }
-
-    // MARK: - String Targets
-    var targets: [StringTarget] {
-        resolved.targets
-    }
-
-    // MARK: - Audio Capture Lifecycle
+    // MARK: - Listening
     func start() async {
-        listeningIntent = true
-        guard engineStatus != .listening && engineStatus != .requesting else { return }
-        await beginListening()
-    }
-
-    /// Asks the microphone for permission and arms capture, without deciding whether
-    /// the tuner should be listening at all.
-    ///
-    /// Split out of `start()` so a restart asked for by a microphone event can re-arm
-    /// a stopped source without first having to make the status admit it was stopped.
-    private func beginListening() async {
-        let permStatus = source.permissionStatus
-        if permStatus == .notDetermined {
-            engineStatus = .requesting
-            let granted = await source.requestPermission()
-            if !granted {
-                engineStatus = .denied
-                return
-            }
-        } else if permStatus == .denied {
-            engineStatus = .denied
-            return
-        }
-
-        do {
-            stopReferenceTone()
-            session.onSnapshotPublished = { [weak self] snapshot in
-                self?.handleSnapshot(snapshot)
-            }
-            session.onSourceEvent = { [weak self] event in
-                self?.handleSourceEvent(event)
-            }
-            // One verb: the session wires the source into frame submission and takes
-            // ownership of stopping it, so this layer never touches the capture path.
-            NSLog("[VM] starting capture")
-            try session.start(source: source, config: config, targets: targets)
-            self.engineStatus = .listening
-            self.feedbackState = .ready
-            self.diagnostics.sampleRate = source.sampleRate
-        } catch let err as AudioCaptureError {
-            NSLog("[VM] capture FAILED: %@", err.localizedDescription)
-            session.stop()
-            switch err {
-            case .noInputChannelsAvailable, .inputNodeUnavailable:
-                self.engineStatus = .missing
-            case .permissionDenied:
-                self.engineStatus = .denied
-            case .sessionActivationFailed, .engineFailed:
-                self.engineStatus = .failed
-            }
-            self.feedbackState = .inactive
-        } catch {
-            print("[StrumKit] Error starting audio capture: \(error)")
-            session.stop()
-            self.engineStatus = .failed
-            self.feedbackState = .inactive
-        }
+        await lifecycle.start()
     }
 
     func stop() {
-        listeningIntent = false
-        // Stops the microphone and the analysis behind it; there is no capture path
-        // left for this layer to remember.
-        session.stop()
-        stopReferenceTone()
-        cancelHoldExpiry()
-        self.engineStatus = .paused
-        self.currentReading = nil
-        self.feedbackState = .inactive
+        lifecycle.stop()
     }
 
-    // MARK: - Snapshot Handler (Serial Session -> UI)
-    internal func handleSnapshot(_ snapshot: AnalysisSnapshot) {
-        guard snapshot.generation == session.generation else { return }
-        self.diagnostics = snapshot.diagnostics
-        self.applyReadingUpdate(snapshot.reading)
-        self.feedbackState = snapshot.feedbackState
-        self.guidedProgress = snapshot.guidedProgress
-        self.guidedTargetIndex = snapshot.guidedTargetIndex
-    }
-
-    private func applyReadingUpdate(_ reading: TunerReading?) {
-        if let reading {
-            self.currentReading = reading
-            if reading.freshness == .fresh {
-                cancelHoldExpiry()
-                self.lastTone = ToneMemory(
-                    note: reading.note,
-                    frequency: reading.frequency,
-                    source: .detected,
-                    reading: reading
-                )
-            }
+    /// What the display does when listening starts or stops. A **Reading** is a claim
+    /// about what is sounding; with the microphone off there is nothing to claim.
+    private func listeningStatusChanged(to status: EngineStatus) {
+        if status == .listening {
+            feedbackState = .ready
+            diagnostics.sampleRate = lifecycle.sampleRate
         } else {
-            // Signal expired or no reading: cleared by FaithfulPresentation
-            cancelHoldExpiry()
-            self.currentReading = nil
+            currentReading = nil
+            feedbackState = .inactive
         }
     }
 
-    /// Neutralized: FaithfulPresentation is the single owner of the 1000 ms hold.
-    private func scheduleHoldExpiryIfNeeded(for reading: TunerReading) {
-        // FaithfulPresentation handles 1000 ms hold and clearing.
+    // MARK: - Snapshot Handler (Session -> UI)
+    internal func handleSnapshot(_ snapshot: AnalysisSnapshot) {
+        guard snapshot.generation == session.generation else { return }
+        diagnostics = snapshot.diagnostics
+        feedbackState = snapshot.feedbackState
+        guidedProgress = snapshot.guidedProgress
+        guidedTargetIndex = snapshot.guidedTargetIndex
+
+        // A snapshot with no Reading means the hold has expired: the engine owns the
+        // one-second hold and says when it is over.
+        currentReading = snapshot.reading
+        if let reading = snapshot.reading, reading.freshness == .fresh {
+            lastTone = ToneMemory(
+                note: reading.note,
+                frequency: reading.frequency,
+                source: .detected,
+                reading: reading
+            )
+        }
     }
 
-    private func cancelHoldExpiry() {
-        holdExpiry?.task.cancel()
-        holdExpiry = nil
-    }
-
+    // MARK: - Resolution
     /// Re-resolves the player's tuning choice, after `edit` adjusts the parts of the
     /// configuration that are not the choice itself.
     ///
@@ -309,9 +193,22 @@ final class TunerViewModel {
     /// player's completed strings do not survive.
     private func adoptResolutionAndClearDisplay() {
         session.adopt(resolved)
-        cancelHoldExpiry()
         currentReading = nil
         syncGuidedStateFromSession()
+    }
+
+    /// The tail of every change that alters *how* the tuner listens without changing
+    /// the **Strings**: the player's completed strings survive it.
+    private func applyModeChange() {
+        session.updateConfiguration(config, preservingGuidedProgress: true)
+        syncGuidedStateFromSession()
+    }
+
+    /// Pulls guided state back from the session after a configuration change, so
+    /// the view does not briefly render a stale progress array.
+    private func syncGuidedStateFromSession() {
+        guidedProgress = session.guidedProgress
+        guidedTargetIndex = session.guidedTargetIndex
     }
 
     // MARK: - Instrument & Preset Selection
@@ -327,15 +224,8 @@ final class TunerViewModel {
             }
         }
         adoptResolutionAndClearDisplay()
-        stopReferenceTone()
+        lifecycle.stopReferenceTone()
         savePreferences()
-    }
-
-    /// Pulls guided state back from the session after a configuration change, so
-    /// the view does not briefly render a stale progress array.
-    private func syncGuidedStateFromSession() {
-        self.guidedProgress = session.guidedProgress
-        self.guidedTargetIndex = session.guidedTargetIndex
     }
 
     func setTuningPreset(id: String) {
@@ -349,28 +239,20 @@ final class TunerViewModel {
             }
         }
         adoptResolutionAndClearDisplay()
-        stopReferenceTone()
+        lifecycle.stopReferenceTone()
         savePreferences()
     }
 
     // MARK: - Mode Controls
     func setMode(_ mode: TunerMode) {
-        applyResolution { config in
-            config.mode = mode
-        }
-        session.updateConfiguration(config, preservingGuidedProgress: true)
-        syncGuidedStateFromSession()
+        applyResolution { $0.mode = mode }
+        applyModeChange()
         if mode != .manual {
             preferences.mode = mode
             preferences.guided = (mode == .guided)
             savePreferences()
         }
     }
-
-    /// Whether the readout shows tenths of a cent. A display preference: it changes
-    /// nothing about what is heard, so the analysis is not told and a **Reading** in
-    /// progress carries on.
-    var precision: Bool { preferences.precision }
 
     func togglePrecision() {
         preferences.precision.toggle()
@@ -388,75 +270,32 @@ final class TunerViewModel {
             let target = targets[index]
             lastTone = ToneMemory(note: target.note, frequency: target.frequency, source: .target)
         }
-        session.updateConfiguration(config, preservingGuidedProgress: true)
-        syncGuidedStateFromSession()
+        applyModeChange()
     }
 
     func unlockString() {
         applyResolution { $0.mode = .auto }
-        session.updateConfiguration(config, preservingGuidedProgress: true)
-        syncGuidedStateFromSession()
+        applyModeChange()
         preferences.mode = .auto
         savePreferences()
     }
 
     func resetGuidedSession() {
         session.resetGuidedSession()
-        cancelHoldExpiry()
         currentReading = nil
         syncGuidedStateFromSession()
     }
 
-    // MARK: - Reference Tones (Acoustic Pluck)
-    private func handleToneStarted() {
-        toneGeneration &+= 1
-        session.stop()
-        cancelHoldExpiry()
-        self.currentReading = nil
-        self.feedbackState = .inactive
-        self.engineStatus = .paused
-    }
-
-    private func handleToneEnded() {
-        activeToneStringIndex = nil
-        guard listeningIntent else { return }
-        let currentToneGen = toneGeneration
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            guard self.listeningIntent, self.toneGeneration == currentToneGen else { return }
-            guard self.engineStatus != .listening && self.engineStatus != .requesting else { return }
-            await self.beginListening()
-        }
-    }
-
+    // MARK: - Reference Tones
     func playReferenceTone(index: Int) {
         guard index < targets.count else { return }
         let target = targets[index]
         lastTone = ToneMemory(note: target.note, frequency: target.frequency, source: .reference)
-
-        if activeToneStringIndex == index {
-            stopReferenceTone()
-        } else {
-            toneGeneration &+= 1
-            activeToneStringIndex = index
-            session.stop()
-            cancelHoldExpiry()
-            self.currentReading = nil
-            self.feedbackState = .inactive
-            self.engineStatus = .paused
-            referenceTone.playString(
-                frequency: target.frequency,
-                stringIndex: index,
-                instrument: config.instrument
-            )
-        }
-    }
-
-    private func stopReferenceTone() {
-        guard activeToneStringIndex != nil else { return }
-        toneGeneration &+= 1
-        activeToneStringIndex = nil
-        referenceTone.stop()
+        lifecycle.toggleReferenceTone(
+            stringIndex: index,
+            frequency: target.frequency,
+            instrument: config.instrument
+        )
     }
 
     // MARK: - Calibration & Custom Tuning

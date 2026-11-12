@@ -6,7 +6,7 @@
 
 **Status:** ready-for-agent
 
-- [ ] A frame carries both its stream time and its host time, as two named fields.
-- [ ] The detector, tracker and throttle are given stream time; the published **Reading** carries host time.
-- [ ] A test proves a **Held reading**'s `lastFreshAt` is on the host clock and that `holdOpacity` fades it across the hold window.
-- [ ] The suite is green.
+- [x] A frame carries both its stream time and its host time, as two named fields.
+- [x] The detector, tracker and throttle are given stream time; the published **Reading** carries host time.
+- [x] A test proves a **Held reading**'s `lastFreshAt` is on the host clock and that `holdOpacity` fades it across the hold window.
+- [x] The suite is green.

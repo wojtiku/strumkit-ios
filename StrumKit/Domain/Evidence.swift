@@ -36,10 +36,6 @@ enum Evidence: Sendable, Hashable {
     ///
     /// `false` for Sustained. A completed String is a record that the player held
     /// it in tune, and a Note extended past the point where fresh detection could
-    /// hear it is not evidence of that. The spectral path also reports its
-    /// salience, capped below `PitchTracker.guidedCompletionPeriodicity`, so a
-    /// Sustained frame fails the guided hold's periodicity requirement anyway;
-    /// stating the rule here means the completion gate does not rest on that
-    /// coincidence.
+    /// hear it is not evidence of that.
     var mayCompleteTuning: Bool { self == .measured }
 }

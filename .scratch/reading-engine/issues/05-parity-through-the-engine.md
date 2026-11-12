@@ -6,6 +6,6 @@
 
 **Status:** ready-for-agent
 
-- [ ] No test assembles framer, detector, tracker, confirmation and throttle by hand for a full-stream replay.
-- [ ] Every full-stream parity vector passes through the engine, with the tolerances unchanged.
-- [ ] The suite is green.
+- [x] No test assembles framer, detector, tracker, confirmation and throttle by hand for a full-stream replay.
+- [x] Every full-stream parity vector passes through the engine, with the tolerances unchanged.
+- [x] The suite is green.
