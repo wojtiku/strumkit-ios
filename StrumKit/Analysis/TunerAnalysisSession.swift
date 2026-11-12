@@ -2,55 +2,62 @@ import Foundation
 import Accelerate
 import QuartzCore
 
-/// Coordinates DSP detection and pitch tracking on a single serial worker.
+/// Runs the Reading engine off the main thread and publishes what it hears.
 ///
-/// Features a bounded mailbox (at most one pending frame), generational invalidation
-/// across preset/configuration changes, and monotonic capture-to-display timing.
-/// Wires the faithful engine (framing -> streaming detector -> target tracker -> feedback -> publication).
+/// This is concurrency and nothing else. Captured audio and configuration changes go
+/// into one ordered queue; a single serial worker takes them out and is the only thing
+/// that ever touches the engine; results are stamped with a generation so that anything
+/// computed for a configuration the player has since left is dropped instead of shown.
+///
+/// The queue of audio is bounded. A worker that falls further behind than the bound has
+/// lost the stream, and the engine is told so explicitly rather than being fed whatever
+/// happens to be newest — see ADR 0002.
 final class TunerAnalysisSession: @unchecked Sendable {
-    // MARK: - Synchronized State
-    private let lock = NSLock()
-    private let workerQueue = DispatchQueue(label: "com.strumkit.analysis.worker", qos: .userInitiated)
+    /// How much captured audio may wait for the worker before the stream counts as lost:
+    /// about 370 ms at 44.1 kHz.
+    static let queueCapacitySamples = 16384
 
-    // Generation & Sequence
-    private var activeGeneration: UInt64 = 1
-    private var sequenceNumber: UInt64 = 0
-    private var replacedFramesCount: UInt64 = 0
-    private var droppedFramesCount: Int = 0
-
-    // Configuration & Targets
-    private var currentConfig: TunerConfig
-    private var currentTargets: [StringTarget]
-
-    // Bounded Mailbox (Capacity 1)
-    private var pendingFrame: AnalysisFrame? = nil
-    private var pendingEnqueuedAt: TimeInterval? = nil
-    private var isWorkerRunning: Bool = false
-
-    // Faithful Engine Pipeline (Single Worker Owned)
-    private var framer: FaithfulCaptureFraming
-    private var detector: FaithfulStreamingDetector? = nil
-    private let adapter: FaithfulReadingAdapter
-    private var _guidedProgress: [Bool] = []
-    private var _guidedTargetIndex: Int = 0
-    private var _feedbackState: SignalFeedbackState = .ready
-
-    // Test seam hook
-    private var _analysisHook: (@Sendable (AnalysisFrame, Double) -> Void)?
-    internal var analysisHook: (@Sendable (AnalysisFrame, Double) -> Void)? {
-        get {
-            lock.lock()
-            defer { lock.unlock() }
-            return _analysisHook
-        }
-        set {
-            lock.lock()
-            _analysisHook = newValue
-            lock.unlock()
-        }
+    struct InputLevel: Sendable, Equatable {
+        var rms: Double = 0
+        var peak: Double = 0
+        /// Capture callbacks measured so far.
+        var frames: UInt64 = 0
     }
 
-    // UI Publication Callback
+    private enum Message {
+        case audio(samples: [Float], sampleRate: Double, hostEnd: TimeInterval?, generation: UInt64, enqueuedAt: TimeInterval)
+        case configure(ReadingEngine.Configuration, preservingGuidedProgress: Bool)
+        case restartGuidedSequence
+        case discontinuity
+    }
+
+    // MARK: - State behind the lock
+
+    private let lock = NSLock()
+    private var activeGeneration: UInt64 = 1
+    private var mailbox: [Message] = []
+    private var queuedSamples = 0
+    private var isWorkerScheduled = false
+    private var overloadCount = 0
+    private var droppedCallbackCount = 0
+    private var currentConfig: TunerConfig
+    private var currentTargets: [StringTarget]
+    private var _guidedProgress: [Bool]
+    private var _guidedTargetIndex = 0
+    private var _inputLevel = InputLevel()
+    private var _analysisHook: (@Sendable (_ sampleCount: Int, _ queueDelayMs: Double) -> Void)?
+    /// The microphone this session is listening to, whether or not its tap is running.
+    private var activeSource: MicrophoneSource?
+
+    // MARK: - State only the worker touches
+
+    private let workerQueue = DispatchQueue(label: "com.strumkit.analysis.worker", qos: .userInitiated)
+    private let engine: ReadingEngine
+    private var sequenceNumber: UInt64 = 0
+
+    // MARK: - Callbacks
+
+    /// Called on the main actor for every hop that changes what the display shows.
     var onSnapshotPublished: (@MainActor (AnalysisSnapshot) -> Void)? = nil
 
     /// Notified on the main actor when the microphone reports something the tuner has
@@ -59,113 +66,66 @@ final class TunerAnalysisSession: @unchecked Sendable {
     /// again, which it can only do by calling `start(source:config:targets:)`.
     var onSourceEvent: (@MainActor (MicrophoneEvent) -> Void)? = nil
 
-    /// The microphone this session is listening to, whether or not its tap is running.
-    private var activeSource: MicrophoneSource?
+    /// Test seam: called on the worker before each stretch of audio is analysed.
+    internal var analysisHook: (@Sendable (_ sampleCount: Int, _ queueDelayMs: Double) -> Void)? {
+        get { withLock { _analysisHook } }
+        set { withLock { _analysisHook = newValue } }
+    }
 
-    init(
-        config: TunerConfig = TunerConfig(),
-        targets: [StringTarget] = []
-    ) {
+    init(config: TunerConfig = TunerConfig(), targets: [StringTarget] = []) {
         self.currentConfig = config
         self.currentTargets = targets
-        self.framer = FaithfulCaptureFraming(sampleRate: 44100.0, bufferCapacity: 16384, initialGeneration: 1)
-        self.adapter = FaithfulReadingAdapter(
-            mode: config.mode,
-            calibrationA4: config.a4
-        )
-        self.adapter.tuning = config.tuningId
-        self.adapter.targets = targets.map { Target(note: $0.note, frequency: $0.frequency, midi: $0.midi, stringNumber: $0.number) }
-        self.adapter.tracker.auto = (config.mode == .auto || config.mode == .guided || config.mode == .chromatic)
-        self.adapter.tracker.selected = config.selectedString
-        let profile = FaithfulEngineProfile.profile(for: config.instrument, tuningId: config.tuningId)
-        self.detector = createPitchDetector(profile: profile)
         self._guidedProgress = Array(repeating: false, count: targets.count)
-        self._guidedTargetIndex = 0
+        self.engine = ReadingEngine(configuration: ReadingEngine.Configuration(config: config, targets: targets))
     }
 
-    // MARK: - State Accessors
-    var generation: UInt64 {
+    // MARK: - State accessors
+
+    var generation: UInt64 { withLock { activeGeneration } }
+    /// How many times the worker fell far enough behind that the stream was restarted.
+    var overloads: Int { withLock { overloadCount } }
+    /// Capture callbacks whose audio was discarded by an overload or a stop.
+    var droppedCallbacks: Int { withLock { droppedCallbackCount } }
+    var guidedProgress: [Bool] { withLock { _guidedProgress } }
+    var guidedTargetIndex: Int { withLock { _guidedTargetIndex } }
+    var inputLevel: InputLevel { withLock { _inputLevel } }
+
+    private func withLock<T>(_ body: () -> T) -> T {
         lock.lock()
         defer { lock.unlock() }
-        return activeGeneration
+        return body()
     }
 
-    var replacedFrames: UInt64 {
-        lock.lock()
-        defer { lock.unlock() }
-        return replacedFramesCount
-    }
+    // MARK: - Lifecycle and configuration
 
-    var droppedFrames: Int {
-        lock.lock()
-        defer { lock.unlock() }
-        return droppedFramesCount
-    }
-
-    var feedbackState: SignalFeedbackState {
-        lock.lock()
-        defer { lock.unlock() }
-        return _feedbackState
-    }
-
-    var guidedProgress: [Bool] {
-        lock.lock()
-        defer { lock.unlock() }
-        return _guidedProgress
-    }
-
-    var guidedTargetIndex: Int {
-        lock.lock()
-        defer { lock.unlock() }
-        return _guidedTargetIndex
-    }
-
-    // MARK: - Lifecycle & Configuration Invalidation
+    /// Begins a fresh stream under a configuration. Anything in flight is invalidated.
     func start(config: TunerConfig, targets: [StringTarget]) {
         lock.lock()
         activeGeneration &+= 1
         currentConfig = config
         currentTargets = targets
-        pendingFrame = nil
-        pendingEnqueuedAt = nil
-        framer.reset()
-        adapter.reset()
-        adapter.mode = config.mode
-        adapter.calibrationA4 = config.a4
-        adapter.tuning = config.tuningId
-        adapter.targets = targets.map { Target(note: $0.note, frequency: $0.frequency, midi: $0.midi, stringNumber: $0.number) }
-        adapter.tracker.auto = (config.mode == .auto || config.mode == .guided || config.mode == .chromatic)
-        adapter.tracker.selected = config.selectedString
-        let profile = FaithfulEngineProfile.profile(for: config.instrument, tuningId: config.tuningId)
-        detector = createPitchDetector(profile: profile)
         _guidedProgress = Array(repeating: false, count: targets.count)
         _guidedTargetIndex = 0
-        _feedbackState = .ready
+        mailbox.removeAll()
+        queuedSamples = 0
+        mailbox.append(.configure(ReadingEngine.Configuration(config: config, targets: targets), preservingGuidedProgress: false))
+        mailbox.append(.discontinuity)
+        scheduleWorkerLocked()
         lock.unlock()
     }
 
-    func start(
-        source: MicrophoneSource,
-        config: TunerConfig,
-        targets: [StringTarget]
-    ) throws {
+    func start(source: MicrophoneSource, config: TunerConfig, targets: [StringTarget]) throws {
         detachSource()
         start(config: config, targets: targets)
 
         source.onEvent = { [weak self] event in
             self?.handleSourceEvent(event)
         }
-        lock.lock()
-        activeSource = source
-        lock.unlock()
+        withLock { activeSource = source }
 
         do {
             try source.start { [weak self] window in
-                self?.ingestCapturedAudio(
-                    samples: window.samples,
-                    sampleRate: window.sampleRate,
-                    captureEndSeconds: window.captureEnd
-                )
+                self?.submit(window.samples, sampleRate: window.sampleRate, hostEnd: window.captureEnd)
             }
         } catch {
             detachSource()
@@ -173,100 +133,45 @@ final class TunerAnalysisSession: @unchecked Sendable {
         }
     }
 
-    private func ingestCapturedAudio(
-        samples: [Float],
-        sampleRate: Double,
-        captureEndSeconds: TimeInterval
-    ) {
-        lock.lock()
-        if framer.sampleRate != sampleRate {
-            framer.setSampleRate(sampleRate)
-        }
-        let windows = framer.process(channel: samples, hostTime: captureEndSeconds)
-        guard !windows.isEmpty else {
-            lock.unlock()
-            return
-        }
-
-        let enqueuedAt = CACurrentMediaTime()
-        for win in windows {
-            enqueueFrameLocked(
-                samples: win.samples,
-                sampleRate: win.sampleRate,
-                captureEndSeconds: win.timeMs / 1000.0,
-                hostEndSeconds: win.hostTime,
-                callbackFrameCount: win.samples.count,
-                enqueuedAt: enqueuedAt
-            )
-        }
-
-        if !isWorkerRunning {
-            isWorkerRunning = true
-            lock.unlock()
-            workerQueue.async { [weak self] in
-                self?.drainWorkerLoop()
-            }
-        } else {
-            lock.unlock()
-        }
-    }
-
     func stop() {
         lock.lock()
         activeGeneration &+= 1
-        pendingFrame = nil
-        pendingEnqueuedAt = nil
-        framer.reset()
-        adapter.reset()
-        detector = nil
-        _feedbackState = .inactive
+        // Configuration changes still waiting are kept; audio is not, and whatever
+        // the engine was tracking belongs to a stream that has ended.
+        dropQueuedAudioLocked()
+        mailbox.append(.discontinuity)
+        scheduleWorkerLocked()
+        let source = activeSource
         lock.unlock()
-        stopCapture()
+        source?.stop()
     }
 
     func updateConfiguration(_ config: TunerConfig, preservingGuidedProgress: Bool = false) {
-        lock.lock()
-        activeGeneration &+= 1
-        currentConfig = config
-        pendingFrame = nil
-        pendingEnqueuedAt = nil
-        framer.reset()
-        adapter.reset()
-        adapter.mode = config.mode
-        adapter.calibrationA4 = config.a4
-        adapter.tuning = config.tuningId
-        adapter.tracker.auto = (config.mode == .auto || config.mode == .guided || config.mode == .chromatic)
-        adapter.tracker.selected = config.selectedString
-        let profile = FaithfulEngineProfile.profile(for: config.instrument, tuningId: config.tuningId)
-        detector = createPitchDetector(profile: profile)
-        if !preservingGuidedProgress {
-            _guidedProgress = Array(repeating: false, count: currentTargets.count)
-            _guidedTargetIndex = 0
-        }
-        lock.unlock()
+        let targets = withLock { currentTargets }
+        reconfigure(config: config, targets: targets, preservingGuidedProgress: preservingGuidedProgress)
     }
 
     func adopt(_ resolved: Tuning.Resolved, preservingGuidedProgress: Bool = false) {
+        reconfigure(config: resolved.config, targets: resolved.targets, preservingGuidedProgress: preservingGuidedProgress)
+    }
+
+    /// A configuration change while listening. The audio stream carries on; results
+    /// computed for the old configuration are invalidated.
+    private func reconfigure(config: TunerConfig, targets: [StringTarget], preservingGuidedProgress: Bool) {
         lock.lock()
         activeGeneration &+= 1
-        currentConfig = resolved.config
-        currentTargets = resolved.targets
-        pendingFrame = nil
-        pendingEnqueuedAt = nil
-        framer.reset()
-        adapter.reset()
-        adapter.mode = resolved.config.mode
-        adapter.calibrationA4 = resolved.config.a4
-        adapter.tuning = resolved.config.tuningId
-        adapter.targets = resolved.targets.map { Target(note: $0.note, frequency: $0.frequency, midi: $0.midi, stringNumber: $0.number) }
-        adapter.tracker.auto = (resolved.config.mode == .auto || resolved.config.mode == .guided || resolved.config.mode == .chromatic)
-        adapter.tracker.selected = resolved.config.selectedString
-        let profile = FaithfulEngineProfile.profile(for: resolved.config.instrument, tuningId: resolved.config.tuningId)
-        detector = createPitchDetector(profile: profile)
-        if !preservingGuidedProgress {
-            _guidedProgress = Array(repeating: false, count: resolved.targets.count)
+        currentConfig = config
+        currentTargets = targets
+        // Mirrors what the engine will do when the message reaches it, so a caller that
+        // reads guided state straight after the change does not see the old sequence.
+        if !preservingGuidedProgress || targets.count != _guidedProgress.count {
+            _guidedProgress = Array(repeating: false, count: targets.count)
             _guidedTargetIndex = 0
         }
+        mailbox.append(.configure(
+            ReadingEngine.Configuration(config: config, targets: targets),
+            preservingGuidedProgress: preservingGuidedProgress))
+        scheduleWorkerLocked()
         lock.unlock()
     }
 
@@ -274,30 +179,12 @@ final class TunerAnalysisSession: @unchecked Sendable {
         lock.lock()
         _guidedProgress = Array(repeating: false, count: currentTargets.count)
         _guidedTargetIndex = 0
-        adapter.feedback.reset()
+        mailbox.append(.restartGuidedSequence)
+        scheduleWorkerLocked()
         lock.unlock()
     }
 
-    func reset(targetCount: Int) {
-        lock.lock()
-        activeGeneration &+= 1
-        pendingFrame = nil
-        pendingEnqueuedAt = nil
-        framer.reset()
-        adapter.reset()
-        detector = nil
-        _guidedProgress = Array(repeating: false, count: targetCount)
-        _guidedTargetIndex = 0
-        lock.unlock()
-    }
-
-    // MARK: - Audio Edge Ownership
-    private func stopCapture() {
-        lock.lock()
-        let source = activeSource
-        lock.unlock()
-        source?.stop()
-    }
+    // MARK: - Microphone ownership
 
     private func detachSource() {
         lock.lock()
@@ -322,283 +209,169 @@ final class TunerAnalysisSession: @unchecked Sendable {
         onSourceEvent?(event)
     }
 
-    // MARK: - Live Audio Ingestion (Bounded Mailbox)
-    internal func submitLiveAudio(
-        window: [Float],
-        sampleRate: Double,
-        captureEndSeconds: TimeInterval
-    ) {
+    // MARK: - Audio in
+
+    /// Queues captured audio for the worker. Called from the capture callback: it
+    /// never waits on analysis.
+    internal func submit(_ samples: [Float], sampleRate: Double, hostEnd: TimeInterval?) {
+        guard !samples.isEmpty else { return }
         lock.lock()
-        let enqueuedAt = CACurrentMediaTime()
-        enqueueFrameLocked(
-            samples: window,
-            sampleRate: sampleRate,
-            captureEndSeconds: captureEndSeconds,
-            callbackFrameCount: window.count,
-            enqueuedAt: enqueuedAt
-        )
-
-        if !isWorkerRunning {
-            isWorkerRunning = true
-            lock.unlock()
-            workerQueue.async { [weak self] in
-                self?.drainWorkerLoop()
-            }
-        } else {
-            lock.unlock()
+        if queuedSamples + samples.count > Self.queueCapacitySamples {
+            // The worker has lost the stream. Say so, rather than hand it a stream with
+            // a hole in it.
+            overloadCount += 1
+            dropQueuedAudioLocked()
+            mailbox.append(.discontinuity)
         }
-    }
-
-    private func enqueueFrameLocked(
-        samples: [Float],
-        sampleRate: Double,
-        captureEndSeconds: TimeInterval,
-        hostEndSeconds: TimeInterval? = nil,
-        callbackFrameCount: Int,
-        enqueuedAt: TimeInterval
-    ) {
-        sequenceNumber &+= 1
-        let frame = AnalysisFrame(
-            samples: samples,
-            sampleRate: sampleRate,
-            captureEndSeconds: captureEndSeconds,
-            sequence: sequenceNumber,
-            generation: activeGeneration,
-            callbackFrameCount: callbackFrameCount,
-            hostEndSeconds: hostEndSeconds
-        )
-
-        if pendingFrame != nil {
-            replacedFramesCount &+= 1
-            droppedFramesCount += 1
-        }
-        pendingFrame = frame
-        pendingEnqueuedAt = enqueuedAt
-    }
-
-    // MARK: - Synchronous Processing Seam (Replay & Tests)
-    internal func processFrameSync(
-        _ frame: AnalysisFrame,
-        resultAgeReference: TimeInterval? = nil
-    ) -> AnalysisSnapshot? {
-        lock.lock()
-        guard frame.generation == activeGeneration else {
-            lock.unlock()
-            return nil
-        }
+        mailbox.append(.audio(
+            samples: samples, sampleRate: sampleRate, hostEnd: hostEnd,
+            generation: activeGeneration, enqueuedAt: CACurrentMediaTime()))
+        queuedSamples += samples.count
+        scheduleWorkerLocked()
         lock.unlock()
-
-        let workerStart = CACurrentMediaTime()
-        return performAnalysis(
-            frame: frame,
-            queueDelayMs: 0.0,
-            workerStart: workerStart,
-            resultAgeReference: resultAgeReference ?? frame.captureEndSeconds
-        )
     }
 
-    private var _inputRMS: Double = 0
-    private var _inputPeak: Double = 0
-    private var _inputFrameCount: UInt64 = 0
-
-    struct InputLevel: Sendable, Equatable {
-        var rms: Double = 0
-        var peak: Double = 0
-        var frames: UInt64 = 0
+    private func dropQueuedAudioLocked() {
+        let before = mailbox.count
+        mailbox.removeAll { message in
+            if case .audio = message { return true }
+            return false
+        }
+        droppedCallbackCount += before - mailbox.count
+        queuedSamples = 0
     }
 
-    var inputLevel: InputLevel {
-        lock.lock()
-        defer { lock.unlock() }
-        return InputLevel(rms: _inputRMS, peak: _inputPeak, frames: _inputFrameCount)
+    private func scheduleWorkerLocked() {
+        guard !isWorkerScheduled else { return }
+        isWorkerScheduled = true
+        workerQueue.async { [weak self] in
+            self?.drainMailbox()
+        }
     }
 
-    private static func rms(of samples: [Float]) -> Double {
-        guard !samples.isEmpty else { return 0 }
-        var value: Float = 0
-        vDSP_rmsqv(samples, 1, &value, vDSP_Length(samples.count))
-        return Double(value)
+    // MARK: - Synchronous seam (replay and tests)
+
+    /// Analyses audio on the worker and waits for it: the live path, minus the queue
+    /// and the hop to the main actor. Returns a snapshot for every hop that changed
+    /// the display. Nothing is published to `onSnapshotPublished`.
+    internal func processSync(_ samples: [Float], sampleRate: Double, hostEnd: TimeInterval? = nil) -> [AnalysisSnapshot] {
+        let generation = self.generation
+        return workerQueue.sync {
+            drainMailbox()
+            return analyse(
+                samples, sampleRate: sampleRate, hostEnd: hostEnd,
+                generation: generation, queueDelayMs: 0.0, publish: false)
+        }
     }
 
-    // MARK: - Private Worker Loop & DSP Execution
-    private func drainWorkerLoop() {
+    /// Waits until everything queued so far has been analysed.
+    internal func waitUntilIdle() {
+        workerQueue.sync { drainMailbox() }
+    }
+
+    // MARK: - The worker
+
+    private func drainMailbox() {
         while true {
             lock.lock()
-            guard let frame = pendingFrame, let enqueuedAt = pendingEnqueuedAt else {
-                isWorkerRunning = false
+            guard !mailbox.isEmpty else {
+                isWorkerScheduled = false
                 lock.unlock()
-                break
+                return
             }
-            pendingFrame = nil
-            pendingEnqueuedAt = nil
-            let currentGen = activeGeneration
+            let message = mailbox.removeFirst()
+            if case .audio(let samples, _, _, _, _) = message {
+                queuedSamples = max(0, queuedSamples - samples.count)
+            }
             lock.unlock()
 
-            guard frame.generation == currentGen else {
-                lock.lock()
-                droppedFramesCount += 1
-                lock.unlock()
-                continue
-            }
-
-            let workerStart = CACurrentMediaTime()
-            let queueDelayMs = (workerStart - enqueuedAt) * 1000.0
-
-            if let hook = analysisHook {
-                hook(frame, queueDelayMs)
-            }
-
-            if let snapshot = performAnalysis(
-                frame: frame,
-                queueDelayMs: queueDelayMs,
-                workerStart: workerStart,
-                resultAgeReference: CACurrentMediaTime()
-            ) {
-                if !snapshot.action.isSkipped {
-                    lock.lock()
-                    let publicationGen = activeGeneration
-                    lock.unlock()
-
-                    // Drop snapshot if generation changed while DSP was running
-                    if snapshot.generation == publicationGen {
-                        DispatchQueue.main.async { [weak self] in
-                            guard let self else { return }
-                            self.onSnapshotPublished?(snapshot)
-                        }
-                    }
-                }
+            switch message {
+            case .configure(let configuration, let preservingGuidedProgress):
+                engine.configure(configuration, preservingGuidedProgress: preservingGuidedProgress)
+            case .restartGuidedSequence:
+                engine.restartGuidedSequence()
+            case .discontinuity:
+                engine.discontinuity()
+            case .audio(let samples, let sampleRate, let hostEnd, let generation, let enqueuedAt):
+                let queueDelayMs = (CACurrentMediaTime() - enqueuedAt) * 1000.0
+                analysisHook?(samples.count, queueDelayMs)
+                _ = analyse(
+                    samples, sampleRate: sampleRate, hostEnd: hostEnd,
+                    generation: generation, queueDelayMs: queueDelayMs, publish: true)
             }
         }
     }
 
-    private func performAnalysis(
-        frame: AnalysisFrame,
+    /// Runs one stretch of audio through the engine. Worker only.
+    ///
+    /// Audio captured under a configuration the player has since left still goes
+    /// through — the stream is continuous and the engine needs every hop of it — but
+    /// what it produces is neither published nor allowed to touch the guided state.
+    private func analyse(
+        _ samples: [Float],
+        sampleRate: Double,
+        hostEnd: TimeInterval?,
+        generation: UInt64,
         queueDelayMs: Double,
-        workerStart: Double,
-        resultAgeReference: TimeInterval
-    ) -> AnalysisSnapshot? {
-        lock.lock()
-        let config = currentConfig
-        let targets = currentTargets
-        let gen = activeGeneration
-        lock.unlock()
-
-        guard frame.generation == gen else { return nil }
-
-        let inputRMS = Self.rms(of: frame.samples)
-        var inputPeak: Float = 0
-        vDSP_maxmgv(frame.samples, 1, &inputPeak, vDSP_Length(frame.samples.count))
-        lock.lock()
-        _inputRMS = inputRMS
-        _inputPeak = Double(inputPeak)
-        _inputFrameCount &+= 1
-        lock.unlock()
-
-        let profile = FaithfulEngineProfile.profile(for: config.instrument, tuningId: config.tuningId)
-        let activeDetector: FaithfulStreamingDetector
-        if let existing = detector, existing.profile == profile {
-            activeDetector = existing
-        } else {
-            let newlyCreated = createPitchDetector(profile: profile)
-            detector = newlyCreated
-            activeDetector = newlyCreated
-        }
+        publish: Bool
+    ) -> [AnalysisSnapshot] {
+        guard !samples.isEmpty else { return [] }
+        var rms: Float = 0
+        var peak: Float = 0
+        vDSP_rmsqv(samples, 1, &rms, vDSP_Length(samples.count))
+        vDSP_maxmgv(samples, 1, &peak, vDSP_Length(samples.count))
 
         let dspStart = CACurrentMediaTime()
-        let timeMs = frame.captureEndSeconds * 1000.0
-
-        let candidate = activeDetector.detect(
-            input: frame.samples,
-            sampleRate: frame.sampleRate,
-            sampleTime: timeMs
-        )
-
-        adapter.mode = config.mode
-        adapter.calibrationA4 = config.a4
-        adapter.tuning = config.tuningId
-        adapter.targets = targets.map { Target(note: $0.note, frequency: $0.frequency, midi: $0.midi, stringNumber: $0.number) }
-        adapter.tracker.auto = (config.mode == .auto || config.mode == .guided || config.mode == .chromatic)
-        adapter.tracker.selected = config.selectedString
-
-        let output = adapter.process(candidate: candidate, timeMs: timeMs)
-
-        // The tracker ran on the stream clock; a Reading is published on the host clock,
-        // which is the one the display's hold fade compares against. See ADR 0001.
-        let hostOffset = (frame.hostEndSeconds ?? frame.captureEndSeconds) - frame.captureEndSeconds
-        let reading = output.reading.map { streamReading in
-            TunerReading(
-                at: streamReading.at + hostOffset,
-                lastFreshAt: streamReading.lastFreshAt + hostOffset,
-                frequency: streamReading.frequency,
-                aim: streamReading.aim,
-                cents: streamReading.cents,
-                displayCents: streamReading.displayCents,
-                freshness: streamReading.freshness,
-                evidence: streamReading.evidence
-            )
-        }
-
-        lock.lock()
-        if config.mode == .guided,
-           let reading = reading,
-           reading.inTune == true,
-           reading.evidence == .measured,
-           reading.freshness == .fresh,
-           let target = reading.aim.target {
-            if let targetIdx = targets.firstIndex(where: { $0.midi == target.midi && $0.number == target.number }),
-               targetIdx == _guidedTargetIndex {
-                if targetIdx < _guidedProgress.count {
-                    _guidedProgress[targetIdx] = true
-                }
-                if _guidedTargetIndex + 1 < targets.count {
-                    _guidedTargetIndex += 1
-                }
-            }
-        }
-
-        let feedback: SignalFeedbackState
-        if reading != nil {
-            feedback = .tracking
-        } else if candidate != nil {
-            feedback = .checking
-        } else {
-            feedback = .ready
-        }
-        _feedbackState = feedback
-
-        let progress = _guidedProgress
-        let targetIdx = _guidedTargetIndex
-        let replaced = replacedFramesCount
-        let dropped = droppedFramesCount
-        lock.unlock()
-
+        let hops = engine.push(samples, sampleRate: sampleRate, hostEnd: hostEnd)
         let dspEnd = CACurrentMediaTime()
         let dspMs = (dspEnd - dspStart) * 1000.0
 
-        let resultAgeMs = max(0.0, (resultAgeReference - (frame.hostEndSeconds ?? frame.captureEndSeconds)) * 1000.0)
-        let analysisMs = queueDelayMs + dspMs
+        lock.lock()
+        _inputLevel = InputLevel(rms: Double(rms), peak: Double(peak), frames: _inputLevel.frames &+ 1)
+        let isCurrent = generation == activeGeneration
+        if isCurrent, let last = hops.last {
+            _guidedProgress = last.guidedProgress
+            _guidedTargetIndex = last.guidedTargetIndex
+        }
+        let overloads = overloadCount
+        let dropped = droppedCallbackCount
+        lock.unlock()
 
-        let diagnostics = TunerDiagnostics(
-            sampleRate: frame.sampleRate,
-            analysisMs: analysisMs,
-            dspMs: dspMs,
-            queueDelayMs: queueDelayMs,
-            resultAgeMs: resultAgeMs,
-            replacedFrames: replaced,
-            callbackFrameCount: frame.callbackFrameCount,
-            dropped: dropped,
-            level: candidate?.rms ?? inputRMS
-        )
+        guard isCurrent else { return [] }
 
-        return AnalysisSnapshot(
-            reading: reading,
-            feedbackState: feedback,
-            guidedProgress: progress,
-            guidedTargetIndex: targetIdx,
-            diagnostics: diagnostics,
-            generation: frame.generation,
-            sequence: frame.sequence,
-            action: output.action
-        )
+        var snapshots: [AnalysisSnapshot] = []
+        for hop in hops where hop.display != .unchanged {
+            sequenceNumber &+= 1
+            snapshots.append(AnalysisSnapshot(
+                reading: hop.display.reading,
+                feedbackState: hop.feedback,
+                guidedProgress: hop.guidedProgress,
+                guidedTargetIndex: hop.guidedTargetIndex,
+                diagnostics: TunerDiagnostics(
+                    sampleRate: sampleRate,
+                    analysisMs: queueDelayMs + dspMs,
+                    dspMs: dspMs,
+                    queueDelayMs: queueDelayMs,
+                    resultAgeMs: hostEnd.map { max(0.0, (dspEnd - $0) * 1000.0) } ?? 0.0,
+                    overloads: overloads,
+                    callbackFrameCount: samples.count,
+                    dropped: dropped,
+                    level: hop.level
+                ),
+                generation: generation,
+                sequence: sequenceNumber
+            ))
+        }
+
+        if publish, !snapshots.isEmpty {
+            let published = snapshots
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                for snapshot in published where snapshot.generation == self.generation {
+                    self.onSnapshotPublished?(snapshot)
+                }
+            }
+        }
+        return snapshots
     }
 }

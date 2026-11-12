@@ -1,3 +1,4 @@
+@testable import StrumKit
 import Foundation
 
 /// One window of audio offered to the analysis session, with the capture metadata

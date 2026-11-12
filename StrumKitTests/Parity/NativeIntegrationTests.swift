@@ -23,88 +23,30 @@ struct NativeIntegrationTests {
 
     // MARK: - 1. Session Replay vs Standalone Engine Parity
 
-    @Test("Direct replay through TunerAnalysisSession matches standalone faithful engine bit-for-bit")
+    @Test("Replay through TunerAnalysisSession shows exactly what the Reading engine reports")
     func testSessionReplayMatchesStandaloneEngine() {
-        let config = TunerConfig(instrument: .ukulele, tuningId: "standard", a4: 440.0, mode: .auto)
         let resolved = Tuning.resolve(
-            instrument: config.instrument,
-            tuningId: config.tuningId,
-            customMidi: config.customMidi,
-            mode: config.mode,
-            a4: config.a4,
-            precision: config.precision,
-            guided: config.guided,
-            selectedString: config.selectedString
-        )
-        let targets = resolved.targets
-
-        // 1. Setup Standalone Engine
-        let profile = FaithfulEngineProfile.profile(for: config.instrument, tuningId: config.tuningId)
-        let standaloneDetector = FaithfulStreamingDetector(profile: profile)
-        let standaloneAdapter = FaithfulReadingAdapter(mode: config.mode, calibrationA4: config.a4)
-        standaloneAdapter.tuning = config.tuningId
-        standaloneAdapter.targets = targets.map { Target(note: $0.note, frequency: $0.frequency, midi: $0.midi, stringNumber: $0.number) }
-        standaloneAdapter.tracker.auto = true
-        standaloneAdapter.tracker.selected = config.selectedString
-
-        // 2. Setup TunerAnalysisSession (using faithful engine path, tracker: nil)
-        let session = TunerAnalysisSession(config: config, targets: targets)
+            instrument: .ukulele, tuningId: "standard", customMidi: [],
+            mode: .auto, a4: 440.0, precision: false, guided: false)
 
         let sampleRate = 44100.0
-        let hopSamples = 1024
-        let windowSize = 4096
-        let totalSamples = windowSize + 15 * hopSamples
-        let toneSamples = makeTone(frequency: 440.0, sampleRate: sampleRate, amplitude: 0.1, count: totalSamples)
+        let toneSamples = makeTone(frequency: 440.0, sampleRate: sampleRate, amplitude: 0.1, count: 4096 + 60 * 1024)
 
-        var frameSequence: UInt64 = 0
+        let engine = ReadingEngine(configuration: ReadingEngine.Configuration(resolved))
+        let session = TunerAnalysisSession(config: resolved.config, targets: resolved.targets)
 
-        for endSample in stride(from: windowSize, through: totalSamples, by: hopSamples) {
-            frameSequence &+= 1
-            let startSample = endSample - windowSize
-            let window = Array(toneSamples[startSample..<endSample])
-            let captureEndSeconds = Double(endSample) / sampleRate
-            let timeMs = captureEndSeconds * 1000.0
-
-            // Run standalone
-            let standaloneCand = standaloneDetector.detect(input: window, sampleRate: sampleRate, sampleTime: timeMs)
-            let standaloneOutput = standaloneAdapter.process(candidate: standaloneCand, timeMs: timeMs)
-
-            // Run session
-            let frame = AnalysisFrame(
-                samples: window,
-                sampleRate: sampleRate,
-                captureEndSeconds: captureEndSeconds,
-                sequence: frameSequence,
-                generation: session.generation,
-                callbackFrameCount: hopSamples
-            )
-            guard let snapshot = session.processFrameSync(frame) else {
-                Issue.record("Expected snapshot from session on frame \(frameSequence)")
-                continue
-            }
-
-            // Compare actions
-            #expect(snapshot.action.isSkipped == standaloneOutput.action.isSkipped, "Action skipped mismatch at frame \(frameSequence)")
-            #expect(snapshot.action.isPublished == standaloneOutput.action.isPublished, "Action published mismatch at frame \(frameSequence)")
-
-            // Compare readings
-            if let expectedReading = standaloneOutput.reading {
-                guard let actualReading = snapshot.reading else {
-                    Issue.record("Session reading was nil when standalone produced reading at frame \(frameSequence)")
-                    continue
-                }
-                #expect(actualReading.cents == expectedReading.cents, "Cents deviation mismatch at frame \(frameSequence)")
-                #expect(actualReading.inTune == expectedReading.inTune, "inTune mismatch at frame \(frameSequence)")
-                #expect(actualReading.evidence == expectedReading.evidence, "Evidence mismatch at frame \(frameSequence)")
-                #expect(actualReading.freshness == expectedReading.freshness, "Freshness mismatch at frame \(frameSequence)")
-                #expect(actualReading.aim.target?.midi == expectedReading.aim.target?.midi, "Target MIDI mismatch at frame \(frameSequence)")
-
-                // Sample-clock contract: TunerReading.at strictly reflects captureEndSeconds
-                #expect(abs(actualReading.at - captureEndSeconds) < 1e-6, "Reading timestamp must strictly reflect sample-clock captureEnd")
-            } else {
-                #expect(snapshot.reading == nil, "Session produced reading when standalone was nil at frame \(frameSequence)")
-            }
+        var expected: [TunerReading?] = []
+        var actual: [TunerReading?] = []
+        for start in stride(from: 0, to: toneSamples.count, by: 1024) {
+            let chunk = Array(toneSamples[start..<min(start + 1024, toneSamples.count)])
+            expected += engine.push(chunk, sampleRate: sampleRate)
+                .filter { $0.display != .unchanged }
+                .map(\.display.reading)
+            actual += session.processSync(chunk, sampleRate: sampleRate).map(\.reading)
         }
+
+        #expect(actual == expected)
+        #expect(actual.contains { $0 != nil }, "The tone must produce a Reading")
     }
 
     // MARK: - 2. Session Generational Invalidation & Mailbox Safety
@@ -120,18 +62,6 @@ struct NativeIntegrationTests {
         session.stop()
         let gen2 = session.generation
         #expect(gen2 > gen1, "Stop must increment generation")
-
-        // Submitting a frame from stale generation 1 must be rejected by processFrameSync
-        let frameStale = AnalysisFrame(
-            samples: [Float](repeating: 0, count: 4096),
-            sampleRate: 44100.0,
-            captureEndSeconds: 1.0,
-            sequence: 1,
-            generation: gen1,
-            callbackFrameCount: 1024
-        )
-        let staleSnapshot = session.processFrameSync(frameStale)
-        #expect(staleSnapshot == nil, "Stale generation frame must be rejected")
 
         let newConfig = TunerConfig(instrument: .guitar, tuningId: "standard", a4: 440.0, mode: .auto)
         session.updateConfiguration(newConfig)

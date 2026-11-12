@@ -4,7 +4,8 @@ struct TunerDiagnostics: Sendable, Equatable {
     var dspMs: Double = 0.0
     var queueDelayMs: Double = 0.0
     var resultAgeMs: Double = 0.0
-    var replacedFrames: UInt64 = 0
+    /// Times the worker fell behind far enough that the stream was restarted.
+    var overloads: Int = 0
     var callbackFrameCount: Int = 0
     var dropped: Int = 0
     var level: Double = 0.0
@@ -15,7 +16,7 @@ struct TunerDiagnostics: Sendable, Equatable {
         dspMs: Double = 0.0,
         queueDelayMs: Double = 0.0,
         resultAgeMs: Double = 0.0,
-        replacedFrames: UInt64 = 0,
+        overloads: Int = 0,
         callbackFrameCount: Int = 0,
         dropped: Int = 0,
         level: Double = 0.0
@@ -25,7 +26,7 @@ struct TunerDiagnostics: Sendable, Equatable {
         self.dspMs = dspMs
         self.queueDelayMs = queueDelayMs
         self.resultAgeMs = resultAgeMs
-        self.replacedFrames = replacedFrames
+        self.overloads = overloads
         self.callbackFrameCount = callbackFrameCount
         self.dropped = dropped
         self.level = level

@@ -821,18 +821,9 @@ struct TuningResponsivenessTests {
         ).targets)
 
         var dspTimes: [Double] = []
-        var sequence: UInt64 = 0
-        for endSample in stride(from: windowLength, through: samples.count, by: hop) {
-            sequence &+= 1
-            let window = Array(samples[(endSample - windowLength)..<endSample])
-            let frame = AnalysisFrame(
-                samples: window, sampleRate: rate,
-                captureEndSeconds: Double(endSample) / rate,
-                sequence: sequence, generation: session.generation,
-                callbackFrameCount: hop
-            )
-            guard let snapshot = session.processFrameSync(frame) else { continue }
-            dspTimes.append(snapshot.diagnostics.dspMs)
+        for start in stride(from: 0, to: samples.count - hop + 1, by: hop) {
+            let snapshots = session.processSync(Array(samples[start..<(start + hop)]), sampleRate: rate)
+            dspTimes.append(contentsOf: snapshots.map(\.diagnostics.dspMs))
         }
 
         guard !dspTimes.isEmpty else {

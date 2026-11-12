@@ -9,11 +9,8 @@ struct InputLevelMeasurementTests {
         let config = TunerConfig(instrument: .ukulele, tuningId: "high-g", mode: .auto)
         let session = TunerAnalysisSession(config: config, targets: [])
         let window = [Float](repeating: 0, count: 1024)
-        for i in 0..<40 {
-            _ = session.processFrameSync(AnalysisFrame(
-                samples: window, sampleRate: 48000, captureEndSeconds: Double(i) * 0.021,
-                sequence: UInt64(i), generation: session.generation, callbackFrameCount: 1024
-            ))
+        for _ in 0..<40 {
+            _ = session.processSync(window, sampleRate: 48000)
         }
         let level = session.inputLevel
         #expect(level.peak < 1e-6, "pure silence must measure as silence, not as a live level")
@@ -28,11 +25,8 @@ struct InputLevelMeasurementTests {
         for i in 0..<window.count {
             window[i] = 0.2 * Float(sin(2 * .pi * 440.0 * Double(i) / 48000))
         }
-        for i in 0..<40 {
-            _ = session.processFrameSync(AnalysisFrame(
-                samples: window, sampleRate: 48000, captureEndSeconds: Double(i) * 0.021,
-                sequence: UInt64(i), generation: session.generation, callbackFrameCount: 1024
-            ))
+        for _ in 0..<40 {
+            _ = session.processSync(window, sampleRate: 48000)
         }
         let level = session.inputLevel
         #expect(level.peak > 0.1, "a 0.2-amplitude tone must measure as a live level, got peak \(level.peak)")

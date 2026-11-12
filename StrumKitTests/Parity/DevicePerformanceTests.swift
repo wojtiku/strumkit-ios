@@ -140,6 +140,9 @@ struct DevicePerformanceTests {
         let clock = ContinuousClock()
         var hopCount = 0
 
+        // Fill the session's window up to the first hop, as the capture stream would.
+        _ = session.processSync(Array(audioData[0..<(windowSize - hopSamples)]), sampleRate: sampleRate)
+
         for endSample in stride(from: windowSize, to: windowSize + totalHops * hopSamples, by: hopSamples) {
             hopCount += 1
             let startSample = endSample - windowSize
@@ -164,22 +167,15 @@ struct DevicePerformanceTests {
             trackerDurationsMs.append(tMs)
 
             // 3. Measure End-to-End Capture-to-Publication (via TunerAnalysisSession)
-            let frame = AnalysisFrame(
-                samples: window,
-                sampleRate: sampleRate,
-                captureEndSeconds: captureEndSeconds,
-                sequence: UInt64(hopCount),
-                generation: session.generation,
-                callbackFrameCount: hopSamples
-            )
+            // The session frames its own audio: hand it the hop's new samples.
+            let newSamples = Array(audioData[(endSample - hopSamples)..<endSample])
             let p0 = clock.now
-            let snapshot = session.processFrameSync(frame)
+            _ = session.processSync(newSamples, sampleRate: sampleRate)
             let p1 = clock.now
             let pDuration = p1 - p0
             let pMs = Double(pDuration.components.seconds) * 1000.0 + Double(pDuration.components.attoseconds) / 1e15
             captureToPubDurationsMs.append(pMs)
 
-            #expect(snapshot != nil, "Snapshot must not be nil at hop \(hopCount)")
         }
 
         #expect(detectorDurationsMs.count == totalHops)
@@ -257,6 +253,9 @@ struct DevicePerformanceTests {
         let clock = ContinuousClock()
         var hopCount = 0
 
+        // Fill the session's window up to the first hop, as the capture stream would.
+        _ = session.processSync(Array(audioData[0..<(windowSize - hopSamples)]), sampleRate: sampleRate)
+
         for endSample in stride(from: windowSize, to: windowSize + totalHops * hopSamples, by: hopSamples) {
             hopCount += 1
             let startSample = endSample - windowSize
@@ -281,22 +280,15 @@ struct DevicePerformanceTests {
             trackerDurationsMs.append(tMs)
 
             // 3. Measure End-to-End Capture-to-Publication (via TunerAnalysisSession)
-            let frame = AnalysisFrame(
-                samples: window,
-                sampleRate: sampleRate,
-                captureEndSeconds: captureEndSeconds,
-                sequence: UInt64(hopCount),
-                generation: session.generation,
-                callbackFrameCount: hopSamples
-            )
+            // The session frames its own audio: hand it the hop's new samples.
+            let newSamples = Array(audioData[(endSample - hopSamples)..<endSample])
             let p0 = clock.now
-            let snapshot = session.processFrameSync(frame)
+            _ = session.processSync(newSamples, sampleRate: sampleRate)
             let p1 = clock.now
             let pDuration = p1 - p0
             let pMs = Double(pDuration.components.seconds) * 1000.0 + Double(pDuration.components.attoseconds) / 1e15
             captureToPubDurationsMs.append(pMs)
 
-            #expect(snapshot != nil, "Snapshot must not be nil at hop \(hopCount)")
         }
 
         #expect(detectorDurationsMs.count == totalHops)
@@ -385,7 +377,7 @@ struct DevicePerformanceTests {
             let captureTime = Double(start + hopSamples) / sampleRate
             source.emit(CapturedWindow(samples: chunk, sampleRate: sampleRate, captureEnd: captureTime))
         }
-        #expect(counter.value == 0, "Framing prefill (< 4096 samples) must yield 0 windows")
+        #expect(counter.waitUntilCount(atLeast: 3, timeoutSeconds: 1.0), "The prefill callbacks must reach the worker")
 
         // Sustained 300 hops: each 1024-sample chunk produces exactly 1 window
         for hop in 0..<totalHops {
@@ -394,16 +386,16 @@ struct DevicePerformanceTests {
             let captureTime = Double(start + hopSamples) / sampleRate
 
             source.emit(CapturedWindow(samples: chunk, sampleRate: sampleRate, captureEnd: captureTime))
-            let success = counter.waitUntilCount(atLeast: hop + 1, timeoutSeconds: 1.0)
+            let success = counter.waitUntilCount(atLeast: 3 + hop + 1, timeoutSeconds: 1.0)
             #expect(success, "Worker must process hop \(hop + 1) without timeout")
         }
 
         let finalAnalyzed = counter.value
         session.stop()
 
-        #expect(finalAnalyzed == totalHops, "All \(totalHops) frames must be analyzed, but got \(finalAnalyzed)")
-        #expect(session.droppedFrames == 0, "Sustained operation must drop exactly zero frames (got \(session.droppedFrames))")
-        #expect(session.replacedFrames == 0, "Sustained operation must replace exactly zero frames (got \(session.replacedFrames))")
+        #expect(finalAnalyzed == 3 + totalHops, "All \(3 + totalHops) callbacks must be analyzed, but got \(finalAnalyzed)")
+        #expect(session.droppedCallbacks == 0, "Sustained operation must drop exactly zero callbacks (got \(session.droppedCallbacks))")
+        #expect(session.overloads == 0, "Sustained operation must never overload (got \(session.overloads))")
     }
 
     @Test("Sustained 48.0 kHz capture stream across 300 hops maintains zero dropped and zero replaced windows")
@@ -434,7 +426,7 @@ struct DevicePerformanceTests {
             let captureTime = Double(start + hopSamples) / sampleRate
             source.emit(CapturedWindow(samples: chunk, sampleRate: sampleRate, captureEnd: captureTime))
         }
-        #expect(counter.value == 0, "Framing prefill (< 4096 samples) must yield 0 windows")
+        #expect(counter.waitUntilCount(atLeast: 3, timeoutSeconds: 1.0), "The prefill callbacks must reach the worker")
 
         for hop in 0..<totalHops {
             let start = prefillSamples + hop * hopSamples
@@ -442,16 +434,16 @@ struct DevicePerformanceTests {
             let captureTime = Double(start + hopSamples) / sampleRate
 
             source.emit(CapturedWindow(samples: chunk, sampleRate: sampleRate, captureEnd: captureTime))
-            let success = counter.waitUntilCount(atLeast: hop + 1, timeoutSeconds: 1.0)
+            let success = counter.waitUntilCount(atLeast: 3 + hop + 1, timeoutSeconds: 1.0)
             #expect(success, "Worker must process hop \(hop + 1) without timeout")
         }
 
         let finalAnalyzed = counter.value
         session.stop()
 
-        #expect(finalAnalyzed == totalHops, "All \(totalHops) frames must be analyzed, but got \(finalAnalyzed)")
-        #expect(session.droppedFrames == 0, "Sustained operation must drop exactly zero frames (got \(session.droppedFrames))")
-        #expect(session.replacedFrames == 0, "Sustained operation must replace exactly zero frames (got \(session.replacedFrames))")
+        #expect(finalAnalyzed == 3 + totalHops, "All \(3 + totalHops) callbacks must be analyzed, but got \(finalAnalyzed)")
+        #expect(session.droppedCallbacks == 0, "Sustained operation must drop exactly zero callbacks (got \(session.droppedCallbacks))")
+        #expect(session.overloads == 0, "Sustained operation must never overload (got \(session.overloads))")
     }
 
     // MARK: - 4. Release Bundle Resource Audit

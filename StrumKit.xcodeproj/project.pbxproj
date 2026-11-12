@@ -30,6 +30,7 @@
 		2F2FABE0DA44AA49D524589B /* TargetTrackerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14C512737D4E5F4ABA9E70E3 /* TargetTrackerTests.swift */; };
 		328FEE1E8483E4925AE47EFD /* DifferentialHarnessTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96F410500AE967D0F26E43C4 /* DifferentialHarnessTests.swift */; };
 		34F5E1FD942B9BE74A11C49C /* uke_e.wav in Resources */ = {isa = PBXBuildFile; fileRef = CEFF6986B5F14C11BC7D26CB /* uke_e.wav */; };
+		38D630FAC67F47A7E9A72679 /* AnalysisFrame.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11179B76D20690D80FFB8F8C /* AnalysisFrame.swift */; };
 		399EC42C48EE35780911C058 /* AudioRingBuffer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8C637F1DA5A57DA1B1A2936 /* AudioRingBuffer.swift */; };
 		3A0C73441786D7EDD5AEB11C /* AnalysisSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = F078D0229E4B02DDE0D75C72 /* AnalysisSnapshot.swift */; };
 		3B5BF4040AD2D8BF1F54A364 /* PreviousEngineSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = D77C3645BFC63C3ECF59A849 /* PreviousEngineSession.swift */; };
@@ -83,7 +84,6 @@
 		B2213359F679CF0FAD20508E /* MicrophoneEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E16828F8B0749A0D6854A672 /* MicrophoneEvent.swift */; };
 		B32EBE1A321A004AD6C3A3D7 /* PitchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF9B7515D46B65D7111B714A /* PitchTests.swift */; };
 		B46BBD10C9379852A46FA5FB /* InstrumentCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3FAD8050168DAB9E3829C5D /* InstrumentCategory.swift */; };
-		B674810118B6EFB35B12E268 /* AnalysisFrame.swift in Sources */ = {isa = PBXBuildFile; fileRef = 90CE87092888098365F6269C /* AnalysisFrame.swift */; };
 		B90C37D77DC7CAC825875070 /* PitchResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58EE6344E3C13AF837A871E1 /* PitchResult.swift */; };
 		B95F6B91BDAC736BD6CC9638 /* tuning_g.m4a in Resources */ = {isa = PBXBuildFile; fileRef = FC557E9D176CC63E59288F71 /* tuning_g.m4a */; };
 		B9C228AF93B77C3166D89791 /* CoverageMatrix.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03982C2B088147A13999A31C /* CoverageMatrix.swift */; };
@@ -146,6 +146,7 @@
 		09412E004EDEADDAE09418FC /* InputLevelMeasurementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputLevelMeasurementTests.swift; sourceTree = "<group>"; };
 		09567FB37CE8D5799FE61DDF /* TrackerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerTests.swift; sourceTree = "<group>"; };
 		0B817DD4C230798EEAF1216E /* CaptureFramingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureFramingTests.swift; sourceTree = "<group>"; };
+		11179B76D20690D80FFB8F8C /* AnalysisFrame.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisFrame.swift; sourceTree = "<group>"; };
 		149782F79093A419A8FD0636 /* ParityModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParityModels.swift; sourceTree = "<group>"; };
 		14C512737D4E5F4ABA9E70E3 /* TargetTrackerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TargetTrackerTests.swift; sourceTree = "<group>"; };
 		17D0040419FF3634ED04ECD5 /* quiet_g.m4a */ = {isa = PBXFileReference; path = quiet_g.m4a; sourceTree = "<group>"; };
@@ -200,7 +201,6 @@
 		88E4A4C2E29F78B86DBF8741 /* PitchDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PitchDetector.swift; sourceTree = "<group>"; };
 		8A1DFC9E00A0CC0FD9A8DD7B /* StringTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StringTarget.swift; sourceTree = "<group>"; };
 		8C444424CA4441F1E87F0B87 /* ReadingEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadingEngine.swift; sourceTree = "<group>"; };
-		90CE87092888098365F6269C /* AnalysisFrame.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisFrame.swift; sourceTree = "<group>"; };
 		911E632731D51D44658C7EEA /* SustainContinuityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SustainContinuityTests.swift; sourceTree = "<group>"; };
 		9169DFF8A7DB665A364BD9BE /* quiet_a.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = quiet_a.wav; sourceTree = "<group>"; };
 		9351508AF071B5727E46B279 /* ParityCorpus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParityCorpus.swift; sourceTree = "<group>"; };
@@ -387,6 +387,7 @@
 		46E2B5D6FB38BF5AE075866D /* PreviousEngine */ = {
 			isa = PBXGroup;
 			children = (
+				11179B76D20690D80FFB8F8C /* AnalysisFrame.swift */,
 				350DACAF428D36ACBEC1CFF3 /* HannProjection.swift */,
 				88E4A4C2E29F78B86DBF8741 /* PitchDetector.swift */,
 				58EE6344E3C13AF837A871E1 /* PitchResult.swift */,
@@ -444,7 +445,6 @@
 		678E28A2B7745A649F32FAF4 /* Detection */ = {
 			isa = PBXGroup;
 			children = (
-				90CE87092888098365F6269C /* AnalysisFrame.swift */,
 				F078D0229E4B02DDE0D75C72 /* AnalysisSnapshot.swift */,
 				D08ACF70BCB0CC6D830DAE7A /* TunerDiagnostics.swift */,
 			);
@@ -649,7 +649,6 @@
 			files = (
 				0ED2E7838B1ED40D418AD91A /* AVAudioEngineMicrophone.swift in Sources */,
 				7ACB22B44B1D39623FB1C0BE /* AcousticStringSynthesizer.swift in Sources */,
-				B674810118B6EFB35B12E268 /* AnalysisFrame.swift in Sources */,
 				3A0C73441786D7EDD5AEB11C /* AnalysisSnapshot.swift in Sources */,
 				5ED29FB7524AF56C97EE20E7 /* AudioCaptureError.swift in Sources */,
 				2CB5F684A1046AB9F461CBB4 /* AudioPermissionStatus.swift in Sources */,
@@ -705,6 +704,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				38D630FAC67F47A7E9A72679 /* AnalysisFrame.swift in Sources */,
 				C3C8A45C477BD1C765114521 /* AnalysisSessionTests.swift in Sources */,
 				6F2CB117AAAC94639DD400E3 /* AudioSeamDoubles.swift in Sources */,
 				26548EE212F9F5D5F5D74724 /* AudioTestHelpers.swift in Sources */,

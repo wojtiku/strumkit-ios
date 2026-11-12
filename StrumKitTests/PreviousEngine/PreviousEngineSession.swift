@@ -134,7 +134,7 @@ final class PreviousEngineSession {
             dspMs: dspMs,
             queueDelayMs: 0.0,
             resultAgeMs: 0.0,
-            replacedFrames: 0,
+            overloads: 0,
             callbackFrameCount: frame.callbackFrameCount,
             dropped: 0,
             level: pitchResult.amplitudeRMS

@@ -1,5 +1,6 @@
 import Testing
 import Foundation
+import QuartzCore
 @testable import StrumKit
 
 private final class TestConcurrencyTracker: @unchecked Sendable {
@@ -67,289 +68,263 @@ private final class TestBox<T>: @unchecked Sendable {
     }
 }
 
-@Suite("Tuner Analysis Session & Mailbox Scheduler Tests")
+@Suite("Analysis session: queue, worker, generation, publication")
 struct AnalysisSessionTests {
+    private static let rate = 44100.0
 
-    private func makeTargets() -> [StringTarget] {
-        Presets.guitar[0].midi.enumerated().map { index, midi in
-            StringTarget(note: PitchMath.midiNoteName(midi), midi: midi, frequency: PitchMath.midiFrequency(midi), number: 6 - index)
-        }
-    }
-
-    private func makeSineWave(frequency: Double, sampleRate: Double, count: Int) -> [Float] {
-        var samples = [Float](repeating: 0, count: count)
-        for i in 0..<count {
-            let t = Double(i) / sampleRate
-            samples[i] = Float(sin(2.0 * .pi * frequency * t)) * 0.2
-        }
-        return samples
-    }
-
-    @Test("A Reading's times are on the host clock, so a Held reading fades across its hold window")
-    func testReadingTimesAreOnTheHostClock() {
-        let resolved = Tuning.resolve(
+    private static func ukulele(mode: TunerMode = .auto) -> Tuning.Resolved {
+        Tuning.resolve(
             instrument: .ukulele, tuningId: "high-g", customMidi: [],
-            mode: .auto, a4: 440.0, precision: false, guided: false)
-        let session = TunerAnalysisSession(config: resolved.config, targets: resolved.targets)
-        let rate = 44100.0
-        // Far from any stream position, as device uptime is.
-        let hostStart = 5000.0
-
-        var samples = [Float](repeating: 0, count: Int(rate * 1.6))
-        for i in 0..<Int(rate) {
-            let t = Double(i) / rate
-            let v = sin(2.0 * .pi * 440.0 * t) + 0.5 * sin(2.0 * .pi * 880.0 * t) + 0.25 * sin(2.0 * .pi * 1320.0 * t)
-            samples[i] = Float(v) * 0.15
-        }
-
-        var lastFresh: TunerReading?
-        var lastHeld: TunerReading?
-        var sequence: UInt64 = 0
-        for end in stride(from: 4096, through: samples.count, by: 1024) {
-            sequence += 1
-            let streamEnd = Double(end) / rate
-            let frame = AnalysisFrame(
-                samples: Array(samples[(end - 4096)..<end]),
-                sampleRate: rate,
-                captureEndSeconds: streamEnd,
-                sequence: sequence,
-                generation: session.generation,
-                hostEndSeconds: hostStart + streamEnd
-            )
-            guard let reading = session.processFrameSync(frame)?.reading else { continue }
-            if reading.freshness == .fresh { lastFresh = reading } else { lastHeld = reading }
-        }
-
-        guard let lastFresh, let lastHeld else {
-            Issue.record("Expected a fresh Reading during the tone and a Held reading after it")
-            return
-        }
-        #expect(lastFresh.at > hostStart, "A Reading's time must be a host-clock time")
-        #expect(lastHeld.lastFreshAt > hostStart && lastHeld.lastFreshAt <= lastHeld.at)
-        #expect(lastHeld.at - lastHeld.lastFreshAt < TunerPresentation.displayHoldDuration)
-
-        // The display asks the host clock what time it is. Part-way through the hold the
-        // Reading is part-way faded: neither untouched nor already at the floor.
-        let opacity = TunerPresentation.holdOpacity(for: lastHeld, now: lastHeld.at)
-        #expect(opacity < 1.0 && opacity > TunerPresentation.minHoldOpacity)
+            mode: mode, a4: 440.0, precision: false, guided: mode == .guided)
     }
 
-    @Test("Bounded mailbox replaces pending frame and limits concurrency to 1")
-    func testBoundedMailboxAndReplacement() async throws {
-        let targets = makeTargets()
-        let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .auto)
-        let session = TunerAnalysisSession(config: config, targets: targets)
+    private static func makeSession(mode: TunerMode = .auto) -> TunerAnalysisSession {
+        let resolved = ukulele(mode: mode)
+        return TunerAnalysisSession(config: resolved.config, targets: resolved.targets)
+    }
+
+    /// A plucked-string stand-in: a fundamental with two harmonics.
+    private static func tone(_ frequency: Double, seconds: Double) -> [Float] {
+        (0..<Int(rate * seconds)).map { i in
+            let t = Double(i) / rate
+            let v = sin(2.0 * .pi * frequency * t)
+                + 0.5 * sin(2.0 * .pi * 2.0 * frequency * t)
+                + 0.25 * sin(2.0 * .pi * 3.0 * frequency * t)
+            return Float(v) * 0.15
+        }
+    }
+
+    private static func chunks(_ samples: [Float], of size: Int) -> [[Float]] {
+        stride(from: 0, to: samples.count, by: size).map { Array(samples[$0..<min($0 + size, samples.count)]) }
+    }
+
+    /// Lets everything the worker has handed to the main queue run.
+    private static func settle(_ session: TunerAnalysisSession) async {
+        session.waitUntilIdle()
+        await MainActor.run {}
+    }
+
+    @Test("A capture callback carrying several hops delivers every hop to the engine")
+    func everyHopOfALargeCallbackIsAnalysed() async {
+        let audio = Self.tone(440.0, seconds: 1.0)
+
+        // What the engine says about this audio, hop by hop.
+        let engine = ReadingEngine(configuration: ReadingEngine.Configuration(Self.ukulele()))
+        let expected = engine.push(audio, sampleRate: Self.rate)
+            .filter { $0.display != .unchanged }
+            .map(\.display.reading)
+        #expect(expected.contains { $0 != nil })
+
+        // The same audio as a real device delivers it: several hops per callback.
+        let session = Self.makeSession()
+        let published = TestBox<[TunerReading?]>([])
+        await MainActor.run {
+            session.onSnapshotPublished = { snapshot in published.mutate { $0.append(snapshot.reading) } }
+        }
+        for callback in Self.chunks(audio, of: 4800) {
+            session.submit(callback, sampleRate: Self.rate, hostEnd: nil)
+            session.waitUntilIdle()
+        }
+        await Self.settle(session)
+
+        #expect(published.get() == expected)
+        #expect(session.overloads == 0)
+        #expect(session.droppedCallbacks == 0)
+    }
+
+    @Test("The worker analyses one stretch of audio at a time, in order")
+    func workerIsSerial() async {
+        let session = Self.makeSession()
         let tracker = TestConcurrencyTracker()
-
-        let samples = makeSineWave(frequency: 82.41, sampleRate: 44100.0, count: 2048)
-
-        session.analysisHook = { frame, _ in
+        let counter = TestBox<UInt64>(0)
+        session.analysisHook = { _, _ in
             tracker.jobStarted()
-            // Simulate slow DSP execution on the worker
-            Thread.sleep(forTimeInterval: 0.06)
-            tracker.jobFinished(sequence: frame.sequence)
+            Thread.sleep(forTimeInterval: 0.005)
+            counter.mutate { $0 += 1 }
+            tracker.jobFinished(sequence: counter.get())
         }
 
-        // Submit Frame 1 (starts worker immediately)
-        session.submitLiveAudio(window: samples, sampleRate: 44100.0, captureEndSeconds: 1.0)
+        for callback in Self.chunks(Self.tone(440.0, seconds: 0.25), of: 1024) {
+            session.submit(callback, sampleRate: Self.rate, hostEnd: nil)
+        }
+        session.waitUntilIdle()
 
-        // Give worker a moment to enter processing of Frame 1
-        try await Task.sleep(nanoseconds: 10_000_000) // 10ms
+        let (concurrency, executed) = tracker.results()
+        #expect(concurrency == 1)
+        #expect(executed == executed.sorted())
+        #expect(!executed.isEmpty)
+    }
 
-        // Submit Frame 2, 3, 4 while Frame 1 is still processing
-        session.submitLiveAudio(window: samples, sampleRate: 44100.0, captureEndSeconds: 1.04)
-        session.submitLiveAudio(window: samples, sampleRate: 44100.0, captureEndSeconds: 1.08)
-        session.submitLiveAudio(window: samples, sampleRate: 44100.0, captureEndSeconds: 1.12)
+    @Test("Audio waiting within the bound is all analysed; nothing is replaced")
+    func withinTheBoundNothingIsDropped() async throws {
+        let session = Self.makeSession()
+        let analysed = TestBox<Int>(0)
+        session.analysisHook = { _, _ in
+            if analysed.get() == 0 { Thread.sleep(forTimeInterval: 0.06) }
+            analysed.mutate { $0 += 1 }
+        }
 
-        // Wait for worker queue to complete both Frame 1 and Frame 4
-        let (concurrency, executed) = await tracker.waitForJobs(count: 2, timeoutSeconds: 2.0)
+        let callbacks = Self.chunks(Self.tone(440.0, seconds: 0.3), of: 1024)
+        session.submit(callbacks[0], sampleRate: Self.rate, hostEnd: nil)
+        try await Task.sleep(nanoseconds: 10_000_000)
+        // Twelve more hops arrive while the worker is stuck on the first: 12,288 samples,
+        // inside the 16,384 bound.
+        for callback in callbacks[1...12] {
+            session.submit(callback, sampleRate: Self.rate, hostEnd: nil)
+        }
+        session.waitUntilIdle()
 
-        #expect(concurrency == 1, "Concurrency must strictly be 1 on serial worker")
-        #expect(session.replacedFrames >= 2, "Frames 2 and 3 must have been replaced by Frame 4 in mailbox")
-        #expect(executed.contains(1), "Frame 1 must have executed")
-        #expect(executed.contains(4), "Newest Frame 4 must have executed")
-        #expect(!executed.contains(2), "Stale Frame 2 should have been replaced")
-        #expect(!executed.contains(3), "Stale Frame 3 should have been replaced")
+        #expect(analysed.get() == 13)
+        #expect(session.overloads == 0)
+        #expect(session.droppedCallbacks == 0)
+    }
+
+    @Test("Falling further behind than the bound is an explicit discontinuity, counted")
+    func overloadIsADiscontinuity() async throws {
+        let session = Self.makeSession()
+        let analysed = TestBox<Int>(0)
+        session.analysisHook = { _, _ in
+            if analysed.get() == 0 { Thread.sleep(forTimeInterval: 0.08) }
+            analysed.mutate { $0 += 1 }
+        }
+
+        let callbacks = Self.chunks(Self.tone(440.0, seconds: 1.0), of: 1024)
+        session.submit(callbacks[0], sampleRate: Self.rate, hostEnd: nil)
+        try await Task.sleep(nanoseconds: 10_000_000)
+        // Twenty more hops while the worker is stuck: 20,480 samples, past the bound.
+        for callback in callbacks[1...20] {
+            session.submit(callback, sampleRate: Self.rate, hostEnd: nil)
+        }
+        session.waitUntilIdle()
+
+        #expect(session.overloads == 1)
+        #expect(session.droppedCallbacks == 16, "The sixteen callbacks that filled the queue are discarded together")
+        #expect(analysed.get() == 5, "The first callback, and the four that arrived after the restart")
     }
 
     @Test("Stop increments generation and prevents publication of in-flight results")
-    func testStopInvalidatesDelayedJobAndRejectsPublication() async throws {
-        let targets = makeTargets()
-        let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .auto)
-        let session = TunerAnalysisSession(config: config, targets: targets)
-
-        let initialGen = session.generation
-        let samples = makeSineWave(frequency: 82.41, sampleRate: 44100.0, count: 2048)
-
-        let publicationCount = TestBox<Int>(0)
+    func stopInvalidatesInFlightResults() async throws {
+        let session = Self.makeSession()
+        let initialGeneration = session.generation
+        let publications = TestBox<Int>(0)
         await MainActor.run {
-            session.onSnapshotPublished = { _ in
-                publicationCount.mutate { $0 += 1 }
-            }
+            session.onSnapshotPublished = { _ in publications.mutate { $0 += 1 } }
         }
+        session.analysisHook = { _, _ in Thread.sleep(forTimeInterval: 0.05) }
 
-        session.analysisHook = { _, _ in
-            Thread.sleep(forTimeInterval: 0.05)
-        }
-
-        session.submitLiveAudio(window: samples, sampleRate: 44100.0, captureEndSeconds: 1.0)
-        // Immediately stop the session while the job is in flight
+        session.submit(Self.tone(440.0, seconds: 0.5), sampleRate: Self.rate, hostEnd: nil)
         session.stop()
+        #expect(session.generation > initialGeneration)
 
-        #expect(session.generation > initialGen, "Stop must increment generation")
-
-        // Wait for worker to finish
-        try await Task.sleep(nanoseconds: 120_000_000)
-
-        #expect(publicationCount.get() == 0, "No snapshots from old generation may be published after stop")
+        await Self.settle(session)
+        #expect(publications.get() == 0, "Nothing computed before the stop may be published after it")
     }
 
-    @Test("Preset switch invalidates in-flight analysis under old target policy")
-    func testPresetSwitchInvalidatesInFlightAnalysis() async throws {
-        let guitarTargets = makeTargets()
-        let guitarConfig = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .auto)
-        let session = TunerAnalysisSession(config: guitarConfig, targets: guitarTargets)
-
-        let samples = makeSineWave(frequency: 82.41, sampleRate: 44100.0, count: 2048)
-
+    @Test("A Tuning change invalidates analysis in flight under the old one")
+    func tuningChangeInvalidatesInFlightResults() async throws {
+        let session = Self.makeSession()
         let snapshots = TestBox<[AnalysisSnapshot]>([])
         await MainActor.run {
-            session.onSnapshotPublished = { snapshot in
-                snapshots.mutate { $0.append(snapshot) }
-            }
+            session.onSnapshotPublished = { snapshot in snapshots.mutate { $0.append(snapshot) } }
         }
+        session.analysisHook = { _, _ in Thread.sleep(forTimeInterval: 0.05) }
 
-        session.analysisHook = { _, _ in
-            Thread.sleep(forTimeInterval: 0.05)
-        }
+        session.submit(Self.tone(440.0, seconds: 0.5), sampleRate: Self.rate, hostEnd: nil)
+        session.adopt(Tuning.resolve(
+            instrument: .guitar, tuningId: "standard", customMidi: [],
+            mode: .auto, a4: 440.0, precision: false, guided: false))
 
-        session.submitLiveAudio(window: samples, sampleRate: 44100.0, captureEndSeconds: 1.0)
+        await Self.settle(session)
+        #expect(snapshots.get().isEmpty)
 
-        // Switch preset to ukulele while job is running
-        let ukeConfig = TunerConfig(instrument: .ukulele, tuningId: "standard", mode: .auto)
-        let ukeTargets = Presets.ukulele[0].midi.enumerated().map { index, midi in
-            StringTarget(note: PitchMath.midiNoteName(midi), midi: midi, frequency: PitchMath.midiFrequency(midi), number: 4 - index)
-        }
-        session.adopt(Tuning.Resolved(config: ukeConfig, targets: ukeTargets))
-
-        try await Task.sleep(nanoseconds: 120_000_000)
-
-        #expect(snapshots.get().isEmpty, "In-flight result under old guitar policy must not publish after uke switch")
+        // And the session goes on to publish under the new Tuning.
+        let after = session.processSync(Self.tone(110.0, seconds: 0.5), sampleRate: Self.rate)
+        #expect(after.allSatisfy { $0.generation == session.generation })
+        #expect(after.compactMap(\.reading).allSatisfy { $0.aim.target?.note == "A2" })
     }
 
-    @Test("Synchronous processing seam executes sequentially with correct diagnostics")
-    func testSynchronousProcessingSeam() {
-        let targets = makeTargets()
-        let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .auto)
-        let session = TunerAnalysisSession(config: config, targets: targets)
+    @Test("The synchronous seam runs the live path and reports its diagnostics")
+    func synchronousSeam() {
+        let session = Self.makeSession()
+        let audio = Self.tone(440.0, seconds: 0.5)
+        let snapshots = session.processSync(audio, sampleRate: Self.rate)
 
-        let samples = makeSineWave(frequency: 82.41, sampleRate: 44100.0, count: 2048)
-        let frame = AnalysisFrame(
-            samples: samples,
-            sampleRate: 44100.0,
-            captureEndSeconds: 1.0,
-            sequence: 1,
-            generation: session.generation,
-            callbackFrameCount: 2048
-        )
-
-        let snapshot = session.processFrameSync(frame)
-        #expect(snapshot != nil)
-        #expect(snapshot?.sequence == 1)
-        #expect(snapshot?.diagnostics.sampleRate == 44100.0)
-        #expect(snapshot?.diagnostics.queueDelayMs == 0.0)
-        #expect(snapshot?.diagnostics.dspMs ?? 0 > 0.0)
-        #expect(snapshot?.diagnostics.callbackFrameCount == 2048)
+        #expect(!snapshots.isEmpty)
+        #expect(snapshots.map(\.sequence) == Array(1...UInt64(snapshots.count)))
+        #expect(snapshots.allSatisfy { $0.diagnostics.sampleRate == Self.rate })
+        #expect(snapshots.allSatisfy { $0.diagnostics.queueDelayMs == 0.0 })
+        #expect(snapshots.allSatisfy { $0.diagnostics.dspMs > 0.0 })
+        #expect(snapshots.allSatisfy { $0.diagnostics.callbackFrameCount == audio.count })
+        #expect(snapshots.contains { $0.reading != nil })
+        #expect(snapshots.last?.feedbackState == .tracking)
     }
 
-    // MARK: - Task 7 Lifecycle & Device Validation Tests
+    @Test("Result age is measured against the host clock, and is zero when there is none")
+    func resultAge() {
+        let session = Self.makeSession()
+        let audio = Self.tone(440.0, seconds: 0.3)
 
-    @Test("Dropped and replaced frames are counted, and stale-generation frames count as dropped")
-    func testFrameAccountingCountsDrops() async throws {
-        let targets = makeTargets()
-        let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .auto)
-        let session = TunerAnalysisSession(config: config, targets: targets)
-        let samples = makeSineWave(frequency: 82.41, sampleRate: 44100.0, count: 2048)
+        let replay = session.processSync(audio, sampleRate: Self.rate)
+        #expect(replay.allSatisfy { $0.diagnostics.resultAgeMs == 0.0 })
 
-        session.analysisHook = { _, _ in
-            Thread.sleep(forTimeInterval: 0.05)
+        let captured = session.processSync(audio, sampleRate: Self.rate, hostEnd: CACurrentMediaTime() - 0.05)
+        #expect(!captured.isEmpty)
+        #expect(captured.allSatisfy { $0.diagnostics.resultAgeMs >= 50.0 && $0.diagnostics.resultAgeMs < 5_000.0 })
+    }
+
+    @Test("Reading times are host-clock times through the session")
+    func readingTimesAreOnTheHostClock() {
+        let session = Self.makeSession()
+        let hostStart = 5000.0
+        let audio = Self.tone(440.0, seconds: 1.0)
+        var readings: [TunerReading] = []
+        var delivered = 0
+        for callback in Self.chunks(audio, of: 1024) {
+            delivered += callback.count
+            readings += session.processSync(
+                callback, sampleRate: Self.rate,
+                hostEnd: hostStart + Double(delivered) / Self.rate).compactMap(\.reading)
         }
-
-        session.submitLiveAudio(window: samples, sampleRate: 44100.0, captureEndSeconds: 1.0)
-        try await Task.sleep(nanoseconds: 10_000_000)
-        session.submitLiveAudio(window: samples, sampleRate: 44100.0, captureEndSeconds: 1.04)
-        session.submitLiveAudio(window: samples, sampleRate: 44100.0, captureEndSeconds: 1.08)
-
-        #expect(session.replacedFrames >= 1)
-        #expect(session.droppedFrames >= 1,
-                "A frame replaced in the mailbox is dropped work and must be counted, not hidden")
-
-        // A frame from a superseded generation is dropped, not analysed.
-        let generation = session.generation
-        session.start(config: config, targets: targets)
-        let stale = AnalysisFrame(
-            samples: samples,
-            sampleRate: 44100.0,
-            captureEndSeconds: 2.0,
-            sequence: 99,
-            generation: generation
-        )
-        #expect(session.processFrameSync(stale) == nil)
-
-        try await Task.sleep(nanoseconds: 120_000_000)
+        #expect(!readings.isEmpty)
+        #expect(readings.allSatisfy { $0.at > hostStart && $0.at <= hostStart + 1.0 + 1e-9 })
     }
 
-    @Test("Synchronous processing seam reports a well-defined result age")
-    func testSyncSeamResultAgeIsCoherent() {
-        let targets = makeTargets()
-        let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .auto)
-        let session = TunerAnalysisSession(config: config, targets: targets)
-        let samples = makeSineWave(frequency: 82.41, sampleRate: 44100.0, count: 2048)
+    @Test("A restart at a new sample rate invalidates the old generation and carries on")
+    func sampleRateRestart() {
+        let session = Self.makeSession()
+        let initialGeneration = session.generation
+        #expect(!session.processSync(Self.tone(440.0, seconds: 0.3), sampleRate: 44100.0).isEmpty)
 
-        // Replay frame timestamps are a media timeline starting at zero. Without an
-        // explicit reference the seam would subtract it from the host monotonic clock
-        // and report an age of millions of milliseconds.
-        let frame = AnalysisFrame(
-            samples: samples,
-            sampleRate: 44100.0,
-            captureEndSeconds: 1.0,
-            sequence: 1,
-            generation: session.generation
-        )
-        let snapshot = session.processFrameSync(frame)
-        #expect(snapshot?.diagnostics.resultAgeMs == 0.0)
+        let resolved = Self.ukulele()
+        session.start(config: resolved.config, targets: resolved.targets)
+        #expect(session.generation > initialGeneration)
 
-        let withReference = session.processFrameSync(frame, resultAgeReference: 1.05)
-        #expect(abs((withReference?.diagnostics.resultAgeMs ?? 0) - 50.0) < 1e-6)
+        let after = session.processSync([Float](repeating: 0, count: 9600), sampleRate: 48000.0)
+        #expect(!after.isEmpty)
+        #expect(after.allSatisfy { $0.diagnostics.sampleRate == 48000.0 && $0.generation == session.generation })
     }
 
-    @Test("Sample-rate restart resets analysis state, increments generation, and clears prior")
-    func testSampleRateRestartResetsStateAndInvalidatesStalePrior() {
-        let targets = makeTargets()
-        let config = TunerConfig(instrument: .guitar, tuningId: "standard", mode: .auto)
-        let session = TunerAnalysisSession(config: config, targets: targets)
+    @Test("Guided state read straight after a change already reflects it")
+    func guidedStateMirrorsTheChange() {
+        let session = Self.makeSession(mode: .guided)
+        let g4 = PitchMath.midiFrequency(67)
+        _ = session.processSync(Self.tone(g4, seconds: 1.5), sampleRate: Self.rate)
+        #expect(session.guidedProgress == [true, false, false, false])
+        #expect(session.guidedTargetIndex == 1)
 
-        let initialGen = session.generation
-        let samples44k = makeSineWave(frequency: 82.41, sampleRate: 44100.0, count: 2048)
-        let frame1 = AnalysisFrame(samples: samples44k, sampleRate: 44100.0, captureEndSeconds: 1.0, sequence: 1, generation: initialGen)
-        let snap1 = session.processFrameSync(frame1)
-        #expect(snap1 != nil)
+        // A mode change keeps the player's completed Strings…
+        session.updateConfiguration(Self.ukulele(mode: .auto).config, preservingGuidedProgress: true)
+        #expect(session.guidedProgress == [true, false, false, false])
 
-        // Simulate sample-rate change (e.g. 44.1kHz -> 48kHz on route change)
-        session.start(config: config, targets: targets)
-        #expect(session.generation > initialGen, "Generation must increment on sample-rate restart")
+        // …a restart of the sequence does not…
+        session.resetGuidedSession()
+        #expect(session.guidedProgress == [false, false, false, false])
+        #expect(session.guidedTargetIndex == 0)
 
-        // An old frame from the previous generation must be rejected
-        let oldFrame = AnalysisFrame(samples: samples44k, sampleRate: 44100.0, captureEndSeconds: 1.05, sequence: 2, generation: initialGen)
-        let staleSnap = session.processFrameSync(oldFrame)
-        #expect(staleSnap == nil, "Old generation frame must be rejected")
-
-        // A new 48kHz frame advances cleanly with reset prior
-        let samples48k = makeSineWave(frequency: 82.41, sampleRate: 48000.0, count: 2048)
-        let frame2 = AnalysisFrame(samples: samples48k, sampleRate: 48000.0, captureEndSeconds: 1.10, sequence: 3, generation: session.generation)
-        let snap2 = session.processFrameSync(frame2)
-        #expect(snap2 != nil)
-        #expect(snap2?.diagnostics.sampleRate == 48000.0)
+        // …and what the worker reports afterwards agrees.
+        session.updateConfiguration(Self.ukulele(mode: .guided).config, preservingGuidedProgress: true)
+        let after = session.processSync(Self.tone(g4, seconds: 0.2), sampleRate: Self.rate)
+        #expect(after.allSatisfy { $0.guidedProgress == [false, false, false, false] })
     }
 
     @Test("Audio capture zero-channel input throws noInputChannelsAvailable error")
