@@ -1,7 +1,8 @@
 import SwiftUI
 
 /// 21-tick hardware gauge inspired by chorder's SVG gauge.
-/// Maps cents from -50 to +50 into an arc with needle angle -75° to +75°.
+/// Maps cents from -20 to +20 into an arc with needle angle -75° to +75°,
+/// zooming in around the in-tune centre for more detail on mobile.
 struct HardwareGaugeView: View {
     let cents: Double
     let visible: Bool
@@ -15,10 +16,10 @@ struct HardwareGaugeView: View {
         self.needleOpacity = needleOpacity
     }
 
-    // Angle: -50...+50 cents mapped directly to -75°...+75° (cents * 1.5)
+    // Zoomed scale: -20...+20 cents mapped to -75°...+75° for more detail near 0.
     private var needleAngle: Double {
-        let clamped = max(-50.0, min(50.0, cents))
-        return clamped * 1.5
+        let clamped = max(-20.0, min(20.0, cents))
+        return clamped * (75.0 / 20.0)
     }
 
     var body: some View {
@@ -50,11 +51,11 @@ struct HardwareGaugeView: View {
                 Spacer()
 
                 HStack {
-                    Text("−50")
+                    Text("−20")
                         .font(.system(size: 12, weight: .medium, design: .monospaced))
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Text("+50")
+                    Text("+20")
                         .font(.system(size: 12, weight: .medium, design: .monospaced))
                         .foregroundStyle(.secondary)
                 }

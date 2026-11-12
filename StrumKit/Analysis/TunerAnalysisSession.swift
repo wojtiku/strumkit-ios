@@ -234,7 +234,7 @@ final class TunerAnalysisSession: @unchecked Sendable {
             enqueueFrameLocked(
                 samples: win.samples,
                 sampleRate: win.sampleRate,
-                captureEndSeconds: win.hostTime ?? (win.timeMs / 1000.0),
+                captureEndSeconds: win.timeMs / 1000.0,
                 callbackFrameCount: win.samples.count,
                 enqueuedAt: enqueuedAt
             )

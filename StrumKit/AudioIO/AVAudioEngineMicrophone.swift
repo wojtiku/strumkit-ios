@@ -132,7 +132,22 @@ extension AVAudioEngineMicrophone: MicrophoneSource {
                     captureEndSeconds = CACurrentMediaTime()
                 }
 
-                let samples = Array(UnsafeBufferPointer(start: channelData[0], count: frameLength))
+                // Average all channels sample-wise, matching the parity contract's channel policy.
+                let samples: [Float]
+                if inputFormat.channelCount <= 1 {
+                    samples = Array(UnsafeBufferPointer(start: channelData[0], count: frameLength))
+                } else {
+                    var averaged = [Float](repeating: 0, count: frameLength)
+                    let invChannels = 1.0 / Float(inputFormat.channelCount)
+                    for i in 0..<frameLength {
+                        var sum: Float = 0
+                        for c in 0..<Int(inputFormat.channelCount) {
+                            sum += channelData[c][i]
+                        }
+                        averaged[i] = sum * invChannels
+                    }
+                    samples = averaged
+                }
                 delivering(CapturedWindow(
                     samples: samples,
                     sampleRate: inputFormat.sampleRate,
