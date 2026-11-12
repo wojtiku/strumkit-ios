@@ -148,68 +148,6 @@ struct PublicationAdapterTests {
         }
     }
 
-    // MARK: - 3. Fresh vs Held and lastFreshAt Provenance
-
-    @Test("Fresh vs held: lastFreshAt stays fixed during held frames while at updates")
-    func freshVsHeldLastFreshAt() {
-        let adapter = FaithfulReadingAdapter()
-        let reading = FaithfulReading(
-            frequency: 440.0,
-            cents: 1.5,
-            index: 3,
-            note: "A4",
-            inTune: true,
-            rms: 0.15,
-            stringNumber: 1
-        )
-
-        // Fresh frame at t = 200.0 ms
-        let outFresh = adapter.process(reading: reading, timeMs: 200.0)
-        #expect(outFresh.action == .published(reading: reading, freshness: .fresh))
-        let nativeFresh = try! #require(outFresh.reading)
-        #expect(nativeFresh.freshness == .fresh)
-        #expect(nativeFresh.evidence == .measured)
-        #expect(nativeFresh.evidence.mayAssertInTune == true)
-        #expect(nativeFresh.evidence.mayCompleteTuning == true)
-        #expect(abs(nativeFresh.at - 0.200) < 1e-9)
-        #expect(abs(nativeFresh.lastFreshAt - 0.200) < 1e-9)
-        #expect(nativeFresh.inTune == true)
-        #expect(nativeFresh.note == "A4")
-        #expect(abs(nativeFresh.displayCents - 1.5) < 1e-9)
-
-        // Held frame at t = 300.0 ms (detector produced nil)
-        let outHeld1 = adapter.process(reading: nil, timeMs: 300.0)
-        #expect(outHeld1.action == .published(reading: reading, freshness: .held))
-        let nativeHeld1 = try! #require(outHeld1.reading)
-        #expect(nativeHeld1.freshness == .held)
-        #expect(nativeHeld1.evidence == .sustained)
-        #expect(nativeHeld1.evidence.mayAssertInTune == false)
-        #expect(nativeHeld1.evidence.mayCompleteTuning == false)
-        #expect(abs(nativeHeld1.at - 0.300) < 1e-9)
-        // CRITICAL: lastFreshAt must NOT advance! It stays fixed at 0.200 seconds!
-        #expect(abs(nativeHeld1.lastFreshAt - 0.200) < 1e-9)
-
-        // Another held frame at t = 450.0 ms
-        let outHeld2 = adapter.process(reading: nil, timeMs: 450.0)
-        #expect(outHeld2.action == .published(reading: reading, freshness: .held))
-        let nativeHeld2 = try! #require(outHeld2.reading)
-        #expect(nativeHeld2.freshness == .held)
-        #expect(nativeHeld2.evidence == .sustained)
-        #expect(abs(nativeHeld2.at - 0.450) < 1e-9)
-        #expect(abs(nativeHeld2.lastFreshAt - 0.200) < 1e-9)
-
-        // Chromatic mode has note aim with nil inTune
-        adapter.mode = .chromatic
-        let outChromatic = adapter.process(reading: reading, timeMs: 600.0)
-        let nativeChromatic = try! #require(outChromatic.reading)
-        #expect(nativeChromatic.inTune == nil)
-        if case .note(let note) = nativeChromatic.aim {
-            #expect(note.displayName == "A4")
-        } else {
-            Issue.record("Expected .note aim in chromatic mode")
-        }
-    }
-
     // MARK: - 4. Completion Events & Proximity
 
     @Test("Completion events: fired on first inTune confirmation, one-shot per string, never on proximity alone")
@@ -297,48 +235,6 @@ struct PublicationAdapterTests {
         // After reset, A4 can be confirmed again
         let c7 = feedback.observe(readingInTuneA4)
         #expect(c7 == true)
-    }
-
-    @Test("Completion observed at tracker cadence before 12 Hz throttle is never dropped")
-    func completionPreservedAcrossThrottle() {
-        let adapter = FaithfulReadingAdapter()
-
-        let readingNotInTune = FaithfulReading(
-            frequency: 440.0,
-            cents: 0.0,
-            index: 3,
-            note: "A4",
-            inTune: false,
-            rms: 0.1,
-            stringNumber: 1
-        )
-        let readingInTune = FaithfulReading(
-            frequency: 440.0,
-            cents: 0.0,
-            index: 3,
-            note: "A4",
-            inTune: true,
-            rms: 0.1,
-            stringNumber: 1
-        )
-
-        // Frame at t = 0.0 ms: published, not in tune
-        let out0 = adapter.process(reading: readingNotInTune, timeMs: 0.0)
-        #expect(out0.action.isPublished)
-        #expect(out0.completionEvent == false)
-
-        // Frame at t = 20.0 ms: in-tune confirmed, but throttled (< 83.33 ms)
-        let out20 = adapter.process(reading: readingInTune, timeMs: 20.0)
-        #expect(out20.action == .skipped)
-        // CRITICAL: completion event MUST be true even though publication action is skipped!
-        #expect(out20.completionEvent == true)
-        #expect(out20.completedStringIndex == 3)
-        #expect(out20.completedNote == "A4")
-
-        // Frame at t = 40.0 ms: subsequent frame does not repeat completion
-        let out40 = adapter.process(reading: readingInTune, timeMs: 40.0)
-        #expect(out40.action == .skipped)
-        #expect(out40.completionEvent == false)
     }
 
     // MARK: - 5. Golden Trace Parity Verification

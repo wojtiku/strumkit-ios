@@ -81,98 +81,6 @@ public struct FaithfulEngineProfile: Sendable, Codable, Equatable {
     }
 }
 
-// MARK: - Dynamic Target Resolution & Shipped Presets
-
-enum FaithfulTargetResolver {
-    /// Resolves an array of MIDI notes into Targets for a specific calibration A4.
-    ///
-    /// At A4 = 440 Hz, target frequencies are bit-identical to standard reference tunings:
-    /// `target.frequency = calibrationA4 * pow(2.0, Double(midi - 69) / 12.0)`
-    static func resolve(
-        midi: [Int],
-        calibrationA4: Double = 440.0
-    ) -> [Target] {
-        let total = midi.count
-        return midi.enumerated().map { index, noteNumber in
-            let noteName = PitchMath.midiNoteName(noteNumber)
-            let stringNum = total - index
-            let freq = calibrationA4 * pow(2.0, Double(noteNumber - 69) / 12.0)
-            return Target(
-                note: noteName,
-                frequency: freq,
-                midi: noteNumber,
-                stringNumber: stringNum
-            )
-        }
-    }
-
-    /// Resolves targets for a named preset under an instrument category with dynamic calibration.
-    static func resolve(
-        instrument: InstrumentCategory,
-        presetId: String,
-        calibrationA4: Double = 440.0,
-        customMidi: [Int]? = nil
-    ) -> [Target] {
-        if presetId == "custom", let customMidi = customMidi, !customMidi.isEmpty {
-            return resolve(midi: customMidi, calibrationA4: calibrationA4)
-        }
-
-        let presets = Presets.presets(for: instrument)
-        if let preset = presets.first(where: { $0.id == presetId }) {
-            return resolve(midi: preset.midi, calibrationA4: calibrationA4)
-        }
-
-        // Check reference source ukulele tunings by fallback
-        if let refTargets = TUNINGS[presetId] {
-            if calibrationA4 == 440.0 {
-                return refTargets
-            }
-            return refTargets.enumerated().map { index, t in
-                Target(
-                    note: t.note,
-                    midi: t.midi,
-                    stringNumber: t.stringNumber ?? (refTargets.count - index),
-                    calibrationA4: calibrationA4
-                )
-            }
-        }
-
-        let fallbackMidi = instrument == .guitar
-            ? Presets.guitar[0].midi
-            : Presets.ukulele[0].midi
-        return resolve(midi: fallbackMidi, calibrationA4: calibrationA4)
-    }
-}
-
-// MARK: - Precision Preference (Presentation Overlay)
-
-/// Precision preference presentation overlay.
-///
-/// Controls UI presentation (e.g. ±2 cents indicator, decimal precision)
-/// WITHOUT mutating or weakening the canonical 400 ms ±5c confirmation contract.
-public struct FaithfulPrecisionPreference: Sendable, Codable, Equatable {
-    public var isHighPrecision: Bool
-    public var highPrecisionToleranceCents: Double
-
-    public init(isHighPrecision: Bool = false, highPrecisionToleranceCents: Double = 2.0) {
-        self.isHighPrecision = isHighPrecision
-        self.highPrecisionToleranceCents = highPrecisionToleranceCents
-    }
-
-    /// Evaluates whether the smoothed cents deviation satisfies the presentation precision threshold.
-    public func isPreciseInTune(cents: Double) -> Bool {
-        guard cents.isFinite else { return false }
-        let tolerance = isHighPrecision ? highPrecisionToleranceCents : 5.0
-        return abs(cents) <= tolerance
-    }
-
-    /// Formats cents for readout presentation: tenths with high precision, integer otherwise.
-    public func formatCents(_ cents: Double) -> String {
-        guard cents.isFinite else { return "—" }
-        return String(format: isHighPrecision ? "%.1f" : "%.0f", abs(cents))
-    }
-}
-
 // MARK: - Guided Sequence Progression
 
 /// Sequenced string advancement for Guided mode.
@@ -202,40 +110,8 @@ public final class FaithfulGuidedSequence: @unchecked Sendable {
         self.currentTargetIndex = 0
     }
 
-    /// Evaluates whether an incoming native TunerReading satisfies the completion gate
-    /// for the currently active guided target index.
-    @discardableResult
-    func observe(
-        reading: TunerReading?,
-        targetIndex: Int?
-    ) -> Bool {
-        guard let reading = reading,
-              let targetIndex = targetIndex,
-              targetIndex == currentTargetIndex,
-              targetIndex >= 0,
-              targetIndex < targetCount else {
-            return false
-        }
-
-        // Proximity alone never advances: inTune must be true (earned 400 ms confirmation)
-        guard reading.inTune == true else {
-            return false
-        }
-
-        // Must be fresh measured confirmation; held or sustained evidence never advances
-        guard reading.evidence == .measured && reading.freshness == .fresh else {
-            return false
-        }
-
-        // Award completion and advance
-        progress[targetIndex] = true
-        if currentTargetIndex + 1 < targetCount {
-            currentTargetIndex += 1
-        }
-        return true
-    }
-
-    /// Evaluates an algorithm FaithfulReading directly.
+    /// Evaluates a tracked reading against the completion gate for the **String**
+    /// currently being guided.
     @discardableResult
     func observe(
         reading: FaithfulReading?,

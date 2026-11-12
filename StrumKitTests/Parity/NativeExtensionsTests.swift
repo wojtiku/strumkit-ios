@@ -123,21 +123,24 @@ struct NativeExtensionsTests {
 
     // MARK: - 3. Shipped Presets, Baritone, and Custom Notes
 
+    private func resolvedTargets(
+        _ instrument: InstrumentCategory, _ tuningId: String, customMidi: [Int] = [], a4: Double = 440.0
+    ) -> [StringTarget] {
+        Tuning.resolve(
+            instrument: instrument, tuningId: tuningId, customMidi: customMidi,
+            mode: .auto, a4: a4, precision: false, guided: false).targets
+    }
+
     @Test("All shipped guitar presets resolve to 6 targets with descending string indices 6..1")
     func shippedGuitarPresetsValidation() {
         for preset in Presets.guitar {
-            let targets = FaithfulTargetResolver.resolve(instrument: .guitar, presetId: preset.id)
+            let targets = resolvedTargets(.guitar, preset.id)
             #expect(targets.count == 6, "Preset \(preset.id) must have 6 targets")
 
             for (index, target) in targets.enumerated() {
-                let expectedStringNum = 6 - index
-                #expect(target.stringNumber == expectedStringNum, "String number must be \(expectedStringNum)")
-
-                let expectedMidi = preset.midi[index]
-                #expect(target.midi == expectedMidi)
-
-                let expectedFreq = PitchMath.midiFrequency(expectedMidi, a4: 440.0)
-                #expect(abs(target.frequency - expectedFreq) < 1e-9)
+                #expect(target.number == 6 - index)
+                #expect(target.midi == preset.midi[index])
+                #expect(abs(target.frequency - PitchMath.midiFrequency(preset.midi[index], a4: 440.0)) < 1e-9)
             }
         }
     }
@@ -145,26 +148,21 @@ struct NativeExtensionsTests {
     @Test("All shipped ukulele presets and Baritone resolve to 4 targets with string indices 4..1")
     func shippedUkulelePresetsValidation() {
         for preset in Presets.ukulele {
-            let targets = FaithfulTargetResolver.resolve(instrument: .ukulele, presetId: preset.id)
+            let targets = resolvedTargets(.ukulele, preset.id)
             #expect(targets.count == 4, "Ukulele preset \(preset.id) must have 4 targets")
 
             for (index, target) in targets.enumerated() {
-                let expectedStringNum = 4 - index
-                #expect(target.stringNumber == expectedStringNum, "String number must be \(expectedStringNum)")
-
-                let expectedMidi = preset.midi[index]
-                #expect(target.midi == expectedMidi)
-
-                let expectedFreq = PitchMath.midiFrequency(expectedMidi, a4: 440.0)
-                #expect(abs(target.frequency - expectedFreq) < 1e-9)
+                #expect(target.number == 4 - index)
+                #expect(target.midi == preset.midi[index])
+                #expect(abs(target.frequency - PitchMath.midiFrequency(preset.midi[index], a4: 440.0)) < 1e-9)
             }
         }
 
         // Verify Baritone specifically
-        let baritoneTargets = FaithfulTargetResolver.resolve(instrument: .ukulele, presetId: "baritone")
+        let baritoneTargets = resolvedTargets(.ukulele, "baritone")
         #expect(baritoneTargets.map(\.note) == ["D3", "G3", "B3", "E4"])
         #expect(baritoneTargets.map(\.midi) == [50, 55, 59, 64])
-        #expect(baritoneTargets.compactMap(\.stringNumber) == [4, 3, 2, 1])
+        #expect(baritoneTargets.map(\.number) == [4, 3, 2, 1])
 
         // Verify profile resolution for Baritone uses extended range
         let baritoneProfile = FaithfulEngineProfile.profile(for: .ukulele, tuningId: "baritone")
@@ -177,8 +175,7 @@ struct NativeExtensionsTests {
         #expect(allCustomNotes.first == 33) // A1 (55.0 Hz)
         #expect(allCustomNotes.last == 83)  // B5 (987.77 Hz)
 
-        let customPresetMidi = [33, 40, 50, 60, 70, 83]
-        let targets = FaithfulTargetResolver.resolve(instrument: .guitar, presetId: "custom", customMidi: customPresetMidi)
+        let targets = resolvedTargets(.guitar, Tuning.customTuningId, customMidi: [33, 40, 50, 60, 70, 83])
         #expect(targets.count == 6)
         #expect(targets[0].note == "A1")
         #expect(targets[0].midi == 33)
@@ -191,18 +188,16 @@ struct NativeExtensionsTests {
 
     @Test("Dynamic calibration shifts target frequencies atomically without mutating DSP detection")
     func dynamicCalibrationTargetShift() {
-        let nominalA4Standard = 440.0
-        let nominalA4Calibrated = 432.0
+        // High-G ukulele: the fourth String is A4.
+        let targets440 = resolvedTargets(.ukulele, "high-g", a4: 440.0)
+        let targets432 = resolvedTargets(.ukulele, "high-g", a4: 432.0)
 
-        let targets440 = FaithfulTargetResolver.resolve(midi: [69], calibrationA4: nominalA4Standard)
-        let targets432 = FaithfulTargetResolver.resolve(midi: [69], calibrationA4: nominalA4Calibrated)
-
-        #expect(targets440[0].frequency == 440.0)
-        #expect(targets432[0].frequency == 432.0)
+        #expect(targets440[3].frequency == 440.0)
+        #expect(targets432[3].frequency == 432.0)
 
         // Target frequency ratio is exactly 432/440 (-31.76665 cents)
         let expectedCentsShift = 1200.0 * log2(432.0 / 440.0)
-        let actualCentsShift = centsBetween(frequency: targets432[0].frequency, reference: targets440[0].frequency)
+        let actualCentsShift = centsBetween(frequency: targets432[3].frequency, reference: targets440[3].frequency)
         #expect(abs(actualCentsShift - expectedCentsShift) < 1e-9)
 
         // Engine DSP detection on 432 Hz audio still measures 432 Hz regardless of calibration
@@ -211,65 +206,28 @@ struct NativeExtensionsTests {
         #expect(candidate != nil)
         #expect(abs(candidate!.frequency - 432.0) < 0.05)
 
-        // When measuring a 432 Hz reading against 432 Hz target, deviation is 0.0 cents
-        let reading432 = FaithfulReading(
-            frequency: 432.0,
-            cents: 0.0,
-            index: 0,
-            note: "A4",
-            inTune: true,
-            rms: 0.07,
-            stringNumber: 1
-        )
-        let nativeReading = FaithfulReadingAdapter.adapt(
-            reading: reading432,
-            rawFrequency: 432.0,
-            timeMs: 1000.0,
-            lastFreshTimeMs: 1000.0,
-            freshness: .fresh,
-            targets: targets432,
-            mode: .auto,
-            calibrationA4: 432.0
-        )
-        #expect(abs(nativeReading.cents) < 1e-6)
+        // Through the engine, a 432 Hz tone is on the A4 String under 432 Hz Calibration,
+        // and about 32 cents flat of it under 440 Hz.
+        func lastReading(a4: Double) -> TunerReading? {
+            let resolved = Tuning.resolve(
+                instrument: .ukulele, tuningId: "high-g", customMidi: [],
+                mode: .auto, a4: a4, precision: false, guided: false)
+            let engine = ReadingEngine(configuration: ReadingEngine.Configuration(resolved), sampleRate: 48000.0)
+            let tone = (0..<48000).map { i -> Float in
+                let t = Double(i) / 48000.0
+                return Float(sin(2.0 * .pi * 432.0 * t) + 0.5 * sin(2.0 * .pi * 864.0 * t)) * 0.15
+            }
+            return engine.push(tone, sampleRate: 48000.0).compactMap(\.display.reading).last
+        }
+        let calibrated = lastReading(a4: 432.0)
+        #expect(calibrated?.aim.target?.note == "A4")
+        #expect(abs(calibrated?.cents ?? 99) < 1.0)
+        let standard = lastReading(a4: 440.0)
+        #expect(standard?.aim.target?.note == "A4")
+        #expect(abs((standard?.cents ?? 0) - expectedCentsShift) < 1.0)
     }
 
-    // MARK: - 5. Chromatic Mode Semantics
-
-    @Test("Chromatic mode produces Note without Target and nil inTune")
-    func chromaticModeSemantics() {
-        let adapter = FaithfulReadingAdapter(mode: .chromatic)
-        let targetList = [target("A4", 69)]
-
-        let reading = FaithfulReading(
-            frequency: 440.0,
-            cents: 0.0,
-            index: 0,
-            note: "A4",
-            inTune: true,
-            rms: 0.07,
-            stringNumber: 1
-        )
-
-        let nativeReading = FaithfulReadingAdapter.adapt(
-            reading: reading,
-            rawFrequency: 440.0,
-            timeMs: 1000.0,
-            lastFreshTimeMs: 1000.0,
-            freshness: .fresh,
-            targets: targetList,
-            mode: .chromatic
-        )
-
-        // ReadingAim must be .note, never .target
-        #expect(nativeReading.aim.target == nil, "Chromatic mode must have nil target")
-        #expect(nativeReading.aim.inTune == nil, "Chromatic mode must have nil inTune verdict")
-        #expect(nativeReading.inTune == nil, "TunerReading.inTune must be nil in chromatic mode")
-        #expect(nativeReading.note == "A4")
-        #expect(abs(nativeReading.cents) < 0.01)
-    }
-
-    // MARK: - 6. Guided Sequence Advancement Requirements
+    // MARK: - 5. Guided Sequence Advancement Requirements
 
     @Test("Guided sequence strictly requires fresh measured confirmation to complete string")
     func guidedSequenceCompletionGate() {
@@ -278,97 +236,39 @@ struct NativeExtensionsTests {
         #expect(sequence.progress == [false, false, false, false])
         #expect(!sequence.isComplete)
 
+        func tracked(index: Int, inTune: Bool) -> FaithfulReading {
+            FaithfulReading(frequency: 392.0, cents: 0.0, index: index, note: "G4", inTune: inTune, rms: 0.1)
+        }
+
         // 1. Proximity alone (cents = 0.0, but inTune = false): NO advancement
-        let readingInProximityOnly = TunerReading(
-            at: 1.0,
-            lastFreshAt: 1.0,
-            frequency: 440.0,
-            aim: .target(StringTarget(note: "G4", midi: 67, frequency: 391.99, number: 4), inTune: false),
-            cents: 0.0,
-            displayCents: 0.0,
-            freshness: .fresh,
-            evidence: .measured
-        )
-        let advanced1 = sequence.observe(reading: readingInProximityOnly, targetIndex: 0)
-        #expect(!advanced1, "Proximity alone without inTune confirmation must never advance guided sequence")
+        #expect(!sequence.observe(reading: tracked(index: 0, inTune: false)),
+                "Proximity alone without inTune confirmation must never advance guided sequence")
         #expect(sequence.currentTargetIndex == 0)
         #expect(sequence.progress[0] == false)
 
-        // 2. Held freshness (inTune = true, but freshness = .held): NO advancement
-        let readingHeld = TunerReading(
-            at: 1.5,
-            lastFreshAt: 1.0,
-            frequency: 440.0,
-            aim: .target(StringTarget(note: "G4", midi: 67, frequency: 391.99, number: 4), inTune: true),
-            cents: 0.0,
-            displayCents: 0.0,
-            freshness: .held,
-            evidence: .measured
-        )
-        let advanced2 = sequence.observe(reading: readingHeld, targetIndex: 0)
-        #expect(!advanced2, "Held reading must never advance guided sequence")
+        // 2. Held freshness: NO advancement
+        #expect(!sequence.observe(reading: tracked(index: 0, inTune: true), freshness: .held),
+                "Held reading must never advance guided sequence")
+
+        // 3. Sustained evidence: NO advancement
+        #expect(!sequence.observe(reading: tracked(index: 0, inTune: true), evidence: .sustained),
+                "Sustained evidence must never advance guided sequence")
         #expect(sequence.currentTargetIndex == 0)
 
-        // 3. Sustained evidence (inTune = true, but evidence = .sustained): NO advancement
-        let readingSustained = TunerReading(
-            at: 2.0,
-            lastFreshAt: 2.0,
-            frequency: 440.0,
-            aim: .target(StringTarget(note: "G4", midi: 67, frequency: 391.99, number: 4), inTune: true),
-            cents: 0.0,
-            displayCents: 0.0,
-            freshness: .fresh,
-            evidence: .sustained
-        )
-        let advanced3 = sequence.observe(reading: readingSustained, targetIndex: 0)
-        #expect(!advanced3, "Sustained evidence must never advance guided sequence")
+        // 4. Out-of-order string confirmation: NO advancement
+        #expect(!sequence.observe(reading: tracked(index: 1, inTune: true)),
+                "Out-of-order string must not complete active string")
         #expect(sequence.currentTargetIndex == 0)
 
-        // 4. Out-of-order string confirmation (tuning string 1 while waiting for string 0): NO advancement
-        let readingWrongString = TunerReading(
-            at: 2.5,
-            lastFreshAt: 2.5,
-            frequency: 440.0,
-            aim: .target(StringTarget(note: "C4", midi: 60, frequency: 261.63, number: 3), inTune: true),
-            cents: 0.0,
-            displayCents: 0.0,
-            freshness: .fresh,
-            evidence: .measured
-        )
-        let advanced4 = sequence.observe(reading: readingWrongString, targetIndex: 1)
-        #expect(!advanced4, "Out-of-order string must not complete active string")
-        #expect(sequence.currentTargetIndex == 0)
-
-        // 5. Fresh measured confirmation on string 0: ADVANCE to string 1!
-        let readingConfirmed0 = TunerReading(
-            at: 3.0,
-            lastFreshAt: 3.0,
-            frequency: 392.0,
-            aim: .target(StringTarget(note: "G4", midi: 67, frequency: 391.99, number: 4), inTune: true),
-            cents: 0.0,
-            displayCents: 0.0,
-            freshness: .fresh,
-            evidence: .measured
-        )
-        let advanced5 = sequence.observe(reading: readingConfirmed0, targetIndex: 0)
-        #expect(advanced5, "Fresh measured confirmation must complete string 0")
+        // 5. Fresh measured confirmation on string 0: ADVANCE to string 1
+        #expect(sequence.observe(reading: tracked(index: 0, inTune: true)),
+                "Fresh measured confirmation must complete string 0")
         #expect(sequence.progress[0] == true)
         #expect(sequence.currentTargetIndex == 1)
 
         // 6. Complete remaining strings sequentially
         for i in 1...3 {
-            let readingConfirmed = TunerReading(
-                at: Double(i + 3),
-                lastFreshAt: Double(i + 3),
-                frequency: 440.0,
-                aim: .target(StringTarget(note: "A4", midi: 69, frequency: 440.0, number: 4 - i), inTune: true),
-                cents: 0.0,
-                displayCents: 0.0,
-                freshness: .fresh,
-                evidence: .measured
-            )
-            let adv = sequence.observe(reading: readingConfirmed, targetIndex: i)
-            #expect(adv)
+            #expect(sequence.observe(reading: tracked(index: i, inTune: true)))
             #expect(sequence.progress[i] == true)
         }
 
@@ -380,21 +280,5 @@ struct NativeExtensionsTests {
         #expect(sequence.currentTargetIndex == 0)
         #expect(sequence.progress == [false, false, false, false])
         #expect(!sequence.isComplete)
-    }
-
-    // MARK: - 7. Precision Preferences Presentation Overlay
-
-    @Test("Precision preference overlay formats and checks presentation without mutating confirmation")
-    func precisionPreferencesPresentationOverlay() {
-        var pref = FaithfulPrecisionPreference(isHighPrecision: false)
-        #expect(pref.isPreciseInTune(cents: 4.5) == true, "Standard ±5c allows 4.5c")
-        #expect(pref.isPreciseInTune(cents: 5.5) == false, "Standard ±5c rejects 5.5c")
-        #expect(pref.formatCents(4.2) == "4", "Standard formats integer")
-        #expect(pref.formatCents(4.6) == "5", "Standard formats integer")
-
-        pref.isHighPrecision = true
-        #expect(pref.isPreciseInTune(cents: 1.8) == true, "High-precision ±2c allows 1.8c")
-        #expect(pref.isPreciseInTune(cents: 2.5) == false, "High-precision ±2c rejects 2.5c")
-        #expect(pref.formatCents(1.8) == "1.8", "High precision formats tenth decimal")
     }
 }

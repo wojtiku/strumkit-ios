@@ -61,7 +61,6 @@
 		786DB856C45378286F658E4B /* TuningPreset.swift in Sources */ = {isa = PBXBuildFile; fileRef = C14F051D341768FCEBA790C6 /* TuningPreset.swift */; };
 		7ACB22B44B1D39623FB1C0BE /* AcousticStringSynthesizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB2DEB8ED3B411ECEDD7F61E /* AcousticStringSynthesizer.swift */; };
 		7EEF7133BC7050B8B738AADD /* ToneMemory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A79BC5EBE1FCD7F637CCA758 /* ToneMemory.swift */; };
-		83138E3423192659112512ED /* FaithfulPublicationAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C82C8639C2E36FE3F7C2D745 /* FaithfulPublicationAdapter.swift */; };
 		8727443EE3A8FBB189CEC057 /* CoverageMatrixTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B14F288E8C230CDC6CEA564A /* CoverageMatrixTests.swift */; };
 		880A60449151EDA98AEFFC39 /* MicrophoneSource.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20DC4168E2F6B6BD287F2D82 /* MicrophoneSource.swift */; };
 		882CBFAF3AF8A0418C3DABB5 /* TunerMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93C012A2646C507A1DE94F98 /* TunerMode.swift */; };
@@ -79,6 +78,7 @@
 		A4B82879AB494AA84269551E /* ParityComparator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9F5F6E110E055996DFF083E /* ParityComparator.swift */; };
 		A5CEB895E77F6BCDA5619268 /* TunerReading.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22ECD30CCA88CE429D36A50D /* TunerReading.swift */; };
 		A6A496224344A90B43FD9C21 /* CrossEngineComparisonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03AA0476868F5CC3C91C6980 /* CrossEngineComparisonTests.swift */; };
+		AB3DEB97A4C35369D3F6626D /* FaithfulPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0990B8A9EB108781A8478480 /* FaithfulPresentation.swift */; };
 		AC582A98A7DD7CECDAF2393B /* quiet_c.m4a in Resources */ = {isa = PBXBuildFile; fileRef = 51F0086D6CE8B695E3E2542E /* quiet_c.m4a */; };
 		B1E2B85A41713B7B7E5ACF82 /* RealStrumMeasurementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A30B89BB74B2B1543E4704A /* RealStrumMeasurementTests.swift */; };
 		B2213359F679CF0FAD20508E /* MicrophoneEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E16828F8B0749A0D6854A672 /* MicrophoneEvent.swift */; };
@@ -145,6 +145,7 @@
 		03AA0476868F5CC3C91C6980 /* CrossEngineComparisonTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrossEngineComparisonTests.swift; sourceTree = "<group>"; };
 		09412E004EDEADDAE09418FC /* InputLevelMeasurementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputLevelMeasurementTests.swift; sourceTree = "<group>"; };
 		09567FB37CE8D5799FE61DDF /* TrackerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerTests.swift; sourceTree = "<group>"; };
+		0990B8A9EB108781A8478480 /* FaithfulPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaithfulPresentation.swift; sourceTree = "<group>"; };
 		0B817DD4C230798EEAF1216E /* CaptureFramingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CaptureFramingTests.swift; sourceTree = "<group>"; };
 		11179B76D20690D80FFB8F8C /* AnalysisFrame.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysisFrame.swift; sourceTree = "<group>"; };
 		149782F79093A419A8FD0636 /* ParityModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParityModels.swift; sourceTree = "<group>"; };
@@ -234,7 +235,6 @@
 		BF9B7515D46B65D7111B714A /* PitchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PitchTests.swift; sourceTree = "<group>"; };
 		C14F051D341768FCEBA790C6 /* TuningPreset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TuningPreset.swift; sourceTree = "<group>"; };
 		C2E15D97960F315D857A408F /* FullParityRegressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullParityRegressionTests.swift; sourceTree = "<group>"; };
-		C82C8639C2E36FE3F7C2D745 /* FaithfulPublicationAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaithfulPublicationAdapter.swift; sourceTree = "<group>"; };
 		CA0E4D32A9A514CD315FCEAE /* FaithfulStreamingDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaithfulStreamingDetector.swift; sourceTree = "<group>"; };
 		CADC48A2F52FE2D23DC527F7 /* SpectralPitchScorerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectralPitchScorerTests.swift; sourceTree = "<group>"; };
 		CC52903FBEB63DCBCEE01843 /* TunerPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TunerPreferences.swift; sourceTree = "<group>"; };
@@ -332,7 +332,7 @@
 				729BEC9CAEB446626F476F43 /* FaithfulCaptureFraming.swift */,
 				1E18479FC84850AE378220D1 /* FaithfulEngineProfile.swift */,
 				99833663F7B5D03A562F50EE /* FaithfulNumericKernels.swift */,
-				C82C8639C2E36FE3F7C2D745 /* FaithfulPublicationAdapter.swift */,
+				0990B8A9EB108781A8478480 /* FaithfulPresentation.swift */,
 				64778221C104580328F65D63 /* FaithfulSpectralKernels.swift */,
 				BB38CBC69C77947DC8B2F1CA /* FaithfulStatelessDetector.swift */,
 				CA0E4D32A9A514CD315FCEAE /* FaithfulStreamingDetector.swift */,
@@ -660,7 +660,7 @@
 				E4C065D9688E42721562358A /* FaithfulCaptureFraming.swift in Sources */,
 				9E50068BEDD64A3DEC2D85CB /* FaithfulEngineProfile.swift in Sources */,
 				49A87B3E9C20B83157D1A177 /* FaithfulNumericKernels.swift in Sources */,
-				83138E3423192659112512ED /* FaithfulPublicationAdapter.swift in Sources */,
+				AB3DEB97A4C35369D3F6626D /* FaithfulPresentation.swift in Sources */,
 				D8183A9CFB20993D75A4797D /* FaithfulSpectralKernels.swift in Sources */,
 				BAD6B3EFE23F31066ADD6B62 /* FaithfulStatelessDetector.swift in Sources */,
 				F8F3265DA729413B44BA4E9F /* FaithfulStreamingDetector.swift in Sources */,
