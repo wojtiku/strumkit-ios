@@ -276,7 +276,8 @@ struct TunerView: View {
                         precision: viewModel.precision,
                         selectedTarget: activeTarget,
                         mode: viewModel.config.mode,
-                        holdOpacity: holdFade
+                        holdOpacity: holdFade,
+                        readoutCents: viewModel.readoutCents
                     )
                     .padding(.bottom, viewModel.engineStatus.guidanceError == nil ? 14 : 2)
                 }

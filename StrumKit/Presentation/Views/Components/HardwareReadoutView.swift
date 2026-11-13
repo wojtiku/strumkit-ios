@@ -10,6 +10,9 @@ struct HardwareReadoutView: View {
     let selectedTarget: StringTarget?
     let mode: TunerMode
     let holdOpacity: Double
+    /// The cents to print, when the caller is pacing the number separately from the
+    /// needle. `nil` prints the Reading's own.
+    let readoutCents: Double?
 
     init(
         reading: TunerReading?,
@@ -18,8 +21,10 @@ struct HardwareReadoutView: View {
         precision: Bool,
         selectedTarget: StringTarget?,
         mode: TunerMode,
-        holdOpacity: Double = 1.0
+        holdOpacity: Double = 1.0,
+        readoutCents: Double? = nil
     ) {
+        self.readoutCents = readoutCents
         self.reading = reading
         self.lastTone = lastTone
         self.feedback = feedback
@@ -94,7 +99,7 @@ struct HardwareReadoutView: View {
             }
             return "—"
         }
-        let cents = reading.displayCents
+        let cents = readoutCents ?? reading.displayCents
         let mag = String(format: precision ? "%.1f" : "%.0f", abs(cents))
         let sign = cents > 0 ? "+" : "−"
         return "\(sign)\(mag) cents"

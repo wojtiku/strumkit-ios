@@ -50,7 +50,13 @@ final class FaithfulPresentation: @unchecked Sendable {
     private(set) var lastDisplay: Double = -.infinity
     private(set) var lastFreshTime: Double = -.infinity
 
-    init() {}
+    /// The shortest time between two publications. The reference's is a twelfth of a
+    /// second, and that is the default.
+    let minimumIntervalMs: Double
+
+    init(minimumIntervalMs: Double = 1000.0 / 12.0) {
+        self.minimumIntervalMs = minimumIntervalMs
+    }
 
     func reset() {
         latest = nil
@@ -76,7 +82,7 @@ final class FaithfulPresentation: @unchecked Sendable {
             lastReading = time
             lastFreshTime = time
         }
-        if (time - lastDisplay) < (1000.0 / 12.0) {
+        if (time - lastDisplay) < minimumIntervalMs {
             return .skipped
         }
         lastDisplay = time

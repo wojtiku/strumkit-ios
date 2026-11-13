@@ -30,6 +30,12 @@ final class TunerViewModel {
 
     // MARK: - What is on display
     var currentReading: TunerReading? = nil
+    /// The cents the readout prints. The needle takes every **Reading**; a number that
+    /// changed as often would be unreadable, so this follows at a reading pace.
+    private(set) var readoutCents: Double? = nil
+    @ObservationIgnored private var readoutUpdatedAt: TimeInterval = -.infinity
+    @ObservationIgnored private var readoutNote: String? = nil
+    private static let readoutInterval: TimeInterval = 0.15
     var lastTone: ToneMemory? = nil
     var feedbackState: SignalFeedbackState = .inactive
     var diagnostics: TunerDiagnostics = TunerDiagnostics()
@@ -151,6 +157,16 @@ final class TunerViewModel {
         // A snapshot with no Reading means the hold has expired: the engine owns the
         // one-second hold and says when it is over.
         currentReading = snapshot.reading
+        if let reading = snapshot.reading {
+            if readoutCents == nil || reading.note != readoutNote
+                || reading.at - readoutUpdatedAt >= Self.readoutInterval || reading.at < readoutUpdatedAt {
+                readoutCents = reading.displayCents
+                readoutUpdatedAt = reading.at
+                readoutNote = reading.note
+            }
+        } else {
+            readoutCents = nil
+        }
         if let reading = snapshot.reading, reading.freshness == .fresh {
             lastTone = ToneMemory(
                 note: reading.note,

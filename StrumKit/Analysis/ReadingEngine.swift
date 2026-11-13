@@ -2,10 +2,17 @@ import Foundation
 
 /// Turns captured audio into **Readings**.
 ///
-/// The whole path lives here and nowhere else: reblocking audio into hops, detecting a
-/// pitch, tracking it against the **Targets**, confirming a **String** in tune, calming
-/// the display to 12 Hz with a one-second hold, crediting guided progress, and naming
-/// the result in the domain's terms.
+/// The whole path lives here and nowhere else: reblocking audio into hops, finding the
+/// note that is sounding, measuring its pitch, tracking it against the **Targets**,
+/// confirming a **String** in tune, holding the last **Reading** for a second, crediting
+/// guided progress, and naming the result in the domain's terms.
+///
+/// There are two ways through. `.precise` is what the app runs: the detector says which
+/// note is sounding, the partial lock measures how fast the string is actually vibrating,
+/// and the reading tracker follows that. `.reference` is the web tuner's path, kept
+/// bit-for-bit so the parity suite can go on proving the port; the detector's own
+/// frequency goes straight to the reference tracker and the display is throttled to 12 Hz
+/// as the reference's is.
 ///
 /// The engine is synchronous and owns no thread and no lock. Whoever drives it must do
 /// so from one place at a time; in the app that is the analysis session's worker.
@@ -17,6 +24,11 @@ import Foundation
 final class ReadingEngine {
     /// What the engine is listening for: everything that changes what is heard, and
     /// nothing that only changes how it is shown.
+    enum Pipeline: Sendable, Equatable {
+        case precise
+        case reference
+    }
+
     struct Configuration: Sendable, Equatable {
         var profile: FaithfulEngineProfile
         var targets: [StringTarget]
@@ -98,6 +110,7 @@ final class ReadingEngine {
     }
 
     private(set) var configuration: Configuration
+    let pipeline: Pipeline
     /// How many times the stream has been restarted because audio was lost.
     private(set) var discontinuityCount: Int = 0
 
@@ -108,7 +121,14 @@ final class ReadingEngine {
     private let framer: FaithfulCaptureFraming
     private var detector: FaithfulStreamingDetector
     private let tracker = FaithfulTracker()
-    private let presentation = FaithfulPresentation()
+    private let presentation: FaithfulPresentation
+    private let lock = PartialLock()
+    private let readingTracker = ReadingTracker()
+    /// The most recent audio, newest last: what the partial lock measures over, which is
+    /// longer than one detector window.
+    private var history: [Float] = []
+    /// The **Notes** a chromatic **Reading** may name, as the tracker's targets.
+    private var chromaticNotes: [Target] = []
     private var guided: FaithfulGuidedSequence
     /// Host time of the hop that last produced a fresh reading.
     private var lastFreshHost: TimeInterval?
@@ -117,8 +137,12 @@ final class ReadingEngine {
     /// framer's buffer, so a long replay is not mistaken for an overload.
     private static let maxPiece = FaithfulCaptureFraming.windowSize
 
-    init(configuration: Configuration, sampleRate: Double = 44100.0) {
+    init(configuration: Configuration, sampleRate: Double = 44100.0, pipeline: Pipeline = .precise) {
         self.configuration = configuration
+        self.pipeline = pipeline
+        // The needle is drawn at the display's own rate from whatever arrives, so the
+        // precise path tells it everything; the reference keeps its 12 Hz.
+        self.presentation = FaithfulPresentation(minimumIntervalMs: pipeline == .precise ? 0.0 : 1000.0 / 12.0)
         self.framer = FaithfulCaptureFraming(sampleRate: sampleRate)
         self.detector = createPitchDetector(profile: configuration.profile)
         self.guided = FaithfulGuidedSequence(targetCount: configuration.targets.count)
@@ -160,11 +184,14 @@ final class ReadingEngine {
         discontinuityCount += 1
         framer.reset()
         detector = createPitchDetector(profile: configuration.profile)
+        history.removeAll(keepingCapacity: true)
+        lock.reset()
         forgetReading()
     }
 
     private func forgetReading() {
         tracker.reset()
+        readingTracker.reset()
         presentation.reset()
         lastFreshHost = nil
     }
@@ -176,6 +203,24 @@ final class ReadingEngine {
         }
         tracker.auto = configuration.mode != .manual
         tracker.selected = configuration.selectedString
+
+        if configuration.mode == .chromatic {
+            // Nothing is being aimed at, so every Note the detector can hear is a
+            // candidate and the nearest one is named.
+            let a4 = configuration.calibrationA4
+            let lowest = Int((69.0 + 12.0 * log2(configuration.profile.minFrequency / a4)).rounded(.up))
+            let highest = Int((69.0 + 12.0 * log2(configuration.profile.maxFrequency / a4)).rounded(.down))
+            chromaticNotes = (lowest...max(lowest, highest)).map {
+                Target(note: PitchMath.midiNoteName($0), frequency: PitchMath.midiFrequency($0, a4: a4), midi: $0)
+            }
+            readingTracker.targets = chromaticNotes
+            readingTracker.auto = true
+        } else {
+            chromaticNotes = []
+            readingTracker.targets = tracker.targets ?? []
+            readingTracker.auto = configuration.mode != .manual
+        }
+        readingTracker.selected = configuration.selectedString
     }
 
     // MARK: - Audio in, hops out
@@ -192,6 +237,8 @@ final class ReadingEngine {
             // A different rate is a different stream.
             framer.setSampleRate(sampleRate)
             detector = createPitchDetector(profile: configuration.profile)
+            history.removeAll(keepingCapacity: true)
+            lock.reset()
             forgetReading()
         }
 
@@ -220,7 +267,25 @@ final class ReadingEngine {
         let host = window.hostTime ?? (timeMs / 1000.0)
 
         let candidate = detector.detect(input: window.samples, sampleRate: window.sampleRate, sampleTime: timeMs)
-        let tracked = tracker.push(pitch: candidate, time: timeMs)
+        let tracked: FaithfulReading?
+        switch pipeline {
+        case .reference:
+            tracked = tracker.push(pitch: candidate, time: timeMs)
+        case .precise:
+            remember(window)
+            // The detector names the note; the lock measures it.
+            let note = candidate.flatMap { $0.confidence >= 0.75 ? $0.frequency : nil }
+            let measured = lock.measure(
+                history: history[...],
+                sampleRate: window.sampleRate,
+                coarse: note,
+                range: configuration.profile.minFrequency...configuration.profile.maxFrequency,
+                timeMs: timeMs)
+            tracked = readingTracker.push(
+                frequency: measured?.frequency,
+                rms: candidate?.rms ?? window.rms,
+                time: timeMs)
+        }
 
         // Completion is decided here, at tracker cadence, before the display throttle
         // gets to decide whether this hop is shown at all.
@@ -241,7 +306,9 @@ final class ReadingEngine {
         case .published(let published, let freshness):
             let reading = makeReading(
                 published,
-                rawFrequency: freshness == .fresh ? candidate?.frequency : nil,
+                // On the precise path the detector's own frequency is only where the lock
+                // was told to look; the tracked value is the measurement.
+                rawFrequency: pipeline == .reference && freshness == .fresh ? candidate?.frequency : nil,
                 freshness: freshness,
                 at: host
             )
@@ -277,6 +344,20 @@ final class ReadingEngine {
         )
     }
 
+    /// Keeps the newest audio for the partial lock. Windows overlap, so after the first
+    /// only each one's last hop is new.
+    private func remember(_ window: FaithfulCaptureWindow) {
+        let keep = Int(window.sampleRate * 0.25)
+        if history.isEmpty {
+            history.append(contentsOf: window.samples)
+        } else {
+            history.append(contentsOf: window.samples.suffix(FaithfulCaptureFraming.hopSize))
+        }
+        if history.count > keep * 2 {
+            history.removeFirst(history.count - keep)
+        }
+    }
+
     // MARK: - Naming the result
 
     /// Names a tracked reading in the domain's terms, or returns `nil` when it points
@@ -288,6 +369,21 @@ final class ReadingEngine {
         freshness: TunerReading.Freshness,
         at host: TimeInterval
     ) -> TunerReading? {
+        if pipeline == .precise, configuration.mode == .chromatic {
+            guard chromaticNotes.indices.contains(tracked.index) else { return nil }
+            let note = MusicalNote(midiNoteNumber: chromaticNotes[tracked.index].midi, referenceA4: configuration.calibrationA4)
+            return TunerReading(
+                at: host,
+                lastFreshAt: lastFreshHost ?? host,
+                frequency: tracked.frequency,
+                aim: .note(note),
+                cents: tracked.cents,
+                displayCents: tracked.cents,
+                freshness: freshness,
+                evidence: freshness == .fresh ? .measured : .sustained
+            )
+        }
+
         guard configuration.targets.indices.contains(tracked.index) else { return nil }
         let target = configuration.targets[tracked.index]
 

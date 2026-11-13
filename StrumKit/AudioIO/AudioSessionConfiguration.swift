@@ -43,8 +43,9 @@ final class AudioSessionConfiguration: @unchecked Sendable {
                 mode: .measurement,
                 options: [.defaultToSpeaker, .allowBluetoothHFP, .mixWithOthers]
             )
-            // Evaluate 20ms analysis hops (0.020s preferred I/O duration)
-            try session.setPreferredIOBufferDuration(0.020)
+            // Ten milliseconds: each hardware buffer is handed straight to the analysis,
+            // so this is how evenly, and how late, the readings arrive.
+            try session.setPreferredIOBufferDuration(0.010)
 
             // 1. Hardware Microphone Directionality: Cardioid pattern rejects off-axis room noise
             if let inputs = session.availableInputs,

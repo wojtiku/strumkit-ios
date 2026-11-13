@@ -39,7 +39,7 @@ public final class ReadingEngineParityReplay: ParityReplayEngine, @unchecked Sen
             mode: config.auto ? .auto : .manual,
             selectedString: 0
         )
-        let engine = ReadingEngine(configuration: configuration, sampleRate: sampleRate)
+        let engine = ReadingEngine(configuration: configuration, sampleRate: sampleRate, pipeline: .reference)
         let feedback = TuningFeedback()
         let resetsMidStream = config.name == "vector-reset-events"
         let workletOffsetMs = (128.0 / sampleRate) * 1000.0

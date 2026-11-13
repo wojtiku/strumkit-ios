@@ -9,6 +9,12 @@ struct HardwareGaugeView: View {
     let inTune: Bool
     let needleOpacity: Double
 
+    /// Within tolerance, whether or not that has been confirmed yet. The needle is drawn
+    /// in the in-tune colour as soon as it is there, the way the readout beside it is;
+    /// confirmation adds the glow. Flat and sharp colours are for a needle that is
+    /// actually flat or sharp, not for one resting a third of a cent left of centre.
+    private var near: Bool { abs(cents) <= 5.0 }
+
     init(cents: Double, visible: Bool, inTune: Bool, needleOpacity: Double = 1.0) {
         self.cents = cents
         self.visible = visible
@@ -34,11 +40,15 @@ struct HardwareGaugeView: View {
                     style: StrokeStyle(lineWidth: 6, lineCap: .round)
                 )
 
-            // Animated Needle (0.11s ease-out matching reference UI transition)
+            // The needle is a spring with no bounce. Readings arrive in uneven bursts —
+            // the capture tap delivers a tenth of a second at a time — and a spring that is
+            // retargeted mid-flight keeps its velocity, so the needle moves continuously
+            // at the display's own rate. A timed ease restarts from rest on every update,
+            // which is what made it step.
             if visible {
-                NeedlePointerView(angle: needleAngle, inTune: inTune)
+                NeedlePointerView(angle: needleAngle, inTune: inTune, near: near)
                     .opacity(needleOpacity)
-                    .animation(.easeOut(duration: 0.11), value: needleAngle)
+                    .animation(.spring(duration: 0.22, bounce: 0), value: needleAngle)
             }
 
             // Labels: -50, 0, +50
@@ -134,6 +144,13 @@ private struct InTuneCenterArc: Shape {
 private struct NeedlePointerView: View {
     let angle: Double
     let inTune: Bool
+    let near: Bool
+
+    private var color: Color {
+        if inTune { return TunerTheme.inTune }
+        if near { return TunerTheme.inTune.opacity(0.85) }
+        return angle < 0 ? TunerTheme.flat : TunerTheme.sharp
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -146,7 +163,7 @@ private struct NeedlePointerView: View {
                 path.addLine(to: CGPoint(x: center.x, y: center.y - needleLength))
             }
             .stroke(
-                inTune ? TunerTheme.inTune : (angle < 0 ? TunerTheme.flat : TunerTheme.sharp),
+                color,
                 style: StrokeStyle(lineWidth: 3.0, lineCap: .round)
             )
             .shadow(
